@@ -1,6 +1,19 @@
+# Virtual environment
 .venv/
+
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Environment variables
 .env
+
+# Test reports and artifacts
+allure-results/
+allure-report/
+test-results/
+playwright-report/
+
+# OS
 .DS_Store
