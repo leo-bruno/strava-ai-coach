@@ -46,3 +46,41 @@ def test_get_athlete_raises_when_strava_returns_an_http_error() -> None:
                 RuntimeError, match=r"^Could not retrieve the Strava athlete profile\.$"
             ):
                 client.get_athlete()
+
+
+def test_get_athlete_raises_when_strava_returns_invalid_json() -> None:
+    """Raises a RuntimeError when Strava returns invalid JSON."""
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.side_effect = ValueError("Invalid JSON")
+
+    with patch(
+        "src.strava.client.refresh_access_token",
+        return_value=("test-access-token", "test-refresh-token"),
+    ):
+        with patch("src.strava.client.requests.get", return_value=response):
+            client = StravaClient()
+
+            with pytest.raises(
+                RuntimeError, match=r"^Strava returned an invalid athlete response\.$"
+            ):
+                client.get_athlete()
+
+
+def test_get_athlete_raises_when_strava_returns_a_non_dictionary_response() -> None:
+    """Raises a RuntimeError when Strava returns a non-dictionary response."""
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = ["unexpected", "response"]
+
+    with patch(
+        "src.strava.client.refresh_access_token",
+        return_value=("test-access-token", "test-refresh-token"),
+    ):
+        with patch("src.strava.client.requests.get", return_value=response):
+            client = StravaClient()
+
+            with pytest.raises(
+                RuntimeError, match=r"^Strava returned an invalid athlete response\.$"
+            ):
+                client.get_athlete()
