@@ -7,7 +7,7 @@ from src.strava.client import ATHLETE_URL, TIMEOUT_SECONDS, StravaClient
 
 
 def test_get_athlete_refreshes_token_and_uses_it_for_athlete_request(
-    monkeypatch,
+    monkeypatch, tmp_path
 ) -> None:
     """Refreshes the access token before retrieving the authenticated athlete."""
     monkeypatch.setenv("STRAVA_CLIENT_ID", "integration-client-id")
@@ -26,13 +26,16 @@ def test_get_athlete_refreshes_token_and_uses_it_for_athlete_request(
     athlete_response.json.return_value = athlete
 
     with patch(
-        "src.strava.auth.requests.post", return_value=token_response
-    ) as mock_post:
+        "src.strava.auth.REFRESH_TOKEN_STORAGE_PATH", tmp_path / "refresh_token"
+    ):
         with patch(
-            "src.strava.client.requests.get", return_value=athlete_response
-        ) as mock_get:
-            client = StravaClient()
-            result = client.get_athlete()
+            "src.strava.auth.requests.post", return_value=token_response
+        ) as mock_post:
+            with patch(
+                "src.strava.client.requests.get", return_value=athlete_response
+            ) as mock_get:
+                client = StravaClient()
+                result = client.get_athlete()
 
     assert result == athlete
     mock_post.assert_called_once_with(
@@ -49,4 +52,7 @@ def test_get_athlete_refreshes_token_and_uses_it_for_athlete_request(
         ATHLETE_URL,
         headers={"Authorization": "Bearer integration-access-token"},
         timeout=TIMEOUT_SECONDS,
+    )
+    assert (tmp_path / "refresh_token").read_text(encoding="utf-8") == (
+        "integration-refresh-token"
     )

@@ -24,6 +24,7 @@ def test_get_athlete_returns_athlete_from_valid_response() -> None:
             result = client.get_athlete()
 
     assert result == athlete
+    assert client._refresh_token == "test-refresh-token"
     mock_get.assert_called_once_with(
         ATHLETE_URL,
         headers={"Authorization": "Bearer test-access-token"},

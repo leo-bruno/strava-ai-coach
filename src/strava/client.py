@@ -16,7 +16,7 @@ class StravaClient:
     """Provide authenticated access to Strava resources."""
 
     def __init__(self) -> None:
-        self._access_token, _ = refresh_access_token()
+        self._access_token, self._refresh_token = refresh_access_token()
 
     def get_athlete(self) -> dict[str, Any]:
         """Return the authenticated athlete's Strava profile."""
