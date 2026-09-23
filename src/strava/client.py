@@ -4,6 +4,8 @@ from typing import Any
 
 import requests
 
+from src.models.activity import Activity
+from src.strava.activity_mapper import activity_from_strava
 from src.strava.auth import refresh_access_token
 
 
@@ -46,8 +48,8 @@ class StravaClient:
         after: int | None = None,
         page: int = 1,
         per_page: int = 30,
-    ) -> list[dict[str, Any]]:
-        """Return the authenticated athlete's activities."""
+    ) -> list[Activity]:
+        """Return one page of the authenticated athlete's typed activities."""
         params: dict[str, int] = {"page": page, "per_page": per_page}
         if before is not None:
             params["before"] = before
@@ -73,4 +75,15 @@ class StravaClient:
         if not isinstance(activities, list):
             raise RuntimeError("Strava returned an invalid activities response.")
 
-        return activities
+        result: list[Activity] = []
+        for activity in activities:
+            if not isinstance(activity, dict):
+                raise RuntimeError("Strava returned an invalid activities response.")
+            try:
+                result.append(activity_from_strava(activity))
+            except ValueError as error:
+                raise RuntimeError(
+                    "Strava returned an invalid activities response."
+                ) from error
+
+        return result
