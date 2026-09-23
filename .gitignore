@@ -15,5 +15,11 @@ allure-report/
 test-results/
 playwright-report/
 
+# Coverage data and reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
 # OS
 .DS_Store

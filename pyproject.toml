@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["src", "tests"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/test_*.py", "*/*_test.py", "*/*.test.py"]
+
+[tool.coverage.report]
+show_missing = true
+include_namespace_packages = true
