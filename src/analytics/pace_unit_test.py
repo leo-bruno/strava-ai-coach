@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.analytics.pace import average_moving_pace
+from src.analytics.pace import average_moving_pace, moving_pace
 from src.models.activity import Activity
 
 
@@ -60,3 +60,29 @@ def test_returns_zero_for_zero_moving_time_with_positive_distance(activity) -> N
     activity = replace(activity, moving_time_seconds=0)
 
     assert average_moving_pace(activity) == 0.0
+
+
+@pytest.mark.parametrize(
+    "distance",
+    [-1.0, float("nan"), float("inf"), float("-inf"), None, "5000", True,
+     pytest.param(10**400, id="overflow"), 5e-324],
+)
+def test_invalid_distance_has_undefined_pace(activity, distance) -> None:
+    assert moving_pace(distance, 1500) is None
+    assert average_moving_pace(replace(activity, distance_meters=distance)) is None
+
+
+@pytest.mark.parametrize(
+    "moving_time", [-1, None, "1500", True, 1.5, float("nan"), float("inf"),
+                    pytest.param(10**400, id="overflow")],
+)
+def test_invalid_time_has_undefined_pace(moving_time) -> None:
+    assert moving_pace(1000.0, moving_time) is None
+
+
+@pytest.mark.parametrize(
+    ("distance", "moving_time", "expected"),
+    [(400.0, 96, 240.0), (1000.0, 0, 0.0), (0.0, 120, None)],
+)
+def test_shared_pace_for_lap_measurements(distance, moving_time, expected) -> None:
+    assert moving_pace(distance, moving_time) == expected
