@@ -258,3 +258,22 @@ Before considering a feature complete:
 * The implementation should not contain unnecessary complexity.
 
 When unsure between a simple solution and a complex one, prefer the simple solution unless there is a clear reason not to.
+
+Project documentation
+
+PROJECT.md is the source of truth for the product vision, current capabilities, development status, architectural/product decisions, known gaps, and roadmap.
+
+Before implementing a new feature or making a significant architectural change:
+
+* Read the relevant sections of PROJECT.md.
+* Ensure the implementation is consistent with the documented product boundaries and current development strategy.
+* Do not assume that roadmap items described in PROJECT.md are already implemented. Verify the actual code and tests.
+
+After completing a meaningful functional increment:
+
+* Update PROJECT.md if the change affects implemented capabilities, current development status, known gaps, product decisions, validation status, or the next development step.
+* Keep PROJECT.md product-oriented. Do not turn it into low-level code documentation.
+* Do not mark a capability as complete unless the implementation and tests support that status.
+* Keep the Current Focus, roadmap, and Next Step sections consistent with the actual state of the repository.
+
+Small refactors, formatting changes, test-only changes, and internal implementation changes that do not alter the documented product state do not require a PROJECT.md update.
