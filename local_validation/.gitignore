@@ -1,0 +1,2 @@
+# Personal activity snapshots and audit ledgers stay local.
+*.json

@@ -1,5 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["src", "tests"]
+addopts = ["--import-mode=importlib"]
 
 [tool.coverage.run]
 source = ["src"]

@@ -23,3 +23,8 @@ coverage.xml
 
 # OS
 .DS_Store
+
+training_history_*.json
+training_history_validation_*.json
+training_history_validation_*.md
+validate_training_history.py
