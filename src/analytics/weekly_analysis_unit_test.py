@@ -26,7 +26,7 @@ def activity() -> Activity:
 def test_composes_local_week_and_metrics_without_mutating_inputs(activity) -> None:
     activities = [
         activity,
-        replace(activity, id=124, distance_meters=1250.5),
+        replace(activity, id=124, distance_meters=1250.5, moving_time_seconds=337),
         replace(activity, id=125, sport_type="Ride"),
         replace(activity, id=126, sport_type="TrailRun"),
         replace(activity, id=127, start_date=activity.start_date - timedelta(days=7)),
@@ -41,7 +41,7 @@ def test_composes_local_week_and_metrics_without_mutating_inputs(activity) -> No
             athlete_timezone=ZoneInfo("Europe/Madrid"),
         )
 
-        assert result == WeeklyAnalysis(date(2026, 9, 21), 6250.5, 2)
+        assert result == WeeklyAnalysis(date(2026, 9, 21), 6250.5, 2, 1837)
     assert activities == original
 
 
@@ -53,19 +53,21 @@ def test_no_matching_runs_keeps_week_identity_and_zero_metrics(activity, empty) 
         athlete_timezone=ZoneInfo("Europe/Madrid"),
     )
 
-    assert result == WeeklyAnalysis(date(2026, 9, 21), 0.0, 0)
+    assert result == WeeklyAnalysis(date(2026, 9, 21), 0.0, 0, 0)
     assert type(result.running_distance_meters) is float
     assert type(result.running_activity_count) is int
+    assert type(result.running_moving_time_seconds) is int
 
 
-def test_zero_distance_run_still_counts(activity) -> None:
+@pytest.mark.parametrize("moving_time", [0, 1500])
+def test_zero_distance_run_still_counts(activity, moving_time) -> None:
     result = weekly_analysis_from_activities(
-        [replace(activity, distance_meters=0.0, moving_time_seconds=0)],
+        [replace(activity, distance_meters=0.0, moving_time_seconds=moving_time)],
         reference_datetime=activity.start_date,
         athlete_timezone=ZoneInfo("Europe/Madrid"),
     )
 
-    assert result == WeeklyAnalysis(date(2026, 9, 21), 0.0, 1)
+    assert result == WeeklyAnalysis(date(2026, 9, 21), 0.0, 1, moving_time)
 
 
 @pytest.mark.parametrize(
@@ -86,7 +88,7 @@ def test_week_identity_and_metrics_share_local_boundaries(
     end_datetime = datetime.fromisoformat(end)
     activities = [
         replace(activity, start_date=datetime.fromisoformat(start)),
-        replace(activity, id=124, distance_meters=250.5,
+        replace(activity, id=124, distance_meters=250.5, moving_time_seconds=91,
                 start_date=end_datetime - timedelta(microseconds=1)),
         replace(activity, id=125, start_date=end_datetime),
     ]
@@ -97,7 +99,7 @@ def test_week_identity_and_metrics_share_local_boundaries(
         athlete_timezone=ZoneInfo("Europe/Madrid"),
     )
 
-    assert result == WeeklyAnalysis(expected_date, 5250.5, 2)
+    assert result == WeeklyAnalysis(expected_date, 5250.5, 2, 1591)
 
 
 def test_equivalent_reference_instants_produce_same_analysis(activity) -> None:
@@ -108,7 +110,7 @@ def test_equivalent_reference_instants_produce_same_analysis(activity) -> None:
             athlete_timezone=ZoneInfo("Europe/Madrid"),
         )
 
-        assert result == WeeklyAnalysis(date(2026, 9, 21), 5000.0, 1)
+        assert result == WeeklyAnalysis(date(2026, 9, 21), 5000.0, 1, 1500)
 
 
 @pytest.mark.parametrize("empty", [True, False])

@@ -147,7 +147,7 @@ Los datos opcionales ausentes permanecen como None.
 
 Los laps mantienen su orden original.
 
-WeeklyAnalysis representa la fecha del lunes local del atleta, la distancia semanal en metros y el número de actividades Run. Es un modelo inmutable, sin lógica de cálculo ni validación automática, cuyos tres datos debe proporcionar quien lo construye.
+WeeklyAnalysis representa la fecha del lunes local del atleta, la distancia semanal en metros, el número de actividades Run y running_moving_time_seconds. Es un modelo inmutable, sin lógica de cálculo ni validación automática, cuyos cuatro datos obligatorios debe proporcionar quien lo construye.
 
 La identidad de la semana es una fecha local; el modelo no almacena límites UTC ni timezone. La timezone sigue siendo una entrada de los cálculos semanales.
 
@@ -276,19 +276,22 @@ Una carrera con distancia cero continúa contando como actividad.
 
 Actualmente TrailRun no se incluye.
 
-Modelo semanal mínimo
+Weekly Moving Time
 
-WeeklyAnalysis permite representar las dos métricas existentes junto con la fecha del lunes local. Conserva resultados cero, incluida distancia cero con un número positivo de actividades.
+running_moving_time_seconds suma exactamente los segundos en movimiento de las mismas actividades Run seleccionadas por distancia y conteo. Es un entero obligatorio; una semana sin carreras devuelve 0 y una carrera válida con tiempo 0 aporta 0. Analytics recibe Activity válidos: los valores ausentes o inválidos de Strava se rechazan en el mapper, sin estimarlos ni sustituirlos. La asignación se realiza por start_date, sin deduplicar ni repartir actividades entre semanas.
 
-El flujo Activities → WeeklyAnalysis ya está disponible sobre actividades suministradas. Reutiliza la definición de semana local y los cálculos existentes de distancia y conteo. La fecha del lunes se obtiene convirtiendo el límite inicial UTC a la timezone del atleta antes de extraer la fecha.
+Modelo semanal
 
-Una entrada sin carreras coincidentes produce un análisis con la fecha de la semana y ambas métricas a cero. Las referencias sin timezone se rechazan, incluso con una lista vacía. Los resultados describen los datos suministrados y no garantizan que el historial semanal esté completo ni deduplicado. Este flujo no recupera actividades de Strava.
+WeeklyAnalysis permite representar las tres métricas existentes junto con la fecha del lunes local. Conserva resultados cero, incluida distancia cero con un número positivo de actividades.
+
+El flujo Activities → WeeklyAnalysis ya está disponible sobre actividades suministradas. Reutiliza la definición de semana local y los cálculos de distancia, conteo y tiempo en movimiento. La fecha del lunes se obtiene convirtiendo el límite inicial UTC a la timezone del atleta antes de extraer la fecha.
+
+Una entrada sin carreras coincidentes produce un análisis con la fecha de la semana y las tres métricas a cero. Las referencias sin timezone se rechazan, incluso con una lista vacía. Los resultados describen los datos suministrados y no garantizan que el historial semanal esté completo ni deduplicado. Este flujo no recupera actividades de Strava.
 
 Todavía pendiente
 
 Entre otras capacidades:
 
-* Duración semanal.
 * Ritmo agregado.
 * Distribución por tipo de entrenamiento.
 * Estructura Easy / Quality.
@@ -307,11 +310,9 @@ Automated Tests
 
 Actualmente:
 
-362 tests passing
+383 tests passing
 
-El contrato de WeeklyAnalysis cuenta con 6 tests que comprueban conservación de la fecha y las métricas, distancia fraccionaria, resultados cero e inmutabilidad. También pasan los 41 tests existentes de límites semanales, distancia y conteo.
-
-La construcción Activities → WeeklyAnalysis cuenta con 10 tests de composición y contrato, incluidos casos representativos de DST, cambio de año y coherencia entre la semana local y las métricas. Los 57 tests relacionados con Weekly Analytics pasan. La cobertura de la suite completa es del 96 %, con el nuevo constructor al 100 %.
+El contrato de WeeklyAnalysis cuenta con 8 tests, el cálculo de tiempo semanal con 18 y la construcción Activities → WeeklyAnalysis con 11. Junto con los 41 tests existentes de límites, distancia y conteo, pasan los 78 tests de Weekly Analytics. Los 39 tests del mapper también pasan. La suite completa configurada pasa con 383 tests y cobertura del 97 %; el nuevo cálculo y el constructor semanal alcanzan el 100 %. Los 7 tests adicionales de la utilidad local de captura pasan por separado.
 
 La suite cubre, entre otros:
 
@@ -363,6 +364,8 @@ Una utilidad manual separada, local_validation/capture_strava_history.py, obtuvo
 La reconciliación de distancia queda cerrada el 29 de septiembre de 2026 sin defecto encontrado en Weekly Analytics. La suma exacta de las actividades API y la suma exacta de sus totales semanales coinciden en 468,5869 km; las 59 Run quedan asignadas a sus semanas sin pérdidas ni duplicación durante la agregación. La diferencia es de 86,9 m respecto a los 468,5 km del total general de Strava y de 96,9 m respecto a los 468,49 km que suman sus puntos semanales visibles. Son comparaciones distintas, no un error aritmético anterior. Los valores semanales visibles no siguen uniformemente ni redondeo convencional a dos decimales ni truncamiento. La diferencia residual queda documentada como una diferencia no explicada de presentación/precisión respecto a la UI de Strava, no como un error demostrado de nuestros cálculos. La UI no proporciona precisión suficiente para determinar su algoritmo interno.
 
 Decisión de producto: Weekly Analytics utiliza los valores exactos proporcionados por la API para calcular sus métricas; no intentaremos reproducir la presentación interna de Strava ni ajustar los cálculos para igualar sus valores visibles. El cierre no elimina las limitaciones de la captura ni declara completa Weekly Analytics V1. El detalle se conserva en local_validation/strava_reconciliation_report.md.
+
+La validación offline de running_moving_time_seconds se completó sobre la captura del 28 de septiembre: 89 actividades, 59 Run y 24 semanas. La suma independiente por semana local coincide exactamente en todas las semanas: 186774 segundos en total, sin diferencias y sin modificar la captura. Cinco semanas sin registros Run producen 0; la última seguía abierta al extraer. Los valores fuente ya están normalizados desde moving_time por el mapper. Esta comprobación no garantiza integridad del historial ni demuestra descanso en semanas sin registros. Informe y reproducción: local_validation/weekly_moving_time_report.md y local_validation/validate_weekly_moving_time.py.
 
 ⸻
 
@@ -511,14 +514,15 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 Weekly Analytics V1
 
-Continuar de forma incremental a partir de las dos métricas semanales existentes:
+Continuar de forma incremental a partir de las tres métricas semanales existentes:
 
 * Weekly distance ✅
 * Weekly activity count ✅
+* running_moving_time_seconds ✅
 * Modelo mínimo WeeklyAnalysis ✅
 * Activities → WeeklyAnalysis sobre actividades suministradas ✅
 
-La validación offline del flujo semanal actual ya se ha realizado con una muestra real y contraste independiente de semana local, distancia y conteo, y se ha repetido con una captura actualizada. La reconciliación de distancia está cerrada sin defecto encontrado en Weekly Analytics; la diferencia residual de presentación/precisión respecto a la UI de Strava no bloquea el siguiente incremento. El incremento acordado es añadir únicamente running_moving_time_seconds, definido como la suma del tiempo en movimiento de las mismas actividades Run, antes de cerrar el alcance de volumen semanal V1. Esta métrica todavía no está implementada y no se inicia como parte del cierre documental; estructura, intensidad y densidad permanecen fuera de ese incremento.
+La validación offline del flujo semanal actual ya se ha realizado con una muestra real y contraste independiente de semana local, distancia y conteo, y se ha repetido con una captura actualizada. La reconciliación de distancia está cerrada sin defecto encontrado en Weekly Analytics; la diferencia residual de presentación/precisión respecto a la UI de Strava no bloquea el siguiente incremento. El incremento running_moving_time_seconds está implementado, probado y validado offline como suma del tiempo en movimiento de las mismas actividades Run. El siguiente paso es cerrar el alcance de volumen semanal V1 antes de acordar otro incremento; no se declara completa Weekly Analytics V1. Estructura, intensidad, densidad, ritmo agregado, tirada larga, días de descanso y Trends permanecen fuera de este incremento.
 
 El gap de detailed Strava activity → TrainingAnalysis permanece documentado y deberá cerrarse antes de considerar Individual Analytics completamente integrado.
 
