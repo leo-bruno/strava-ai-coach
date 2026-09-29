@@ -82,13 +82,13 @@ La estrategia de desarrollo es incremental:
 1. ✅ Definir correctamente qué actividades pertenecen a una semana.
 2. ✅ Calcular distancia semanal.
 3. ✅ Calcular número de entrenamientos.
-4. 🚧 Completar el modelo y métricas de volumen semanal.
-5. ⏳ Añadir estructura e intensidad.
+4. ✅ Completar el volumen semanal V1: distancia, número de actividades y moving time.
+5. ✅ Weekly Structure V1: activity count, distance y moving time por TrainingType.
 6. ⏳ Añadir recuperación y densidad de entrenamiento.
 7. ⏳ Validar Weekly Analytics con datos reales.
 8. ⏳ Construir comparaciones entre semanas.
 
-El modelo mínimo WeeklyAnalysis y su construcción a partir de actividades suministradas ya están implementados y probados. Las métricas de volumen semanal aún no están completas; Weekly Analytics V1 continúa en desarrollo.
+WeeklyAnalysis y su construcción a partir de actividades suministradas incluyen las tres métricas de volumen y las tres dimensiones por TrainingType, implementadas, probadas y validadas offline. Weekly Structure V1 queda completa en su alcance acordado; no se declara completa Weekly Analytics V1.
 
 No se implementará Weekly Analytics completo de una sola vez.
 
@@ -141,13 +141,14 @@ Actualmente existen modelos inmutables para representar:
 * TrainingLap
 * TrainingAnalysis
 * WeeklyAnalysis
+* TrainingTypeSummary
 * Tipos de entrenamiento
 
 Los datos opcionales ausentes permanecen como None.
 
 Los laps mantienen su orden original.
 
-WeeklyAnalysis representa la fecha del lunes local del atleta, la distancia semanal en metros, el número de actividades Run y running_moving_time_seconds. Es un modelo inmutable, sin lógica de cálculo ni validación automática, cuyos cuatro datos obligatorios debe proporcionar quien lo construye.
+WeeklyAnalysis representa la fecha del lunes local del atleta, las tres métricas de volumen y running_structure_by_type. Este último campo obligatorio contiene seis resúmenes inmutables TrainingTypeSummary, en el orden del enum existente, con training_type, activity_count, distance_meters y moving_time_seconds. Los modelos permanecen sin lógica de cálculo ni validación automática; quien los construye proporciona todos los datos. La distancia por tipo es obligatoria y conserva la precisión float sin redondear. El moving time por tipo es obligatorio y conserva segundos enteros exactos.
 
 La identidad de la semana es una fecha local; el modelo no almacena límites UTC ni timezone. La timezone sigue siendo una entrada de los cálculos semanales.
 
@@ -280,21 +281,30 @@ Weekly Moving Time
 
 running_moving_time_seconds suma exactamente los segundos en movimiento de las mismas actividades Run seleccionadas por distancia y conteo. Es un entero obligatorio; una semana sin carreras devuelve 0 y una carrera válida con tiempo 0 aporta 0. Analytics recibe Activity válidos: los valores ausentes o inválidos de Strava se rechazan en el mapper, sin estimarlos ni sustituirlos. La asignación se realiza por start_date, sin deduplicar ni repartir actividades entre semanas.
 
+Weekly Structure V1 ✅ — conteo, distancia y moving time por TrainingType
+
+El primer incremento describe cuántas actividades corresponden a Easy, Long, Tempo, Intervals, Race y Other. Selecciona exactamente las mismas Run de la semana local que las métricas de volumen y clasifica cada entrada seleccionada una sola vez mediante el clasificador existente, sin modificar sus reglas. Cada categoría aparece una vez; las ausentes tienen conteo cero. La suma reconcilia con running_activity_count. Una sesión sigue significando una actividad Run suministrada, incluso con distancia o tiempo cero; no se fusionan actividades ni se deduplican registros.
+
+El segundo incremento añade distance_meters: suma las distancias de las mismas Run, en el mismo recorrido y con la misma clasificación que el conteo. Cada entrada aporta a una única categoría. Una actividad con distancia cero sigue contando; una categoría ausente conserva conteo 0 y distancia 0.0. La suma por categorías reconcilia con running_distance_meters dentro de la precisión float, sin redondear ni ajustar valores para forzar igualdad. No se añade validación defensiva.
+
+El tercer incremento añade moving_time_seconds como suma exacta de Activity.moving_time_seconds. Cada Run se clasifica una sola vez y su conteo, distancia y tiempo se acumulan en la misma categoría. Tiempo cero sigue contando y distancia cero no impide aportar tiempo positivo. Las categorías ausentes y semanas sin Run conservan seis resúmenes con las tres medidas a cero. La suma de segundos por tipo reconcilia exactamente con running_moving_time_seconds. No se estima, no se usa elapsed_time y no se convierten las unidades.
+
+Weekly Structure V1 queda completa en las tres dimensiones acordadas: activity count, distance y moving time. No se almacenarán porcentajes, Easy / Quality, intensidad fisiológica, sesión exigente, tirada larga principal, cronología ni conclusiones o recomendaciones. Other se conserva explícitamente. Los futuros patrones de densidad y sesiones consecutivas podrán necesitar información individual adicional; WeeklyAnalysis no será su única fuente.
+
 Modelo semanal
 
-WeeklyAnalysis permite representar las tres métricas existentes junto con la fecha del lunes local. Conserva resultados cero, incluida distancia cero con un número positivo de actividades.
+WeeklyAnalysis representa las tres métricas de volumen, la fecha del lunes local y el conteo, distancia y moving time por tipo. Conserva resultados cero, incluida distancia cero con un número positivo de actividades.
 
-El flujo Activities → WeeklyAnalysis ya está disponible sobre actividades suministradas. Reutiliza la definición de semana local y los cálculos de distancia, conteo y tiempo en movimiento. La fecha del lunes se obtiene convirtiendo el límite inicial UTC a la timezone del atleta antes de extraer la fecha.
+El flujo Activities → WeeklyAnalysis ya está disponible sobre actividades suministradas. Reutiliza la definición de semana local y los cálculos de distancia, conteo, tiempo en movimiento y estructura por tipo. La fecha del lunes se obtiene convirtiendo el límite inicial UTC a la timezone del atleta antes de extraer la fecha.
 
-Una entrada sin carreras coincidentes produce un análisis con la fecha de la semana y las tres métricas a cero. Las referencias sin timezone se rechazan, incluso con una lista vacía. Los resultados describen los datos suministrados y no garantizan que el historial semanal esté completo ni deduplicado. Este flujo no recupera actividades de Strava.
+Una entrada sin carreras coincidentes produce un análisis con la fecha de la semana, las tres métricas de volumen a cero y seis categorías con conteo, distancia y moving time a cero. Las referencias sin timezone se rechazan, incluso con una lista vacía. Los resultados describen los datos suministrados y no garantizan que el historial semanal esté completo ni deduplicado. Este flujo no recupera actividades de Strava.
 
 Todavía pendiente
 
 Entre otras capacidades:
 
 * Ritmo agregado.
-* Distribución por tipo de entrenamiento.
-* Estructura Easy / Quality.
+* Definición y derivación posterior de Easy / Quality, fuera de Weekly Structure V1.
 * Tirada larga.
 * Densidad de entrenamiento.
 * Días de descanso.
@@ -310,9 +320,9 @@ Automated Tests
 
 Actualmente:
 
-383 tests passing
+417 tests passing
 
-El contrato de WeeklyAnalysis cuenta con 8 tests, el cálculo de tiempo semanal con 18 y la construcción Activities → WeeklyAnalysis con 11. Junto con los 41 tests existentes de límites, distancia y conteo, pasan los 78 tests de Weekly Analytics. Los 39 tests del mapper también pasan. La suite completa configurada pasa con 383 tests y cobertura del 97 %; el nuevo cálculo y el constructor semanal alcanzan el 100 %. Los 7 tests adicionales de la utilidad local de captura pasan por separado.
+El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. La suite completa configurada pasa con 417 tests y cobertura global de líneas y ramas del 96,76 % (97 % redondeado); el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
 La suite cubre, entre otros:
 
@@ -366,6 +376,18 @@ La reconciliación de distancia queda cerrada el 29 de septiembre de 2026 sin de
 Decisión de producto: Weekly Analytics utiliza los valores exactos proporcionados por la API para calcular sus métricas; no intentaremos reproducir la presentación interna de Strava ni ajustar los cálculos para igualar sus valores visibles. El cierre no elimina las limitaciones de la captura ni declara completa Weekly Analytics V1. El detalle se conserva en local_validation/strava_reconciliation_report.md.
 
 La validación offline de running_moving_time_seconds se completó sobre la captura del 28 de septiembre: 89 actividades, 59 Run y 24 semanas. La suma independiente por semana local coincide exactamente en todas las semanas: 186774 segundos en total, sin diferencias y sin modificar la captura. Cinco semanas sin registros Run producen 0; la última seguía abierta al extraer. Los valores fuente ya están normalizados desde moving_time por el mapper. Esta comprobación no garantiza integridad del historial ni demuestra descanso en semanas sin registros. Informe y reproducción: local_validation/weekly_moving_time_report.md y local_validation/validate_weekly_moving_time.py.
+
+Validación offline del conteo semanal por TrainingType
+
+El conteo se contrastó con la captura del 28 de septiembre: 89 actividades, 59 Run y 24 semanas. Una tabla de etiquetas revisadas por nombre y una agrupación independiente por semana ISO local coinciden con Analytics en todas las categorías de las 24 semanas: Easy 20, Long 11, Tempo 2, Intervals 8, Race 1 y Other 17. La suma reconcilia con running_activity_count en cada semana y suma 59 en total. Cinco semanas sin Run conservan seis ceros. No se modificó la captura ni el clasificador. Esta validación comprueba el contrato basado en nombres, no la intensidad real ni la integridad del historial; la última semana seguía abierta. Informe y reproducción: local_validation/weekly_structure_report.md y local_validation/validate_weekly_structure.py.
+
+Validación offline de distancia semanal por TrainingType
+
+El segundo incremento se contrastó con la misma captura intacta de 89 actividades, 59 Run y 24 semanas. Se reutilizaron las etiquetas revisadas y se sumaron independientemente los literales de distancia con Decimal por semana ISO local y tipo. Los totales fuente son Easy 140582,6 m, Long 132624,6 m, Tempo 13375,3 m, Intervals 65105,5 m, Race 6201,0 m y Other 110697,9 m: 468586,9 m en total. Analytics coincide dentro de precisión float por categoría y semana; las 24 semanas reconcilian con running_distance_meters y conservan sus conteos. La diferencia máxima semanal de reconciliación es 3,64 × 10⁻¹² m y la global 5,82 × 10⁻¹¹ m en valor absoluto, sin redondear los cálculos. La auditoría usa tolerancia relativa 1e-12 y absoluta 1e-9 m. Se verificó el SHA-256 original sin cambios. Informe y reproducción: local_validation/weekly_structure_distance_report.md y local_validation/validate_weekly_structure.py. Siguen vigentes las limitaciones de integridad del historial y semana abierta.
+
+Validación offline de moving time por TrainingType y cierre de Weekly Structure V1
+
+El último incremento se contrastó con una suma independiente de segundos enteros sobre la misma captura: Easy 57941 s, Long 51859 s, Tempo 5463 s, Intervals 26283 s, Race 2334 s y Other 42894 s; total 186774 s. Las seis categorías de las 24 semanas coinciden exactamente con el oráculo y reconcilian con running_moving_time_seconds. Count y distance continúan reconciliando, y sus resultados por categoría y semana permanecen idénticos a la validación anterior. El SHA-256 original de la captura y el de las etiquetas no cambian. Con tests y validación superados, Weekly Structure V1 queda cerrada en activity count, distance y moving time; no se declara completa Weekly Analytics V1. Informe y reproducción: local_validation/weekly_structure_time_report.md y local_validation/validate_weekly_structure.py.
 
 ⸻
 
@@ -514,15 +536,21 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 Weekly Analytics V1
 
-Continuar de forma incremental a partir de las tres métricas semanales existentes:
+Continuar de forma incremental a partir del volumen semanal y Weekly Structure V1 completa:
 
 * Weekly distance ✅
 * Weekly activity count ✅
 * running_moving_time_seconds ✅
 * Modelo mínimo WeeklyAnalysis ✅
 * Activities → WeeklyAnalysis sobre actividades suministradas ✅
+* Conteo semanal por los seis TrainingType ✅
+* Distancia semanal por los seis TrainingType ✅
+* Moving time semanal por los seis TrainingType ✅
+* Weekly Structure V1 cerrada en las tres dimensiones acordadas ✅
 
-La validación offline del flujo semanal actual ya se ha realizado con una muestra real y contraste independiente de semana local, distancia y conteo, y se ha repetido con una captura actualizada. La reconciliación de distancia está cerrada sin defecto encontrado en Weekly Analytics; la diferencia residual de presentación/precisión respecto a la UI de Strava no bloquea el siguiente incremento. El incremento running_moving_time_seconds está implementado, probado y validado offline como suma del tiempo en movimiento de las mismas actividades Run. El siguiente paso es cerrar el alcance de volumen semanal V1 antes de acordar otro incremento; no se declara completa Weekly Analytics V1. Estructura, intensidad, densidad, ritmo agregado, tirada larga, días de descanso y Trends permanecen fuera de este incremento.
+El volumen semanal V1 queda acotado a distancia, conteo y moving time, implementados y validados offline. La reconciliación de distancia con la captura está cerrada sin defecto encontrado; la diferencia residual respecto a la presentación de Strava permanece documentada. El conteo, la distancia y el moving time por TrainingType ya están implementados, probados y validados con etiquetas revisadas y sumas independientes de la captura real.
+
+El siguiente paso es acordar el próximo bloque de Weekly Analytics V1, con alcance y contrato propios, partiendo de Weekly Structure V1 cerrada. No se inicia automáticamente ninguna otra métrica. La intensidad, densidad, ritmo agregado, tirada larga principal, días de descanso, Trends e Insights quedan fuera de este incremento. No se declara completa Weekly Analytics V1.
 
 El gap de detailed Strava activity → TrainingAnalysis permanece documentado y deberá cerrarse antes de considerar Individual Analytics completamente integrado.
 
