@@ -62,7 +62,7 @@ Analytics calcula → Trends compara → Insights detecta → Coach interpreta y
 Área	Estado
 Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
-Weekly Analytics V1	🚧 En desarrollo
+Weekly Analytics V1	✅ COMPLETE
 Trends	⏳ Pendiente
 Insights	⏳ Pendiente
 AI Coach	⏳ Pendiente
@@ -73,26 +73,15 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-Weekly Analytics V1
+Diseño de Trends
 
-Estamos construyendo la capacidad de entender una semana completa de entrenamiento, en lugar de analizar únicamente sesiones individuales.
+Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
-La estrategia de desarrollo es incremental:
+El siguiente foco es definir comparaciones entre semanas sobre esta base, sin ampliar automáticamente WeeklyAnalysis. Trends todavía no está implementado. Su diseño deberá tratar explícitamente semanas abiertas/incompletas y distinguir ausencia de datos de una semana observada sin Run.
 
-1. ✅ Definir correctamente qué actividades pertenecen a una semana.
-2. ✅ Calcular distancia semanal.
-3. ✅ Calcular número de entrenamientos.
-4. ✅ Completar el volumen semanal V1: distancia, número de actividades y moving time.
-5. ✅ Weekly Structure V1: activity count, distance y moving time por TrainingType.
-6. ⏳ Añadir recuperación y densidad de entrenamiento.
-7. ⏳ Validar Weekly Analytics con datos reales.
-8. ⏳ Construir comparaciones entre semanas.
+Longest run y calendario permanecen como posibles ampliaciones futuras de Analytics, sujetas a una necesidad concreta de Trends o Insights; no bloquean el cierre de V1.
 
-WeeklyAnalysis y su construcción a partir de actividades suministradas incluyen las tres métricas de volumen y las tres dimensiones por TrainingType, implementadas, probadas y validadas offline. Weekly Structure V1 queda completa en su alcance acordado; no se declara completa Weekly Analytics V1.
-
-No se implementará Weekly Analytics completo de una sola vez.
-
-Cada nueva capacidad debe seguir el ciclo:
+Cada nueva capacidad seguirá el ciclo:
 
 Definir → Implementar → Tests → Validar → Continuar
 
@@ -242,9 +231,21 @@ Esto evita inventar información que los datos no permiten asegurar.
 
 ⸻
 
-5. Weekly Analytics 🚧
+5. Weekly Analytics V1 ✅ COMPLETE
 
-Weekly Analytics ya está iniciado.
+Definición y alcance aprobado
+
+Resumen determinista del volumen y composición por TrainingType de las actividades Run suministradas para una semana local del atleta.
+
+Weekly Analytics V1 incluye:
+
+* week_start_date
+* running_distance_meters
+* running_activity_count
+* running_moving_time_seconds
+* running_structure_by_type: para cada TrainingType, activity_count, distance_meters y moving_time_seconds.
+
+Las seis categorías son Easy, Long, Tempo, Intervals, Race y Other. Weekly Structure V1 está completa en sus tres dimensiones. Esta decisión cierra el alcance de Weekly Analytics V1; no declara completas Strava Integration, Trends, Insights ni Coach.
 
 Definición de semana
 
@@ -299,18 +300,24 @@ El flujo Activities → WeeklyAnalysis ya está disponible sobre actividades sum
 
 Una entrada sin carreras coincidentes produce un análisis con la fecha de la semana, las tres métricas de volumen a cero y seis categorías con conteo, distancia y moving time a cero. Las referencias sin timezone se rechazan, incluso con una lista vacía. Los resultados describen los datos suministrados y no garantizan que el historial semanal esté completo ni deduplicado. Este flujo no recupera actividades de Strava.
 
-Todavía pendiente
+Fuera del alcance V1
 
-Entre otras capacidades:
-
-* Ritmo agregado.
-* Definición y derivación posterior de Easy / Quality, fuera de Weekly Structure V1.
-* Tirada larga.
-* Densidad de entrenamiento.
-* Días de descanso.
+* Aggregate pace almacenado.
+* Easy / Quality.
+* Longest run.
+* Active running days.
+* Rest days.
 * Sesiones consecutivas.
-* Comparaciones entre semanas.
-* Tendencias.
+* Distribución diaria.
+* Densidad/calendario.
+
+Estos conceptos permanecen en el roadmap, reclasificados por responsabilidad; no son requisitos pendientes para cerrar Weekly Analytics V1.
+
+Limitaciones del resumen
+
+WeeklyAnalysis es un resumen y no pretende conservar toda la información de las actividades originales. No permite reconstruir sus extremos individuales ni su cronología. Trends e Insights podrán necesitar Activity u otras fuentes además de WeeklyAnalysis. No existe todavía persistencia histórica de actividades; la disponibilidad futura de esos datos deberá resolverse cuando sea necesaria.
+
+Una semana sin Run en los datos suministrados no demuestra una semana real de descanso. La clasificación por TrainingType describe las reglas actuales basadas en nombres, no intensidad fisiológica. Las semanas abiertas/incompletas deberán tratarse explícitamente al diseñar Trends; los totales por sí solos no garantizan la cobertura del historial.
 
 ⸻
 
@@ -373,7 +380,7 @@ Una utilidad manual separada, local_validation/capture_strava_history.py, obtuvo
 
 La reconciliación de distancia queda cerrada el 29 de septiembre de 2026 sin defecto encontrado en Weekly Analytics. La suma exacta de las actividades API y la suma exacta de sus totales semanales coinciden en 468,5869 km; las 59 Run quedan asignadas a sus semanas sin pérdidas ni duplicación durante la agregación. La diferencia es de 86,9 m respecto a los 468,5 km del total general de Strava y de 96,9 m respecto a los 468,49 km que suman sus puntos semanales visibles. Son comparaciones distintas, no un error aritmético anterior. Los valores semanales visibles no siguen uniformemente ni redondeo convencional a dos decimales ni truncamiento. La diferencia residual queda documentada como una diferencia no explicada de presentación/precisión respecto a la UI de Strava, no como un error demostrado de nuestros cálculos. La UI no proporciona precisión suficiente para determinar su algoritmo interno.
 
-Decisión de producto: Weekly Analytics utiliza los valores exactos proporcionados por la API para calcular sus métricas; no intentaremos reproducir la presentación interna de Strava ni ajustar los cálculos para igualar sus valores visibles. El cierre no elimina las limitaciones de la captura ni declara completa Weekly Analytics V1. El detalle se conserva en local_validation/strava_reconciliation_report.md.
+Decisión de producto: Weekly Analytics utiliza los valores exactos proporcionados por la API para calcular sus métricas; no intentaremos reproducir la presentación interna de Strava ni ajustar los cálculos para igualar sus valores visibles. El cierre de aquella reconciliación no eliminó las limitaciones de la captura ni supuso por sí solo el cierre de Weekly Analytics V1. El detalle se conserva en local_validation/strava_reconciliation_report.md.
 
 La validación offline de running_moving_time_seconds se completó sobre la captura del 28 de septiembre: 89 actividades, 59 Run y 24 semanas. La suma independiente por semana local coincide exactamente en todas las semanas: 186774 segundos en total, sin diferencias y sin modificar la captura. Cinco semanas sin registros Run producen 0; la última seguía abierta al extraer. Los valores fuente ya están normalizados desde moving_time por el mapper. Esta comprobación no garantiza integridad del historial ni demuestra descanso en semanas sin registros. Informe y reproducción: local_validation/weekly_moving_time_report.md y local_validation/validate_weekly_moving_time.py.
 
@@ -387,7 +394,20 @@ El segundo incremento se contrastó con la misma captura intacta de 89 actividad
 
 Validación offline de moving time por TrainingType y cierre de Weekly Structure V1
 
-El último incremento se contrastó con una suma independiente de segundos enteros sobre la misma captura: Easy 57941 s, Long 51859 s, Tempo 5463 s, Intervals 26283 s, Race 2334 s y Other 42894 s; total 186774 s. Las seis categorías de las 24 semanas coinciden exactamente con el oráculo y reconcilian con running_moving_time_seconds. Count y distance continúan reconciliando, y sus resultados por categoría y semana permanecen idénticos a la validación anterior. El SHA-256 original de la captura y el de las etiquetas no cambian. Con tests y validación superados, Weekly Structure V1 queda cerrada en activity count, distance y moving time; no se declara completa Weekly Analytics V1. Informe y reproducción: local_validation/weekly_structure_time_report.md y local_validation/validate_weekly_structure.py.
+El último incremento se contrastó con una suma independiente de segundos enteros sobre la misma captura: Easy 57941 s, Long 51859 s, Tempo 5463 s, Intervals 26283 s, Race 2334 s y Other 42894 s; total 186774 s. Las seis categorías de las 24 semanas coinciden exactamente con el oráculo y reconcilian con running_moving_time_seconds. Count y distance continúan reconciliando, y sus resultados por categoría y semana permanecen idénticos a la validación anterior. El SHA-256 original de la captura y el de las etiquetas no cambian. Con tests y validación superados, Weekly Structure V1 quedó cerrada en activity count, distance y moving time. La posterior decisión de producto declara Weekly Analytics V1 COMPLETE con el alcance definido en este documento. Informe y reproducción: local_validation/weekly_structure_time_report.md y local_validation/validate_weekly_structure.py.
+
+Evidencia de cierre de Weekly Analytics V1
+
+Se conserva la evidencia existente, sin ejecutar nuevos tests para esta actualización documental:
+
+* 417 tests aprobados.
+* 96,76 % de cobertura global.
+* 24 semanas reales reconciliadas.
+* 59 Run.
+* 468.586,9 m.
+* 186.774 segundos.
+
+Los conteos y segundos reconcilian exactamente; la distancia, dentro de la precisión float documentada, sin redondeos para forzar igualdad. La captura original permanece intacta según la validación registrada. Esta evidencia respalda el alcance aprobado sobre datos suministrados, no la integridad del historial ni una integración end-to-end completa.
 
 ⸻
 
@@ -453,15 +473,15 @@ Activity → TrainingAnalysis
 
 ↓
 
-Weekly Analytics ← 📍 CURRENT
+Weekly Analytics V1 ✅ COMPLETE
 
-Activities → WeeklyAnalysis (disponible sobre actividades suministradas; Weekly Analytics V1 sigue en desarrollo)
+Activities → WeeklyAnalysis (volumen y composición por TrainingType sobre Run suministradas)
 
 ↓
 
-Trends
+Trends ← 📍 CURRENT: diseño pendiente de implementar
 
-WeeklyAnalysis[] → evolución temporal
+WeeklyAnalysis[] → comparaciones entre semanas y evolución temporal; Activity u otras fuentes cuando el análisis lo requiera
 
 ↓
 
@@ -480,6 +500,16 @@ Athlete context + Analytics + Insights + Goal → interpretación y recomendacio
 Training Planning
 
 Creación y adaptación progresiva de planes de entrenamiento.
+
+Capacidades futuras reclasificadas
+
+* Analytics: longest run y métricas de calendario —active running days, días sin Run, sesiones consecutivas, distribución diaria y densidad definida objetivamente— serán posibles ampliaciones si una necesidad concreta de Trends/Insights las requiere. Longest run no equivale a TrainingType.Long. Los días sin registros Run no se presentarán como descanso real; rest days requiere información y una definición adicionales.
+* Analytics derivado: el ritmo agregado podrá calcularse a partir de distancia y moving time si hay una necesidad concreta, sin almacenar un campo redundante. Easy / Quality permanece pendiente de definición y posible derivación; las etiquetas actuales no acreditan intensidad fisiológica.
+* Trends: comparaciones entre semanas y tendencias, con tratamiento explícito de semanas abiertas/incompletas y de la disponibilidad de datos.
+* Insights: detección de cambios relevantes, concentración, anomalías y patrones. Los patrones cronológicos podrán cruzar domingo/lunes y necesitar actividades individuales de una ventana mayor.
+* Coach: interpretación contextual, valoración de recuperación adecuada y recomendaciones.
+
+Esta reclasificación conserva las posibilidades del roadmap sin incorporarlas al contrato de Weekly Analytics V1 ni comprometer su implementación inmediata.
 
 ⸻
 
@@ -534,25 +564,13 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Weekly Analytics V1
+Diseñar el primer incremento de Trends sobre volumen y composición semanal.
 
-Continuar de forma incremental a partir del volumen semanal y Weekly Structure V1 completa:
+Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
-* Weekly distance ✅
-* Weekly activity count ✅
-* running_moving_time_seconds ✅
-* Modelo mínimo WeeklyAnalysis ✅
-* Activities → WeeklyAnalysis sobre actividades suministradas ✅
-* Conteo semanal por los seis TrainingType ✅
-* Distancia semanal por los seis TrainingType ✅
-* Moving time semanal por los seis TrainingType ✅
-* Weekly Structure V1 cerrada en las tres dimensiones acordadas ✅
+El diseño de Trends deberá definir qué períodos se comparan, cómo se manejan semanas abiertas/incompletas y datos ausentes, y qué contexto o fuentes adicionales necesita cada comparación. No se inicia automáticamente ninguna ampliación de Analytics ni se implementan todavía Trends, Insights o Coach.
 
-El volumen semanal V1 queda acotado a distancia, conteo y moving time, implementados y validados offline. La reconciliación de distancia con la captura está cerrada sin defecto encontrado; la diferencia residual respecto a la presentación de Strava permanece documentada. El conteo, la distancia y el moving time por TrainingType ya están implementados, probados y validados con etiquetas revisadas y sumas independientes de la captura real.
-
-El siguiente paso es acordar el próximo bloque de Weekly Analytics V1, con alcance y contrato propios, partiendo de Weekly Structure V1 cerrada. No se inicia automáticamente ninguna otra métrica. La intensidad, densidad, ritmo agregado, tirada larga principal, días de descanso, Trends e Insights quedan fuera de este incremento. No se declara completa Weekly Analytics V1.
-
-El gap de detailed Strava activity → TrainingAnalysis permanece documentado y deberá cerrarse antes de considerar Individual Analytics completamente integrado.
+El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persistencia histórica de actividades permanecen documentados. No bloquean el cierre del resumen semanal sobre datos suministrados, pero deberán abordarse cuando las capacidades que dependan de ellos lo requieran.
 
 ⸻
 
