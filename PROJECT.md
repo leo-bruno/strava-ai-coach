@@ -63,7 +63,7 @@ Analytics calcula → Trends compara → Insights detecta → Coach interpreta y
 Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
-Trends	🟡 Parcial — cambios de volumen, normalización y pares semanales consecutivos
+Trends	🟡 Parcial — cambios de volumen y primeros resultados temporales de distancia
 Insights	⏳ Pendiente
 AI Coach	⏳ Pendiente
 Training Planning	⏳ Futuro
@@ -77,7 +77,7 @@ Trends V1 — desarrollo incremental
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
-Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 empieza por volumen total, sin ventana fija ni modelo Trend. El cierre calendario, la cobertura y la selección de semanas aptas se diseñarán posteriormente al trabajar con historiales; no forman parte de esta operación numérica.
+Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. También se generan resultados temporales de cambio absoluto de distancia sobre historial, probados y validados offline. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 empieza por volumen total, sin ventana fija ni modelo genérico Trend. El cierre calendario, la cobertura y la selección de semanas aptas se diseñarán posteriormente al trabajar con historiales; no forman parte de esta operación numérica.
 
 Longest run y calendario permanecen como posibles ampliaciones futuras de Analytics, sujetas a una necesidad concreta de Trends o Insights; no bloquean el cierre de V1.
 
@@ -131,6 +131,7 @@ Actualmente existen modelos inmutables para representar:
 * TrainingAnalysis
 * WeeklyAnalysis
 * TrainingTypeSummary
+* WeeklyRunningDistanceChange
 * Tipos de entrenamiento
 
 Los datos opcionales ausentes permanecen como None.
@@ -138,6 +139,8 @@ Los datos opcionales ausentes permanecen como None.
 Los laps mantienen su orden original.
 
 WeeklyAnalysis representa la fecha del lunes local del atleta, las tres métricas de volumen y running_structure_by_type. Este último campo obligatorio contiene seis resúmenes inmutables TrainingTypeSummary, en el orden del enum existente, con training_type, activity_count, distance_meters y moving_time_seconds. Los modelos permanecen sin lógica de cálculo ni validación automática; quien los construye proporciona todos los datos. La distancia por tipo es obligatoria y conserva la precisión float sin redondear. El moving time por tipo es obligatorio y conserva segundos enteros exactos.
+
+WeeklyRunningDistanceChange es una dataclass inmutable con previous_week_start_date, current_week_start_date y value: float obligatorio, no opcional. Representa el cambio ABSOLUTO de distancia en METROS entre dos semanas consecutivas observadas: una transición, no una observación puntual, porcentaje ni Insight. No calcula ni valida, no convierte unidades y no conserva referencias a WeeklyAnalysis.
 
 La identidad de la semana es una fecha local; el modelo no almacena límites UTC ni timezone. La timezone sigue siendo una entrada de los cálculos semanales.
 
@@ -341,7 +344,9 @@ También está implementada consecutive_week_pairs en el área de historial. Ace
 
 Todos los pares pueden suministrarse a las seis comparaciones existentes. Este incremento no ejecuta automáticamente esas comparaciones ni representa sus resultados como series. No se añaden modelos ni se modifica WeeklyAnalysis o el validador de comparaciones.
 
-Trends V1 sigue parcial. Permanecen pendientes ejecución de comparaciones sobre historiales y representación de resultados, detección/reporte de huecos, segmentos, selección de semanas aptas y nuevas comparaciones. Dirección, medias, ventanas, TrainingType trends e Insights quedan fuera de este incremento.
+Está implementada weekly_running_distance_changes: recibe un historial de WeeklyAnalysis y devuelve una tuple de WeeklyRunningDistanceChange en orden cronológico. Compone consecutive_week_pairs para seleccionar las transiciones y weekly_running_distance_change para calcular cada valor, sin duplicar reglas ni fórmulas. Los huecos no generan resultados, las observaciones cero participan normalmente y vacío/singleton o ausencia de pares producen una tuple vacía. Los errores de normalización se propagan; las entradas permanecen intactas. Los resultados no conservan observaciones aisladas ni permiten reconstruir los totales originales.
+
+Trends V1 sigue parcial. Permanecen pendientes resultados fechados porcentuales y de conteo/moving time, detección/reporte de huecos, segmentos, selección de semanas aptas y nuevas comparaciones. Dirección, medias, ventanas, TrainingType trends e Insights quedan fuera de este incremento.
 
 ⸻
 
@@ -351,9 +356,9 @@ Automated Tests
 
 Actualmente:
 
-533 tests passing
+556 tests passing
 
-El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 116 tests específicos de Trends (26 nuevos de generación de pares) también pasan. La suite completa configurada pasa con 533 tests y cobertura global de líneas y ramas del 97,16 % (97 % redondeado); los seis módulos de Trends alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
+El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 135 tests específicos de Trends (19 nuevos de distancia sobre historial) y los 4 del nuevo modelo pasan: 139 tests específicos en este incremento. La suite completa configurada pasa con 556 tests y cobertura global de líneas y ramas del 97,21 % (97 % redondeado); los seis módulos de Trends y el nuevo modelo de cambio de distancia alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
 La suite cubre, entre otros:
 
@@ -453,6 +458,10 @@ Validación offline de pares semanales consecutivos
 
 Las 24 observaciones existentes producen los mismos 23 pares en orden normal, inverso y una permutación determinista. Las expectativas se construyeron desde fechas fuente mediante búsqueda de sucesores calendario. Retirar el 29 de junio deja 23 observaciones y 21 pares; retirar también el 6 de julio deja 22 observaciones y 20 pares. Desaparecen únicamente las conexiones afectadas, sin puentes a través del hueco. Las cinco observaciones cero participan normalmente; todos los pares producidos en los escenarios son aceptados por las seis comparaciones. Se verificaron identidad de extremos, todos los campos incluida la estructura por tipo, entradas intactas y SHA-256 original sin cambios. No se evalúan completitud ni cierre calendario. Informe y reproducción: local_validation/consecutive_week_pairs_report.md y local_validation/validate_consecutive_week_pairs.py.
 
+Validación offline de resultados temporales de distancia
+
+Las 24 observaciones existentes producen los mismos 23 WeeklyRunningDistanceChange en orden normal, inverso y permutado. Fechas y valores se contrastaron con un oráculo construido desde las fechas y totales semanales de la captura, usando Decimal para la resta fuente. Todos los valores coinciden exactamente con la API escalar; la diferencia máxima respecto a los totales fuente es 3,64 × 10⁻¹² m, dentro de tolerancia de auditoría relativa 1e-12 y absoluta 1e-9 m, sin redondear producción. Retirar 29/06 deja 21 resultados y retirar también 06/07 deja 20, sin puentes. Las cinco observaciones cero conservan sus cambios asociados. Identidad, campos y orden de las entradas permanecen intactos y se conserva el SHA-256 original. No se evalúan cobertura, cierre calendario ni relevancia. Informe y reproducción: local_validation/distance_history_report.md y local_validation/validate_distance_history.py.
+
 ⸻
 
 🧠 Principios de desarrollo
@@ -523,9 +532,9 @@ Activities → WeeklyAnalysis (volumen y composición por TrainingType sobre Run
 
 ↓
 
-Trends ← 📍 CURRENT: cambios de volumen, normalización y pares consecutivos implementados y validados
+Trends ← 📍 CURRENT: cambios de volumen, historial y resultados fechados de distancia absoluta implementados y validados
 
-Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distancia, conteo y moving time (implementados). Normalización de observaciones semanales (lunes únicos y orden ascendente) implementada. Generación de pares consecutivos implementada. Selección y ejecución de comparaciones sobre historiales permanecen pendientes; Activity u otras fuentes podrán ser necesarias.
+Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distancia, conteo y moving time (implementados). Normalización de observaciones semanales (lunes únicos y orden ascendente) implementada. Generación de pares consecutivos implementada. Cambios absolutos de distancia sobre historial con resultados fechados implementados. Resultados fechados de las otras cinco comparaciones y selección de semanas aptas permanecen pendientes; Activity u otras fuentes podrán ser necesarias.
 
 ↓
 
@@ -598,7 +607,7 @@ Actualmente conocemos al menos:
 * src/ai todavía está vacío.
 * No existe UI.
 * No existe CI.
-* Trends calcula cambios absolutos y porcentuales de distancia, conteo y moving time entre dos semanas consecutivas, normaliza observaciones semanales y genera sus pares consecutivos. Ejecución de comparaciones sobre historiales, representación de resultados, reporte de huecos, segmentos y selección de semanas aptas permanecen pendientes.
+* Trends calcula cambios absolutos y porcentuales de distancia, conteo y moving time entre dos semanas consecutivas, normaliza observaciones semanales y genera sus pares consecutivos. El cambio absoluto de distancia sobre historial ya devuelve resultados fechados. Resultados fechados de las otras cinco comparaciones, reporte de huecos, segmentos y selección de semanas aptas permanecen pendientes.
 * No existen Insights.
 * No existe Coach.
 
@@ -608,11 +617,11 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Acordar el siguiente incremento de Trends V1 sobre volumen total, a partir de las comparaciones de volumen, la normalización y los pares consecutivos ya implementados y validados.
+Acordar el siguiente incremento de Trends V1 sobre volumen total, a partir de las comparaciones de volumen, el recorrido de historial y los primeros resultados temporales de distancia absoluta ya implementados y validados.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
-Las seis operaciones solo exigen dos lunes consecutivos y devuelven diferencias absolutas o porcentuales de volumen, con None para porcentajes de base cero. Las futuras operaciones sobre historiales deberán definir el cierre calendario, la cobertura y la selección de semanas aptas, sin confundir cero con ausencia de datos. La normalización de historial y la generación de pares están implementadas y no resuelven esas decisiones. Ejecución de comparaciones sobre historiales, representación de resultados, reporte de huecos y segmentos siguen pendientes; no se inicia automáticamente ningún otro incremento de Trends, Analytics, Insights o Coach.
+Las seis operaciones solo exigen dos lunes consecutivos y devuelven diferencias absolutas o porcentuales de volumen, con None para porcentajes de base cero. Las futuras operaciones sobre historiales deberán definir el cierre calendario, la cobertura y la selección de semanas aptas, sin confundir cero con ausencia de datos. La normalización de historial y la generación de pares están implementadas y no resuelven esas decisiones. Los resultados fechados de distancia absoluta están implementados; los de las otras cinco comparaciones, reporte de huecos y segmentos siguen pendientes; no se inicia automáticamente ningún otro incremento de Trends, Analytics, Insights o Coach.
 
 El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persistencia histórica de actividades permanecen documentados. No bloquean el cierre del resumen semanal sobre datos suministrados, pero deberán abordarse cuando las capacidades que dependan de ellos lo requieran.
 

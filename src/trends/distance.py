@@ -1,8 +1,12 @@
 """Compare running distance between consecutive local calendar weeks."""
 
+from collections.abc import Sequence
+
 from src.models.weekly_analysis import WeeklyAnalysis
+from src.models.weekly_running_distance_change import WeeklyRunningDistanceChange
 from src.trends._percentage import _percentage_change
 from src.trends._week import _validate_consecutive_weeks
+from src.trends.history import consecutive_week_pairs
 
 
 def weekly_running_distance_change(
@@ -32,3 +36,22 @@ def weekly_running_distance_percentage_change(
     """
     _validate_consecutive_weeks(previous, current)
     return _percentage_change(previous.running_distance_meters, current.running_distance_meters)
+
+
+def weekly_running_distance_changes(
+    weeks: Sequence[WeeklyAnalysis],
+) -> tuple[WeeklyRunningDistanceChange, ...]:
+    """Return dated absolute distance changes in meters for consecutive pairs.
+
+    History normalization rejects duplicate dates and non-Mondays. Gaps produce
+    no result; observed zero distances participate normally. Inputs are unchanged.
+    No coverage, calendar closure or significance is assessed.
+    """
+    return tuple(
+        WeeklyRunningDistanceChange(
+            previous_week_start_date=previous.week_start_date,
+            current_week_start_date=current.week_start_date,
+            value=weekly_running_distance_change(previous, current),
+        )
+        for previous, current in consecutive_week_pairs(weeks)
+    )
