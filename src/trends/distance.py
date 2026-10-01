@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from src.models.weekly_analysis import WeeklyAnalysis
 from src.models.weekly_running_distance_change import WeeklyRunningDistanceChange
+from src.models.weekly_running_distance_percentage_change import WeeklyRunningDistancePercentageChange
 from src.trends._percentage import _percentage_change
 from src.trends._week import _validate_consecutive_weeks
 from src.trends.history import consecutive_week_pairs
@@ -52,6 +53,25 @@ def weekly_running_distance_changes(
             previous_week_start_date=previous.week_start_date,
             current_week_start_date=current.week_start_date,
             value=weekly_running_distance_change(previous, current),
+        )
+        for previous, current in consecutive_week_pairs(weeks)
+    )
+
+
+def weekly_running_distance_percentage_changes(
+    weeks: Sequence[WeeklyAnalysis],
+) -> tuple[WeeklyRunningDistancePercentageChange, ...]:
+    """Return dated distance percentages for supplied consecutive observations.
+
+    A zero base retains a result with value None. Gaps produce no result.
+    Normalization errors propagate; inputs remain unchanged. No coverage or
+    calendar closure is assessed, and percentages are not rounded.
+    """
+    return tuple(
+        WeeklyRunningDistancePercentageChange(
+            previous_week_start_date=previous.week_start_date,
+            current_week_start_date=current.week_start_date,
+            value=weekly_running_distance_percentage_change(previous, current),
         )
         for previous, current in consecutive_week_pairs(weeks)
     )
