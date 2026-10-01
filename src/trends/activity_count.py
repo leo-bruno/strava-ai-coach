@@ -1,8 +1,12 @@
 """Compare running activity counts between consecutive local calendar weeks."""
 
+from collections.abc import Sequence
+
 from src.models.weekly_analysis import WeeklyAnalysis
+from src.models.weekly_running_activity_count_change import WeeklyRunningActivityCountChange
 from src.trends._percentage import _percentage_change
 from src.trends._week import _validate_consecutive_weeks
+from src.trends.history import consecutive_week_pairs
 
 
 def weekly_running_activity_count_change(
@@ -31,3 +35,22 @@ def weekly_running_activity_count_percentage_change(
     """
     _validate_consecutive_weeks(previous, current)
     return _percentage_change(previous.running_activity_count, current.running_activity_count)
+
+
+def weekly_running_activity_count_changes(
+    weeks: Sequence[WeeklyAnalysis],
+) -> tuple[WeeklyRunningActivityCountChange, ...]:
+    """Return dated integer count changes for supplied consecutive observations.
+
+    Observed zero counts participate normally; gaps produce no result.
+    Normalization errors propagate and inputs remain unchanged. No coverage
+    or calendar closure is assessed.
+    """
+    return tuple(
+        WeeklyRunningActivityCountChange(
+            previous_week_start_date=previous.week_start_date,
+            current_week_start_date=current.week_start_date,
+            value=weekly_running_activity_count_change(previous, current),
+        )
+        for previous, current in consecutive_week_pairs(weeks)
+    )
