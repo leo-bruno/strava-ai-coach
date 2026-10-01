@@ -1,7 +1,7 @@
 """Validate weekly identity and order supplied observations without filling gaps."""
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 
 from src.models.weekly_analysis import WeeklyAnalysis
 
@@ -22,3 +22,20 @@ def normalize_weekly_history(
             raise ValueError(f"Duplicate week_start_date: {week.week_start_date}.")
         seen.add(week.week_start_date)
     return tuple(sorted(weeks, key=lambda week: week.week_start_date))
+
+
+def consecutive_week_pairs(
+    weeks: Sequence[WeeklyAnalysis],
+) -> tuple[tuple[WeeklyAnalysis, WeeklyAnalysis], ...]:
+    """Return adjacent observations exactly seven calendar days apart.
+
+    Normalize first, rejecting non-Mondays and duplicate dates. Gaps are
+    skipped; existing zero observations participate normally. The original
+    objects and input collection remain unchanged. Coverage is not assessed.
+    """
+    normalized = normalize_weekly_history(weeks)
+    return tuple(
+        (previous, current)
+        for previous, current in zip(normalized, normalized[1:])
+        if current.week_start_date - previous.week_start_date == timedelta(days=7)
+    )
