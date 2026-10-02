@@ -397,6 +397,10 @@ La suite cubre, entre otros:
 
 Existe además un integration test que conecta token refresh con athlete retrieval utilizando HTTP mockeado.
 
+Reporting de tests tradicionales
+
+Allure está integrado con pytest mediante allure-pytest 2.16.2 como herramienta de testing, sin dependencias en el dominio. Se comprobó su ejecución con Python 3.14 y pytest 9.1.1: tanto la suite normal como la generación de resultados Allure pasan con los mismos 683 tests. Los 683 resultados generados quedan clasificados centralmente por las convenciones existentes: 682 Unit y 1 Integration; no hay E2E. Los artefactos permanecen excluidos de Git. La CLI externa de Allure no está instalada en el entorno validado; se generan resultados sin ella, pero la construcción del informe HTML queda sin verificar. Algunos parámetros que contienen funciones tienen representaciones variables entre procesos, por lo que su correlación histórica en Allure no queda garantizada en este incremento. Esta integración resuelve la generación y clasificación del reporting; no declara Trends V1 COMPLETE ni inicia Insights.
+
 Actualmente no existen:
 
 * Live-service tests.

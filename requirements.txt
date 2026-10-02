@@ -1,3 +1,4 @@
+allure-pytest==2.16.2
 certifi==2026.7.22
 charset-normalizer==3.5.1
 coverage==7.16.1
