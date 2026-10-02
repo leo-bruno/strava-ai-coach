@@ -63,7 +63,7 @@ Analytics calcula → Trends compara → Insights detecta → Coach interpreta y
 Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
-Trends	🟡 Parcial — cambios de volumen y resultados temporales de distancia y conteo
+Trends	🟡 Parcial — resultados temporales de distancia, conteo y moving time absoluto
 Insights	⏳ Pendiente
 AI Coach	⏳ Pendiente
 Training Planning	⏳ Futuro
@@ -77,7 +77,7 @@ Trends V1 — desarrollo incremental
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
-Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. También se generan resultados temporales de cambio absoluto y porcentual de distancia y cambio absoluto y porcentual de conteo sobre historial, probados y validados offline. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 empieza por volumen total, sin ventana fija ni modelo genérico Trend. El cierre calendario, la cobertura y la selección automática de semanas aptas son posibles ampliaciones posteriores y no requisitos de cierre de Trends V1.
+Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. También se generan resultados temporales de cambio absoluto y porcentual de distancia y cambio absoluto y porcentual de conteo y cambio absoluto de moving time sobre historial, probados y validados offline. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 empieza por volumen total, sin ventana fija ni modelo genérico Trend. El cierre calendario, la cobertura y la selección automática de semanas aptas son posibles ampliaciones posteriores y no requisitos de cierre de Trends V1.
 
 Longest run y calendario permanecen como posibles ampliaciones futuras de Analytics, sujetas a una necesidad concreta de Trends o Insights; no bloquean el cierre de V1.
 
@@ -135,6 +135,7 @@ Actualmente existen modelos inmutables para representar:
 * WeeklyRunningDistancePercentageChange
 * WeeklyRunningActivityCountChange
 * WeeklyRunningActivityCountPercentageChange
+* WeeklyRunningMovingTimeChange
 * Tipos de entrenamiento
 
 Los datos opcionales ausentes permanecen como None.
@@ -355,13 +356,15 @@ Está implementada weekly_running_activity_count_changes: compone consecutive_we
 
 Está implementada weekly_running_activity_count_percentage_changes: compone consecutive_week_pairs y weekly_running_activity_count_percentage_change, que sigue siendo la autoridad del cálculo. Devuelve una tuple de WeeklyRunningActivityCountPercentageChange, dataclass congelada sin lógica con previous_week_start_date, current_week_start_date y value: float | None. El porcentaje se conserva sin redondeos; None indica exclusivamente base de conteo cero, tanto en 0 → positivo como en 0 → 0, y mantiene su objeto de transición. Un hueco no genera resultado. Los errores de normalización se propagan y las entradas permanecen intactas.
 
+Está implementada weekly_running_moving_time_changes: compone consecutive_week_pairs y weekly_running_moving_time_change, que conserva la autoridad del cálculo. Devuelve una tuple de WeeklyRunningMovingTimeChange, dataclass congelada sin lógica con previous_week_start_date, current_week_start_date y value: int. Representa el cambio ABSOLUTO de moving time en segundos, sin conversiones a float ni a otras unidades. Todo par válido produce un resultado entero, incluido 0 → 0 = 0. Las semanas observadas con moving time cero mantienen sus transiciones; los huecos no generan resultados ni puentes. Los errores de normalización se propagan y las entradas permanecen intactas.
+
 Frontera aprobada de Trends V1
 
 Trends V1 opera sobre observaciones suministradas. Incluye las seis comparaciones escalares de volumen (distancia, conteo y moving time, absolutas y porcentuales), normalización de historial, pares consecutivos, resultados temporales de esas seis comparaciones, tests y validación real. El caller es responsable de proporcionar un contexto compatible. Trends V1 no certifica cobertura, historial completo, cierre de semanas ni extracción de todo el período.
 
 Se mantienen seis modelos específicos y APIs explícitas, aceptando la pequeña repetición declarativa y de composición. Las funciones escalares son la autoridad del cálculo y consecutive_week_pairs selecciona las transiciones. No se introducen modelos genéricos, metadata, agregados, herencia, generics ni TrendSeries.
 
-Trends V1 sigue PARCIAL, no COMPLETE: faltan dos resultados temporales: moving time absoluto y moving time porcentual. TrainingType trends, ventanas, medias móviles, segmentos, reporte de huecos, selección automática por cobertura, determinación de semana abierta/cerrada, reference_date y certificación de historial completo no son requisitos para cerrar V1; permanecen como posibles ampliaciones posteriores. Insights sigue siendo una capa posterior.
+Trends V1 sigue PARCIAL, no COMPLETE: queda únicamente el resultado temporal de moving time porcentual. TrainingType trends, ventanas, medias móviles, segmentos, reporte de huecos, selección automática por cobertura, determinación de semana abierta/cerrada, reference_date y certificación de historial completo no son requisitos para cerrar V1; permanecen como posibles ampliaciones posteriores. Insights sigue siendo una capa posterior.
 
 ⸻
 
@@ -371,9 +374,9 @@ Automated Tests
 
 Actualmente:
 
-631 tests passing
+656 tests passing
 
-El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 191 tests específicos de Trends (19 nuevos de conteo porcentual sobre historial) y los 8 del nuevo modelo pasan: 199 tests específicos en este incremento, con 27 tests nuevos. La suite completa configurada pasa con 631 tests y cobertura global de líneas y ramas del 97,32 % (97 % redondeado); los seis módulos de Trends y los modelos de cambio absoluto y porcentual de distancia y conteo alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
+El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 211 tests específicos de Trends (20 nuevos de moving time absoluto sobre historial) y los 5 del nuevo modelo pasan: 216 tests específicos en este incremento, con 25 tests nuevos. La suite completa configurada pasa con 656 tests y cobertura global de líneas y ramas del 97,36 % (97 % redondeado); los seis módulos de Trends y los cinco modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
 La suite cubre, entre otros:
 
@@ -489,6 +492,10 @@ Validación offline de resultados temporales de conteo porcentual
 
 El 2 de octubre de 2026 se verificaron las mismas 24 observaciones: producen los mismos 23 WeeklyRunningActivityCountPercentageChange en orden normal, inverso y permutado, con 19 valores definidos y 4 None. Cada valor coincide exactamente con la función escalar y con el cálculo independiente 100 * (current - previous) / previous sobre los conteos fuente para base positiva, sin tolerancias ni redondeos. Los cuatro None conservan sus objetos de transición por base cero, incluidos los pares 0 → 0. La captura contiene ejemplos de las cinco clases: +300.0 %, −66.66666666666667 %, 0.0 %, −100.0 % y None. Retirar 29/06 deja 21 resultados y retirar también 06/07 deja 20, sin puentes ni resultados para huecos. Campos, identidad y orden de las entradas permanecen intactos; el SHA-256 original se conserva. No se evalúan cobertura ni cierre calendario. Informe y reproducción: local_validation/activity_count_percentage_history_report.md y local_validation/validate_activity_count_percentage_history.py.
 
+Validación offline de resultados temporales de moving time absoluto
+
+El 2 de octubre de 2026 se verificaron las mismas 24 observaciones: producen los mismos 23 WeeklyRunningMovingTimeChange con entrada normal, inversa y permutada. Todos los valores son int en segundos y coinciden exactamente con la función escalar, con la diferencia directa de moving time semanal y con diferencias independientes de sumas de segundos de las Run fuente agrupadas por semana ISO local. Ejemplos: 27/04 → 04/05, +5792 s; 20/04 → 27/04, −4978 s; 17/08 → 24/08, 0 s (0 → 0); 25/05 → 01/06, −9775 s hacia cero; 01/06 → 08/06, +10392 s desde cero. Retirar 29/06 deja 21 resultados y retirar también 06/07 deja 20, sin puentes. Las cinco semanas cero conservan sus transiciones, con enteros y sin None. Campos, identidad y orden de las entradas permanecen intactos y el SHA-256 original no cambia. No se evalúan cobertura ni cierre calendario. Informe y reproducción: local_validation/moving_time_history_report.md y local_validation/validate_moving_time_history.py.
+
 ⸻
 
 🧠 Principios de desarrollo
@@ -559,9 +566,9 @@ Activities → WeeklyAnalysis (volumen y composición por TrainingType sobre Run
 
 ↓
 
-Trends ← 📍 CURRENT: cambios de volumen, historial y resultados fechados de distancia y conteo absolutos/porcentuales implementados y validados
+Trends ← 📍 CURRENT: cambios de volumen, historial y resultados fechados de distancia y conteo absolutos/porcentuales y moving time absoluto implementados y validados
 
-Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distancia, conteo y moving time (implementados). Normalización de observaciones semanales (lunes únicos y orden ascendente) implementada. Generación de pares consecutivos implementada. Cambios absolutos y porcentuales de distancia sobre historial con resultados fechados implementados. Los cambios absolutos y porcentuales de conteo sobre historial también están implementados. Faltan moving time absoluto/porcentual para cerrar V1; selección automática de semanas aptas queda como posible ampliación posterior; Activity u otras fuentes podrán ser necesarias.
+Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distancia, conteo y moving time (implementados). Normalización de observaciones semanales (lunes únicos y orden ascendente) implementada. Generación de pares consecutivos implementada. Cambios absolutos y porcentuales de distancia sobre historial con resultados fechados implementados. Los cambios absolutos y porcentuales de conteo sobre historial también están implementados. El moving time absoluto sobre historial está implementado. Solo falta moving time porcentual sobre historial para cerrar V1; selección automática de semanas aptas queda como posible ampliación posterior; Activity u otras fuentes podrán ser necesarias.
 
 ↓
 
@@ -634,7 +641,7 @@ Actualmente conocemos al menos:
 * src/ai todavía está vacío.
 * No existe UI.
 * No existe CI.
-* Trends calcula cambios absolutos y porcentuales de distancia, conteo y moving time entre dos semanas consecutivas, normaliza observaciones semanales y genera sus pares consecutivos. Los cambios absolutos y porcentuales de distancia sobre historial ya devuelven resultados fechados. El conteo absoluto y porcentual sobre historial también devuelve resultados fechados. Permanecen pendientes para V1 moving time absoluto/porcentual. Reporte de huecos, segmentos y selección automática de semanas aptas son posibles ampliaciones posteriores.
+* Trends calcula cambios absolutos y porcentuales de distancia, conteo y moving time entre dos semanas consecutivas, normaliza observaciones semanales y genera sus pares consecutivos. Los cambios absolutos y porcentuales de distancia sobre historial ya devuelven resultados fechados. El conteo absoluto y porcentual sobre historial también devuelve resultados fechados. El moving time absoluto sobre historial también devuelve resultados fechados. Solo queda pendiente para V1 moving time porcentual sobre historial. Reporte de huecos, segmentos y selección automática de semanas aptas son posibles ampliaciones posteriores.
 * No existen Insights.
 * No existe Coach.
 
@@ -644,11 +651,11 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Acordar el siguiente incremento entre los dos resultados temporales pendientes: moving time absoluto y moving time porcentual. Distancia y conteo absolutos/porcentuales sobre historial están implementados y validados; moving time sobre historial queda fuera de este incremento.
+Acordar el último incremento pendiente de Trends V1: WeeklyRunningMovingTimePercentageChange y su API plural. Distancia y conteo absolutos/porcentuales y moving time absoluto sobre historial están implementados y validados. Moving time porcentual sobre historial no se implementa en este incremento; Trends V1 sigue PARCIAL.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
-Las seis operaciones solo exigen dos lunes consecutivos y devuelven diferencias absolutas o porcentuales de volumen, con None para porcentajes de base cero. La frontera aprobada de V1 deja cierre calendario, cobertura y selección automática de semanas aptas como posibles ampliaciones posteriores, sin confundir cero con ausencia de datos. La normalización de historial y la generación de pares están implementadas y no resuelven esas decisiones. Los resultados fechados de distancia y conteo absolutos/porcentuales están implementados; faltan los dos de moving time para cerrar V1. Reporte de huecos y segmentos son ampliaciones posteriores; no se inicia automáticamente ningún otro incremento de Trends, Analytics, Insights o Coach.
+Las seis operaciones solo exigen dos lunes consecutivos y devuelven diferencias absolutas o porcentuales de volumen, con None para porcentajes de base cero. La frontera aprobada de V1 deja cierre calendario, cobertura y selección automática de semanas aptas como posibles ampliaciones posteriores, sin confundir cero con ausencia de datos. La normalización de historial y la generación de pares están implementadas y no resuelven esas decisiones. Los resultados fechados de distancia y conteo absolutos/porcentuales y moving time absoluto están implementados; solo falta moving time porcentual sobre historial para cerrar V1. Reporte de huecos y segmentos son ampliaciones posteriores; no se inicia automáticamente ningún otro incremento de Trends, Analytics, Insights o Coach.
 
 El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persistencia histórica de actividades permanecen documentados. No bloquean el cierre del resumen semanal sobre datos suministrados, pero deberán abordarse cuando las capacidades que dependan de ellos lo requieran.
 
