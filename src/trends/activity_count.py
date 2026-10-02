@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from src.models.weekly_analysis import WeeklyAnalysis
 from src.models.weekly_running_activity_count_change import WeeklyRunningActivityCountChange
+from src.models.weekly_running_activity_count_percentage_change import WeeklyRunningActivityCountPercentageChange
 from src.trends._percentage import _percentage_change
 from src.trends._week import _validate_consecutive_weeks
 from src.trends.history import consecutive_week_pairs
@@ -51,6 +52,25 @@ def weekly_running_activity_count_changes(
             previous_week_start_date=previous.week_start_date,
             current_week_start_date=current.week_start_date,
             value=weekly_running_activity_count_change(previous, current),
+        )
+        for previous, current in consecutive_week_pairs(weeks)
+    )
+
+
+def weekly_running_activity_count_percentage_changes(
+    weeks: Sequence[WeeklyAnalysis],
+) -> tuple[WeeklyRunningActivityCountPercentageChange, ...]:
+    """Return dated count percentages for supplied consecutive observations.
+
+    A zero base retains a result with value None. Gaps produce no result.
+    Normalization errors propagate; inputs remain unchanged. No coverage or
+    calendar closure is assessed, and percentages are not rounded.
+    """
+    return tuple(
+        WeeklyRunningActivityCountPercentageChange(
+            previous_week_start_date=previous.week_start_date,
+            current_week_start_date=current.week_start_date,
+            value=weekly_running_activity_count_percentage_change(previous, current),
         )
         for previous, current in consecutive_week_pairs(weeks)
     )
