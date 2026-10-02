@@ -39,7 +39,7 @@ Detecta automáticamente hechos y patrones relevantes a partir de Analytics y Tr
 
 Ejemplo:
 
-El volumen semanal ha aumentado un 37,5 % durante las últimas cuatro semanas.
+La distancia Run observada aumentó durante tres transiciones semanales consecutivas, entre cuatro observaciones.
 
 Los Insights describen lo que está ocurriendo, pero no prescriben qué hacer.
 
@@ -64,7 +64,7 @@ Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
-Insights V1	⏳ DESIGN NEXT — sin implementación
+Insights V1	🟡 IN PROGRESS — primer Insight implementado y validado
 AI Coach	⏳ Pendiente
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
@@ -73,11 +73,13 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-Insights V1 — DESIGN NEXT
+Insights V1 — IN PROGRESS
+
+FIRST INSIGHT IMPLEMENTED AND VALIDATED: Persistent Weekly Running Distance Increase. El primer detector determinista está implementado y validado; Insights V1 todavía no está cerrado. El siguiente trabajo es decidir el alcance necesario para cerrar V1, sin iniciar automáticamente otro Insight.
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
-Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. También se generan los seis resultados temporales de volumen sobre historial: cambios absolutos y porcentuales de distancia, conteo y moving time, probados y validados offline por incremento. La auditoría final conjunta concluyó READY TO CLOSE, sin blockers funcionales; Trends V1 está formalmente COMPLETE con el alcance aprobado sobre observaciones suministradas. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 queda cerrada en volumen total, sin ventana fija ni modelo genérico Trend. El siguiente bloque es diseñar Insights V1, todavía sin implementación. El cierre calendario, la cobertura y la selección automática de semanas aptas son posibles ampliaciones posteriores y no requisitos de cierre de Trends V1.
+Trends ya calcula los cambios absolutos y porcentuales de distancia, número de actividades y moving time entre dos observaciones WeeklyAnalysis con lunes consecutivos. Las seis comparaciones, la normalización de historial semanal y la generación de pares consecutivos están probadas y validadas offline; WeeklyAnalysis permanece sin cambios. También se generan los seis resultados temporales de volumen sobre historial: cambios absolutos y porcentuales de distancia, conteo y moving time, probados y validados offline por incremento. La auditoría final conjunta concluyó READY TO CLOSE, sin blockers funcionales; Trends V1 está formalmente COMPLETE con el alcance aprobado sobre observaciones suministradas. La normalización valida lunes únicos y ordena las observaciones suministradas, sin completar huecos ni evaluar cobertura. Trends V1 queda cerrada en volumen total, sin ventana fija ni modelo genérico Trend. Insights reutiliza esas capacidades para detectar el primer patrón implementado. El cierre calendario, la cobertura y la selección automática de semanas aptas son posibles ampliaciones posteriores y no requisitos de cierre de Trends V1.
 
 Longest run y calendario permanecen como posibles ampliaciones futuras de Analytics, sujetas a una necesidad concreta de Trends o Insights; no bloquean el cierre de V1.
 
@@ -137,6 +139,7 @@ Actualmente existen modelos inmutables para representar:
 * WeeklyRunningActivityCountPercentageChange
 * WeeklyRunningMovingTimeChange
 * WeeklyRunningMovingTimePercentageChange
+* PersistentWeeklyRunningDistanceIncrease
 * Tipos de entrenamiento
 
 Los datos opcionales ausentes de las actividades y sus análisis permanecen como None. En los resultados porcentuales de Trends, None significa exclusivamente porcentaje indefinido por base anterior cero; no representa datos ausentes.
@@ -253,7 +256,7 @@ Weekly Analytics V1 incluye:
 * running_moving_time_seconds
 * running_structure_by_type: para cada TrainingType, activity_count, distance_meters y moving_time_seconds.
 
-Las seis categorías son Easy, Long, Tempo, Intervals, Race y Other. Weekly Structure V1 está completa en sus tres dimensiones. El cierre de Weekly Analytics V1 es independiente del posterior cierre de Trends V1. Strava Integration permanece parcial; Insights y Coach no están implementados.
+Las seis categorías son Easy, Long, Tempo, Intervals, Race y Other. Weekly Structure V1 está completa en sus tres dimensiones. El cierre de Weekly Analytics V1 es independiente del posterior cierre de Trends V1. Strava Integration permanece parcial; existe el primer Insight implementado y validado, mientras que Coach permanece pendiente.
 
 Definición de semana
 
@@ -339,7 +342,7 @@ Las seis APIs escalares reciben previous y current y comparten una única utilid
 
 También están implementadas weekly_running_distance_percentage_change, weekly_running_activity_count_percentage_change y weekly_running_moving_time_percentage_change. Devuelven float | None: 100 * (current - previous) / previous cuando la base es positiva, sin redondear; 10.0 significa 10 %. Una base cero produce None tanto en 0 → positivo como en 0 → 0. None indica exclusivamente que el porcentaje no está definido por base cero, no dato ausente ni cambio cero. Con base positiva, mismo valor produce 0.0 y valor actual cero produce −100.0. La aritmética se comparte en una utilidad interna sencilla, sin tolerancias de producción. La validación temporal se ejecuta antes de resolver la base cero.
 
-Trends compara hechos de Analytics y calcula diferencias y porcentajes. Insights decidirá qué cambios o patrones son relevantes; Coach interpretará y recomendará. El cálculo actual no evalúa si una semana está abierta/cerrada ni si el historial es completo, y no recibe reference_date. No rellena semanas ausentes con cero: cero y ausencia de observación son conceptos distintos.
+Trends compara hechos de Analytics y calcula diferencias y porcentajes. Insights detecta patrones mediante reglas explícitas; el primer detector reconoce persistencia de dirección, sin afirmar relevancia por magnitud. Coach interpretará y recomendará. El cálculo actual no evalúa si una semana está abierta/cerrada ni si el historial es completo, y no recibe reference_date. No rellena semanas ausentes con cero: cero y ausencia de observación son conceptos distintos.
 
 También está implementada normalize_weekly_history: acepta una Sequence de WeeklyAnalysis, incluida una entrada vacía o una sola observación, y devuelve una tuple ordenada cronológicamente con exactamente los mismos objetos. Exige fechas de lunes únicas y rechaza con ValueError cualquier fecha duplicada, aunque se repita el mismo objeto o sus valores coincidan. No modifica la colección ni los campos, incluida running_structure_by_type. Conserva huecos y observaciones existentes con cero Run; no crea, elimina ni fusiona semanas. Normalizar significa únicamente validar identidad semanal, garantizar unicidad y establecer orden temporal.
 
@@ -373,15 +376,59 @@ Trends V1 está COMPLETE: la auditoría final conjunta y la validación de su al
 
 ⸻
 
+7. Insights V1 🟡 IN PROGRESS
+
+FIRST INSIGHT IMPLEMENTED AND VALIDATED
+
+Persistent Weekly Running Distance Increase
+
+Existe detect_persistent_weekly_running_distance_increases, que recibe Sequence[WeeklyAnalysis] y devuelve tuple[PersistentWeeklyRunningDistanceIncrease, ...]. La salida siempre es una tuple cronológica: vacía, con un resultado o con varios.
+
+Definición y semántica
+
+Una ventana de cuatro observaciones semanales con lunes consecutivos produce un Insight cuando las cuatro tienen running_distance_meters > 0 y running_activity_count > 0, y existen tres cambios absolutos consecutivos de distancia, estrictamente positivos y temporalmente encadenados. El destino del primer cambio coincide con el origen del segundo, y el destino del segundo con el origen del tercero; tres resultados contiguos en una colección no bastan.
+
+4 observaciones = 3 transiciones. «Persistente» tiene aquí una definición contractual concreta: tres aumentos consecutivos de distancia Run observada. El hecho describe exclusivamente los datos suministrados. No significa mejora, progresión adecuada, aumento significativo, carga fisiológica, adaptación, riesgo, sobreentrenamiento, necesidad de descanso ni recomendación.
+
+Evidencia del resultado
+
+PersistentWeeklyRunningDistanceIncrease es una frozen dataclass sin cálculos ni validación automática. Conserva:
+
+* start_week_date: lunes de la primera observación.
+* end_week_date: lunes de la cuarta observación, no el final calendario de esa semana.
+* weekly_distances_meters: tuple de las cuatro distancias exactas en metros, en orden semanal.
+* weekly_activity_counts: tuple de los cuatro conteos, en el mismo orden; acreditan la condición de elegibilidad.
+* distance_changes: tuple de los tres objetos WeeklyRunningDistanceChange producidos por Trends, conservando fechas y valores exactos.
+
+No contiene recomendaciones, confidence, metadata, porcentajes ni referencias completas a WeeklyAnalysis.
+
+Composición y límites
+
+Insights reutiliza normalize_weekly_history y weekly_running_distance_changes. No recalcula agregación semanal, orden temporal, validación de lunes, duplicados, pares consecutivos ni diferencias de distancia. Añade la detección del patrón y conserva su evidencia. Los ValueError de Trends se propagan incluso para un historial corto con una fecha inválida.
+
+Analytics calcula → Trends compara → Insights detecta → Coach interpreta/recomienda.
+
+Un hueco rompe el patrón, sin puentes ni semanas creadas. Una observación con conteo cero o distancia <= 0 invalida esa ventana. Cero no significa descanso; hueco no significa cero. La secuencia 0 → 10 → 20 → 30 no produce este Insight.
+
+El crecimiento es estricto: 10 → 20 → 20 → 30 no cumple. No se aplican redondeos, tolerancias, epsilon ni threshold mínimo. Incrementos positivos pequeños también cumplen; no se afirma relevancia por magnitud.
+
+Se conservan los solapamientos: 10 → 20 → 30 → 40 → 50 produce dos resultados, uno por cada ventana fija de cuatro observaciones. No existen todavía episodios ni agrupación de resultados.
+
+El caller sigue siendo responsable del contexto compatible de atleta y timezone y de suministrar métricas válidas. El detector no certifica cobertura, completitud, cierre calendario ni origen; una semana abierta puede participar si cumple la regla sobre sus observaciones. No modifica las entradas y no requiere dependencias nuevas ni IA/LLM.
+
+Insights V1 todavía no está cerrado. Las demás posibilidades se evaluarán según necesidad de producto; no son requisitos automáticos de cierre.
+
+⸻
+
 🧪 Validación
 
 Automated Tests
 
 Actualmente:
 
-683 tests passing
+730 tests passing
 
-El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Pasan los 230 tests de src/trends y los 36 tests de los seis modelos temporales: 266 tests del conjunto auditado de Trends V1. La suite completa configurada pasa con 683 tests y cobertura global de líneas y ramas del 97,40 % (97 % redondeado); los seis módulos de Trends y los seis modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
+El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 230 tests de src/trends siguen pasando, junto con los 36 tests de los seis modelos temporales: 266 tests del conjunto auditado de Trends V1. El primer Insight añade 7 tests del modelo y 40 tests de Insights, 47 combinados. La suite completa configurada pasa con 730 tests y cobertura global de líneas y ramas del 97,55 %; el nuevo modelo y src/insights alcanzan el 100 %; los seis módulos de Trends y los seis modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
 La suite cubre, entre otros:
 
@@ -392,6 +439,7 @@ La suite cubre, entre otros:
 * Training classification.
 * Training analysis.
 * Weekly calculations.
+* Persistent Weekly Running Distance Increase: continuidad, elegibilidad, crecimiento estricto, solapamientos, evidencia exacta y ausencia de mutaciones.
 * Domain models.
 * Casos límite.
 * Manejo de datos ausentes o incorrectos.
@@ -401,7 +449,7 @@ Existe además un integration test que conecta token refresh con athlete retriev
 
 Reporting de tests tradicionales
 
-Allure está integrado con pytest mediante allure-pytest 2.16.2 como herramienta de testing, sin dependencias en el dominio. Se comprobó su ejecución con Python 3.14 y pytest 9.1.1: tanto la suite normal como la generación de resultados Allure pasan con los mismos 683 tests. Los 683 resultados generados quedan clasificados centralmente por las convenciones existentes: 682 Unit y 1 Integration; hay 0 E2E existentes. Los artefactos permanecen excluidos de Git. La CLI externa de Allure no está instalada en el entorno validado; se generan resultados sin ella, pero la construcción del informe HTML queda sin verificar. La CLI y la generación HTML son aspectos de tooling y no limitaciones funcionales de Trends V1. La clasificación de Allure no cambia la selección ni ejecución de pytest.
+Allure está integrado con pytest mediante allure-pytest 2.16.2 como herramienta de testing, sin dependencias en el dominio. Se comprobó su ejecución con Python 3.14 y pytest 9.1.1: tanto la suite normal como la generación de resultados Allure pasan con los mismos 730 tests. Los 730 resultados generados quedan clasificados centralmente por las convenciones existentes: 729 Unit y 1 Integration; hay 0 E2E existentes. Los artefactos permanecen excluidos de Git. La CLI externa de Allure no está instalada en el entorno validado; se generan resultados sin ella, pero la construcción del informe HTML queda sin verificar. La CLI y la generación HTML son aspectos de tooling y no limitaciones funcionales de Trends V1. La clasificación de Allure no cambia la selección ni ejecución de pytest.
 
 Actualmente no existen:
 
@@ -513,9 +561,24 @@ Auditoría final conjunta y cierre formal de Trends V1
 
 La auditoría final concluyó READY TO CLOSE, sin blockers funcionales. Se revisaron el flujo de composición, las seis APIs escalares y temporales, los seis modelos y la frontera de responsabilidades. Los ocho validadores de historial se ejecutaron nuevamente y un contraste conjunto independiente agrupó las Run fuente por semana ISO local, con Decimal para distancia y enteros para conteo y segundos. Las 24 WeeklyAnalysis producen 23 transiciones en cada API: los tres absolutos tienen 23 valores definidos y cada porcentaje tiene 19 valores definidos y 4 None que conservan sus transiciones. La entrada normal, inversa y permutada es equivalente. Retirar 29/06 deja 21 resultados y retirar también 06/07 deja 20, sin puentes sobre huecos. Se verificaron igualdad exacta con los escalares, contraste independiente, observaciones cero conservadas, ausencia de redondeos de producción y ausencia de mutaciones de campos, identidad u orden.
 
-Conteo y moving time coinciden exactamente con el oráculo; distancia absoluta y porcentual presentan diferencias máximas de 3,64 × 10⁻¹² m y 5,68 × 10⁻¹⁴ puntos porcentuales, dentro de las tolerancias de auditoría existentes. El SHA-256 original de la captura permanece intacto: 69bb43aa007f7c010e8babc8dbdb1693cdab491bae79475e87acc1b8431038ac. La suite final tras el cierre documental pasa con 683 tests; se conserva la cobertura auditada del 97,40 % global y el 100 % en los seis módulos de Trends y los seis modelos temporales. No se modifica código funcional ni se repite la captura remota para este cierre.
+Conteo y moving time coinciden exactamente con el oráculo; distancia absoluta y porcentual presentan diferencias máximas de 3,64 × 10⁻¹² m y 5,68 × 10⁻¹⁴ puntos porcentuales, dentro de las tolerancias de auditoría existentes. El SHA-256 original de la captura permanece intacto: 69bb43aa007f7c010e8babc8dbdb1693cdab491bae79475e87acc1b8431038ac. En aquel cierre documental de Trends, anterior al primer Insight, la suite pasó con 683 tests; se conservó la cobertura auditada del 97,40 % global y el 100 % en los seis módulos de Trends y los seis modelos temporales. No se modifica código funcional ni se repite la captura remota para este cierre.
 
-TRENDS V1 — COMPLETE. Este cierre no declara implementados Insights, Coach, UI ni capacidades futuras de Trends.
+TRENDS V1 — COMPLETE. Aquel cierre no incluía el primer Insight, implementado y validado posteriormente. Coach, UI y las capacidades futuras de Trends permanecen pendientes.
+
+⸻
+
+Validación offline del primer Insight: Persistent Weekly Running Distance Increase
+
+El 2 de octubre de 2026 se validó el detector exclusivamente con local_validation/strava_snapshot_2026-09-28.json, sin descargar nuevos datos de Strava. Las 24 WeeklyAnalysis reconstruidas con Analytics producen EXACTAMENTE 1 Insight:
+
+* Ventana: 2026-06-22 → 2026-06-29 → 2026-07-06 → 2026-07-13.
+* Distancias exactas en metros: (10057.0, 31246.6, 35607.5, 36571.5).
+* Conteos Run: (2, 4, 4, 4).
+* Cambios exactos de Trends en metros: (21189.6, 4360.9000000000015, 964.0), con las fechas de las tres transiciones correspondientes. Se conserva el float de Trends, sin ajustarlo a una representación decimal redondeada.
+
+Entrada normal, inversa y permutada producen el mismo único resultado. Retirar únicamente el 29/06 en memoria produce 0 Insights; retirar únicamente el 06/07 también produce 0. No se crean puentes. Se comprobaron fechas, distancias, conteos y cambios, además de ausencia de mutaciones en valores, orden, identidades y estructura por tipo de las entradas. Los tests específicos verifican también la conservación de los objetos de Trends.
+
+El SHA-256 original permanece intacto antes y después: 69bb43aa007f7c010e8babc8dbdb1693cdab491bae79475e87acc1b8431038ac. La comprobación utilizó una ejecución temporal offline sin añadir un validador persistente al repositorio. Esta evidencia valida el patrón sobre los registros suministrados, sin certificar integridad del historial ni interpretar descanso, fisiología o recomendaciones. La implementación no modificó Analytics, Trends ni WeeklyAnalysis.
 
 ⸻
 
@@ -593,13 +656,15 @@ Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distanci
 
 ↓
 
-Insights V1 ← 📍 DESIGN NEXT — sin implementación
+Insights V1 🟡 IN PROGRESS
 
-Analytics + Trends → hechos relevantes; alcance y contratos por diseñar
+Persistent Weekly Running Distance Increase ✅ — primer Insight implementado y validado.
+
+Analytics + Trends → detección de tres aumentos de distancia entre cuatro observaciones consecutivas. El alcance necesario para cerrar Insights V1 está por decidir; no se implementará automáticamente otro Insight.
 
 ↓
 
-AI Coach
+AI Coach ⏳ Pendiente
 
 Athlete context + Analytics + Insights + Goal → interpretación y recomendaciones
 
@@ -614,18 +679,20 @@ Capacidades futuras reclasificadas
 * Analytics: longest run y métricas de calendario —active running days, días sin Run, sesiones consecutivas, distribución diaria y densidad definida objetivamente— serán posibles ampliaciones si una necesidad concreta de Trends/Insights las requiere. Longest run no equivale a TrainingType.Long. Los días sin registros Run no se presentarán como descanso real; rest days requiere información y una definición adicionales.
 * Analytics derivado: el ritmo agregado podrá calcularse a partir de distancia y moving time si hay una necesidad concreta, sin almacenar un campo redundante. Easy / Quality permanece pendiente de definición y posible derivación; las etiquetas actuales no acreditan intensidad fisiológica.
 * Trends: V1 está COMPLETE sobre observaciones suministradas. TrainingType trends, ventanas, medias móviles y tratamiento automático de semanas abiertas/incompletas o disponibilidad de datos son posibles ampliaciones posteriores. Las comparaciones temporales por TrainingType solo se incorporarán si Insights demuestra una necesidad concreta; no son requisito previo de Insights V1.
-* Insights: detección de cambios relevantes, concentración, anomalías y patrones. Los patrones cronológicos podrán cruzar domingo/lunes y necesitar actividades individuales de una ventana mayor.
+* Insights: además del primer aumento persistente de distancia ya implementado, se mantienen como posibilidades futuras la detección de cambios relevantes, concentración, anomalías y otros patrones. Los patrones cronológicos podrán cruzar domingo/lunes y necesitar actividades individuales de una ventana mayor.
 * Coach: interpretación contextual, valoración de recuperación adecuada y recomendaciones.
 
 Esta reclasificación conserva las posibilidades del roadmap sin incorporarlas al contrato de Weekly Analytics V1 ni comprometer su implementación inmediata.
 
 ⸻
 
-💡 Insights previstos
+💡 Insights implementados y posibilidades futuras
 
-Como posibilidades de diseño todavía no implementadas, Insights V1 podría detectar hechos como:
+Implementado y validado: Persistent Weekly Running Distance Increase, con el contrato específico descrito anteriormente.
 
-* Aumento o reducción de volumen.
+Las siguientes posibilidades siguen pendientes de definición o implementación; no son requisitos obligatorios para cerrar Insights V1:
+
+* Reducción persistente de distancia y otros patrones de volumen.
 * Evolución de la tirada larga.
 * Parones y regresos al entrenamiento.
 * Concentración de sesiones exigentes.
@@ -637,7 +704,7 @@ Como posibilidades de diseño todavía no implementadas, Insights V1 podría det
 
 Ejemplo válido:
 
-Las últimas cuatro semanas fueron 24 → 27 → 30 → 33 km (+37,5 %).
+En cuatro observaciones semanales consecutivas con conteo Run positivo, 24 → 27 → 30 → 33 km presenta tres aumentos consecutivos. Este ejemplo conceptual no añade un porcentaje acumulado al contrato implementado.
 
 Ejemplo que no corresponde a Insights:
 
@@ -664,7 +731,7 @@ Actualmente conocemos al menos:
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
-* No existen Insights.
+* Existe el primer Insight determinista de aumento persistente de distancia semanal; Insights V1 todavía no está cerrado y su alcance de cierre debe decidirse.
 * No existe Coach.
 
 Estos elementos deben priorizarse según las necesidades del roadmap, no necesariamente por su orden técnico.
@@ -673,7 +740,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Insights V1 — DESIGN NEXT. Definir su alcance e inputs a partir de WeeklyAnalysis y las capacidades cerradas de Trends V1, sin implementar Insights todavía. Weekly Analytics V1 y Trends V1 están COMPLETE. TrainingType trends permanece fuera de V1 y solo se planteará como ampliación posterior si Insights demuestra que necesita comparaciones temporales explícitas por tipo.
+Insights V1 — IN PROGRESS. FIRST INSIGHT IMPLEMENTED AND VALIDATED: Persistent Weekly Running Distance Increase. El próximo trabajo es decidir el alcance necesario para cerrar Insights V1, no implementar automáticamente otro Insight. Weekly Analytics V1 y Trends V1 están COMPLETE; AI Coach permanece pendiente. Reducción persistente, parones/regresos, longest run, TrainingType, Easy/Quality, anomalías y rendimiento comparable siguen siendo posibilidades futuras, no requisitos obligatorios de cierre. TrainingType trends solo se planteará si una necesidad concreta demuestra que requiere comparaciones temporales por tipo.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
