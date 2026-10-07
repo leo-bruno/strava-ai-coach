@@ -64,7 +64,7 @@ Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
-Insights V1	🟡 IN PROGRESS — primer Insight implementado y validado
+Insights V1	🟡 IN PROGRESS — Increase y Decrease implementados y validados mediante tests
 AI Coach	⏳ Pendiente
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
@@ -75,7 +75,7 @@ UI	⏳ Futuro
 
 Insights V1 — IN PROGRESS
 
-FIRST INSIGHT IMPLEMENTED AND VALIDATED: Persistent Weekly Running Distance Increase. El primer detector determinista está implementado y validado; Insights V1 todavía no está cerrado. El siguiente trabajo es decidir el alcance necesario para cerrar V1, sin iniciar automáticamente otro Insight.
+Persistent Weekly Running Distance Increase está implementado y validado, incluida su validación offline. Persistent Weekly Running Distance Decrease está implementado y validado mediante tests automatizados. Insights V1 sigue IN PROGRESS. El siguiente Insight planificado es el patrón de inactividad observada/retorno, cuyo contrato exacto todavía debe definirse; no está implementado.
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
@@ -140,6 +140,7 @@ Actualmente existen modelos inmutables para representar:
 * WeeklyRunningMovingTimeChange
 * WeeklyRunningMovingTimePercentageChange
 * PersistentWeeklyRunningDistanceIncrease
+* PersistentWeeklyRunningDistanceDecrease
 * Tipos de entrenamiento
 
 Los datos opcionales ausentes de las actividades y sus análisis permanecen como None. En los resultados porcentuales de Trends, None significa exclusivamente porcentaje indefinido por base anterior cero; no representa datos ausentes.
@@ -256,7 +257,7 @@ Weekly Analytics V1 incluye:
 * running_moving_time_seconds
 * running_structure_by_type: para cada TrainingType, activity_count, distance_meters y moving_time_seconds.
 
-Las seis categorías son Easy, Long, Tempo, Intervals, Race y Other. Weekly Structure V1 está completa en sus tres dimensiones. El cierre de Weekly Analytics V1 es independiente del posterior cierre de Trends V1. Strava Integration permanece parcial; existe el primer Insight implementado y validado, mientras que Coach permanece pendiente.
+Las seis categorías son Easy, Long, Tempo, Intervals, Race y Other. Weekly Structure V1 está completa en sus tres dimensiones. El cierre de Weekly Analytics V1 es independiente del posterior cierre de Trends V1. Strava Integration permanece parcial; existen los Insights Increase y Decrease implementados y validados mediante tests, mientras que Coach permanece pendiente.
 
 Definición de semana
 
@@ -416,7 +417,29 @@ Se conservan los solapamientos: 10 → 20 → 30 → 40 → 50 produce dos resul
 
 El caller sigue siendo responsable del contexto compatible de atleta y timezone y de suministrar métricas válidas. El detector no certifica cobertura, completitud, cierre calendario ni origen; una semana abierta puede participar si cumple la regla sobre sus observaciones. No modifica las entradas y no requiere dependencias nuevas ni IA/LLM.
 
-Insights V1 todavía no está cerrado. Las demás posibilidades se evaluarán según necesidad de producto; no son requisitos automáticos de cierre.
+Persistent Weekly Running Distance Decrease — IMPLEMENTED AND VALIDATED mediante tests automatizados
+
+Existe detect_persistent_weekly_running_distance_decreases, que recibe Sequence[WeeklyAnalysis] y devuelve tuple[PersistentWeeklyRunningDistanceDecrease, ...] en orden cronológico, incluida la tuple vacía cuando no hay resultados.
+
+El contrato exige una ventana fija de cuatro observaciones de semanas calendario consecutivas, identificadas por lunes locales. Todas deben tener running_distance_meters > 0 y running_activity_count > 0. Las tres transiciones absolutas de distancia deben ser estrictamente negativas y temporalmente encadenadas: el destino de la primera coincide con el origen de la segunda, y el destino de la segunda con el origen de la tercera. Tres objetos negativos adyacentes en la colección no bastan.
+
+35 → 31 → 27 → 22 km cumple con conteos positivos. 35 → 30 → 30 → 20 km no cumple por igualdad. 20 → 15 → 10 → 0 km no cumple por distancia cero final, incluso con conteo positivo. Un hueco rompe el patrón; no se crean observaciones ni se conectan semanas separadas por un hueco. Las observaciones ineligibles permanecen en el historial: su elegibilidad se evalúa dentro de cada ventana candidata. Se conservan todos los solapamientos, sin agrupar episodios.
+
+PersistentWeeklyRunningDistanceDecrease es una frozen dataclass sin cálculos ni validación automática, con exactamente cinco campos:
+
+* start_week_date: date, lunes de la primera observación.
+* end_week_date: date, lunes de la cuarta observación, no el final calendario de esa semana.
+* weekly_distances_meters: tuple[float, float, float, float], distancias originales en orden semanal.
+* weekly_activity_counts: tuple[int, int, int, int], conteos originales en el mismo orden.
+* distance_changes: tuple[WeeklyRunningDistanceChange, WeeklyRunningDistanceChange, WeeklyRunningDistanceChange], los objetos originales producidos por Trends con sus fechas y valores negativos exactos.
+
+Reutiliza normalize_weekly_history y weekly_running_distance_changes sin recalcular agregación, orden, consecutividad ni diferencias. Propaga los ValueError por fechas duplicadas o no lunes, incluso con historiales cortos; conserva las entradas. No modifica Analytics, Trends, WeeklyAnalysis ni el contrato de Increase, y no introduce una abstracción genérica de dirección.
+
+No aplica umbral mínimo, porcentajes, redondeos, tolerancias, confidence ni cierre calendario. El caller proporciona métricas válidas y contexto compatible de atleta/timezone. Una semana abierta puede participar; el resultado describe exclusivamente observaciones suministradas, sin certificar cobertura ni completitud. No interpreta desentrenamiento, recuperación, fitness, lesión, entrenamiento apropiado o insuficiente, ni recomienda acciones: esas responsabilidades pertenecen a Coach. Una transición hacia cero no se reinterpreta como inactividad.
+
+La validación automatizada del 7 de octubre de 2026 incluye 7 tests del modelo Decrease y 54 tests nuevos de detectores, incluida una regresión conjunta Increase/Decrease. Pasan 352 tests focalizados y los 791 tests de la suite completa configurada. El detector y ambos modelos de Insight alcanzan el 100 % de cobertura. No se realizaron solicitudes live a Strava ni validación nueva de Decrease contra la captura real.
+
+Insights V1 sigue IN PROGRESS. El siguiente Insight planificado es el patrón de inactividad observada/retorno; su contrato exacto está pendiente de definición y no se ha implementado. Las demás posibilidades no son requisitos automáticos de cierre.
 
 ⸻
 
@@ -426,9 +449,9 @@ Automated Tests
 
 Actualmente:
 
-730 tests passing
+791 tests passing
 
-El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 230 tests de src/trends siguen pasando, junto con los 36 tests de los seis modelos temporales: 266 tests del conjunto auditado de Trends V1. El primer Insight añade 7 tests del modelo y 40 tests de Insights, 47 combinados. La suite completa configurada pasa con 730 tests y cobertura global de líneas y ramas del 97,55 %; el nuevo modelo y src/insights alcanzan el 100 %; los seis módulos de Trends y los seis modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
+El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 230 tests de src/trends siguen pasando, junto con los 36 tests de los seis modelos temporales: 266 tests del conjunto auditado de Trends V1. Increase conserva sus 7 tests de modelo y 40 tests de detector. Decrease añade 7 tests de modelo y 54 tests de detectores, incluida una regresión conjunta, para 108 tests de Insights y sus modelos. Pasan 352 tests focalizados. La suite completa configurada pasa con 791 tests: 790 Unit y 1 Integration mockeado. La cobertura global combinada de statements y branches es 97,67080745341615 % (629/644), con 519/528 statements (98,29545454545455 %) y 110/116 branches (94,82758620689656 %); ambos modelos de Insight y src/insights alcanzan el 100 %; los seis módulos de Trends y los seis modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
 La suite cubre, entre otros:
 
@@ -439,7 +462,7 @@ La suite cubre, entre otros:
 * Training classification.
 * Training analysis.
 * Weekly calculations.
-* Persistent Weekly Running Distance Increase: continuidad, elegibilidad, crecimiento estricto, solapamientos, evidencia exacta y ausencia de mutaciones.
+* Persistent Weekly Running Distance Increase y Decrease: continuidad y encadenamiento temporal, elegibilidad, dirección estricta, solapamientos, evidencia exacta, identidad de objetos Trends y ausencia de mutaciones.
 * Domain models.
 * Casos límite.
 * Manejo de datos ausentes o incorrectos.
@@ -449,7 +472,7 @@ Existe además un integration test que conecta token refresh con athlete retriev
 
 Reporting de tests tradicionales
 
-Allure está integrado con pytest mediante allure-pytest 2.16.2 como herramienta de testing, sin dependencias en el dominio. Se comprobó su ejecución con Python 3.14 y pytest 9.1.1: tanto la suite normal como la generación de resultados Allure pasan con los mismos 730 tests. Los 730 resultados generados quedan clasificados centralmente por las convenciones existentes: 729 Unit y 1 Integration; hay 0 E2E existentes. Los artefactos permanecen excluidos de Git. La CLI externa de Allure no está instalada en el entorno validado; se generan resultados sin ella, pero la construcción del informe HTML queda sin verificar. La CLI y la generación HTML son aspectos de tooling y no limitaciones funcionales de Trends V1. La clasificación de Allure no cambia la selección ni ejecución de pytest.
+Allure está integrado con pytest mediante allure-pytest 2.16.2 como herramienta de testing, sin dependencias en el dominio. En la validación anterior de Increase se comprobó su ejecución con Python 3.14 y pytest 9.1.1: tanto la suite normal como la generación de resultados Allure pasan con los mismos 730 tests. Los 730 resultados generados quedan clasificados centralmente por las convenciones existentes: 729 Unit y 1 Integration; hay 0 E2E existentes. Los artefactos permanecen excluidos de Git. La CLI externa de Allure no está instalada en el entorno validado; se generan resultados sin ella, pero la construcción del informe HTML queda sin verificar. La CLI y la generación HTML son aspectos de tooling y no limitaciones funcionales de Trends V1. La clasificación de Allure no cambia la selección ni ejecución de pytest. En el incremento Decrease se ejecutó la suite con cobertura (791 tests), sin regenerar los resultados Allure; el conteo de 730 resultados anterior es evidencia histórica.
 
 Actualmente no existen:
 
@@ -658,9 +681,11 @@ Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distanci
 
 Insights V1 🟡 IN PROGRESS
 
-Persistent Weekly Running Distance Increase ✅ — primer Insight implementado y validado.
+Persistent Weekly Running Distance Increase ✅ — implementado y validado, incluida validación offline.
 
-Analytics + Trends → detección de tres aumentos de distancia entre cuatro observaciones consecutivas. El alcance necesario para cerrar Insights V1 está por decidir; no se implementará automáticamente otro Insight.
+Persistent Weekly Running Distance Decrease ✅ — implementado y validado mediante tests automatizados.
+
+Analytics + Trends → detección de tres aumentos o tres disminuciones estrictas entre cuatro observaciones consecutivas elegibles, con resultados específicos separados. Insights V1 sigue IN PROGRESS. El siguiente Insight planificado es inactividad observada/retorno, con contrato exacto por definir; todavía no está implementado. El alcance de cierre de V1 sigue pendiente de decisión.
 
 ↓
 
@@ -679,7 +704,7 @@ Capacidades futuras reclasificadas
 * Analytics: longest run y métricas de calendario —active running days, días sin Run, sesiones consecutivas, distribución diaria y densidad definida objetivamente— serán posibles ampliaciones si una necesidad concreta de Trends/Insights las requiere. Longest run no equivale a TrainingType.Long. Los días sin registros Run no se presentarán como descanso real; rest days requiere información y una definición adicionales.
 * Analytics derivado: el ritmo agregado podrá calcularse a partir de distancia y moving time si hay una necesidad concreta, sin almacenar un campo redundante. Easy / Quality permanece pendiente de definición y posible derivación; las etiquetas actuales no acreditan intensidad fisiológica.
 * Trends: V1 está COMPLETE sobre observaciones suministradas. TrainingType trends, ventanas, medias móviles y tratamiento automático de semanas abiertas/incompletas o disponibilidad de datos son posibles ampliaciones posteriores. Las comparaciones temporales por TrainingType solo se incorporarán si Insights demuestra una necesidad concreta; no son requisito previo de Insights V1.
-* Insights: además del primer aumento persistente de distancia ya implementado, se mantienen como posibilidades futuras la detección de cambios relevantes, concentración, anomalías y otros patrones. Los patrones cronológicos podrán cruzar domingo/lunes y necesitar actividades individuales de una ventana mayor.
+* Insights: además del aumento y la disminución persistentes de distancia ya implementados, se mantienen como posibilidades futuras la detección de cambios relevantes, concentración, anomalías y otros patrones. Los patrones cronológicos podrán cruzar domingo/lunes y necesitar actividades individuales de una ventana mayor.
 * Coach: interpretación contextual, valoración de recuperación adecuada y recomendaciones.
 
 Esta reclasificación conserva las posibilidades del roadmap sin incorporarlas al contrato de Weekly Analytics V1 ni comprometer su implementación inmediata.
@@ -688,13 +713,13 @@ Esta reclasificación conserva las posibilidades del roadmap sin incorporarlas a
 
 💡 Insights implementados y posibilidades futuras
 
-Implementado y validado: Persistent Weekly Running Distance Increase, con el contrato específico descrito anteriormente.
+Implementados y validados mediante tests: Persistent Weekly Running Distance Increase y Persistent Weekly Running Distance Decrease, con los contratos específicos descritos anteriormente. Increase también dispone de validación offline. El siguiente patrón planificado es inactividad observada/retorno, pendiente de definir su contrato exacto.
 
 Las siguientes posibilidades siguen pendientes de definición o implementación; no son requisitos obligatorios para cerrar Insights V1:
 
-* Reducción persistente de distancia y otros patrones de volumen.
+* Otros patrones de volumen.
 * Evolución de la tirada larga.
-* Parones y regresos al entrenamiento.
+* Inactividad observada/retorno: siguiente Insight planificado, pendiente de contrato exacto; no acredita descanso real ni completitud del historial.
 * Concentración de sesiones exigentes.
 * Sesiones exigentes consecutivas.
 * Cambios importantes en frecuencia de entrenamiento.
@@ -731,7 +756,7 @@ Actualmente conocemos al menos:
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
-* Existe el primer Insight determinista de aumento persistente de distancia semanal; Insights V1 todavía no está cerrado y su alcance de cierre debe decidirse.
+* Existen los Insights deterministas Increase y Decrease; Insights V1 sigue IN PROGRESS y su alcance de cierre debe decidirse. El siguiente Insight planificado es inactividad observada/retorno, con contrato exacto pendiente.
 * No existe Coach.
 
 Estos elementos deben priorizarse según las necesidades del roadmap, no necesariamente por su orden técnico.
@@ -740,7 +765,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Insights V1 — IN PROGRESS. FIRST INSIGHT IMPLEMENTED AND VALIDATED: Persistent Weekly Running Distance Increase. El próximo trabajo es decidir el alcance necesario para cerrar Insights V1, no implementar automáticamente otro Insight. Weekly Analytics V1 y Trends V1 están COMPLETE; AI Coach permanece pendiente. Reducción persistente, parones/regresos, longest run, TrainingType, Easy/Quality, anomalías y rendimiento comparable siguen siendo posibilidades futuras, no requisitos obligatorios de cierre. TrainingType trends solo se planteará si una necesidad concreta demuestra que requiere comparaciones temporales por tipo.
+Insights V1 — IN PROGRESS. Persistent Weekly Running Distance Increase y Persistent Weekly Running Distance Decrease están implementados y validados mediante tests; Increase también está validado offline. El próximo trabajo es definir el contrato exacto del Insight planificado de inactividad observada/retorno antes de implementarlo. Este tercer Insight todavía no existe y no se inicia automáticamente. El alcance necesario para cerrar Insights V1 sigue pendiente de decisión. Weekly Analytics V1 y Trends V1 están COMPLETE; AI Coach permanece pendiente. Longest run, TrainingType, Easy/Quality, anomalías y rendimiento comparable siguen siendo posibilidades futuras, no requisitos obligatorios de cierre. TrainingType trends solo se planteará si una necesidad concreta demuestra que requiere comparaciones temporales por tipo.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
@@ -750,4 +775,4 @@ El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persist
 
 ⸻
 
-Last updated: 2 October 2026
+Last updated: 7 October 2026
