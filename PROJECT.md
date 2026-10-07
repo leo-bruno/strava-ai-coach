@@ -64,7 +64,7 @@ Strava Integration	🟡 Parcial
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
-Insights V1	🟡 IN PROGRESS — tres Insights planificados implementados; validación offline final y cierre pendientes
+Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
 AI Coach	⏳ Pendiente
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
@@ -73,9 +73,9 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-Insights V1 — IN PROGRESS
+Insights V1 — COMPLETE
 
-Los tres Insights planificados están implementados y validados mediante tests automatizados: Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks. Increase también dispone de validación offline. Insights V1 sigue IN PROGRESS; la siguiente etapa es la validación offline final conjunta y el cierre formal, sin implementar Insights adicionales ni iniciar Coach automáticamente.
+Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks. Los tres están implementados, probados y validados conjuntamente offline sobre la captura existente del 28 de septiembre de 2026. La siguiente fase es diseñar AI Coach V1; no se implementa Coach todavía ni se añaden Insights automáticamente.
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
@@ -378,7 +378,7 @@ Trends V1 está COMPLETE: la auditoría final conjunta y la validación de su al
 
 ⸻
 
-7. Insights V1 🟡 IN PROGRESS
+7. Insights V1 ✅ COMPLETE
 
 FIRST INSIGHT IMPLEMENTED AND VALIDATED
 
@@ -438,7 +438,7 @@ Reutiliza normalize_weekly_history y weekly_running_distance_changes sin recalcu
 
 No aplica umbral mínimo, porcentajes, redondeos, tolerancias, confidence ni cierre calendario. El caller proporciona métricas válidas y contexto compatible de atleta/timezone. Una semana abierta puede participar; el resultado describe exclusivamente observaciones suministradas, sin certificar cobertura ni completitud. No interpreta desentrenamiento, recuperación, fitness, lesión, entrenamiento apropiado o insuficiente, ni recomienda acciones: esas responsabilidades pertenecen a Coach. Una transición hacia cero no se reinterpreta como inactividad.
 
-La validación automatizada del 7 de octubre de 2026 incluye 7 tests del modelo Decrease y 54 tests nuevos de detectores, incluida una regresión conjunta Increase/Decrease. Pasan 352 tests focalizados y los 791 tests de la suite completa configurada. El detector y ambos modelos de Insight alcanzan el 100 % de cobertura. No se realizaron solicitudes live a Strava ni validación nueva de Decrease contra la captura real.
+La validación automatizada del 7 de octubre de 2026 incluye 7 tests del modelo Decrease y 54 tests nuevos de detectores, incluida una regresión conjunta Increase/Decrease. Pasan 352 tests focalizados y los 791 tests de la suite completa configurada. El detector y ambos modelos de Insight alcanzan el 100 % de cobertura. En aquel incremento no se realizaron solicitudes live a Strava ni validación nueva de Decrease contra la captura real; la validación offline final conjunta posterior se documenta más abajo.
 
 ObservedRunningAfterZeroRunWeeks — IMPLEMENTED AND VALIDATED mediante tests automatizados
 
@@ -470,9 +470,9 @@ El detector consume WeeklyAnalysis directamente a través de consecutive_week_pa
 
 El Insight describe observaciones suministradas. Cero Run no demuestra inactividad real, descanso, lesión, desentrenamiento, interrupción del entrenamiento, ausencia de ejercicio ni que el atleta no corrió. La observación siguiente tampoco acredita un retorno conductual. No interpreta ni recomienda, no certifica cobertura o completitud ni filtra por cierre calendario. No almacena WeeklyAnalysis completos, última fecha cero redundante, tuples de ceros, confidence, porcentajes ni información fisiológica.
 
-Validación automatizada del 7 de octubre de 2026: 48 tests del detector y 7 del modelo, incluidos episodios maximales, mínimos, huecos y cadenas desconectadas, conteo exclusivo, distancia cero, entradas inconsistentes sin corrección, orden, errores, fechas calendario y ausencia de mutaciones. Pasan 212 tests focalizados de Insights/modelos/historial, incluida regresión de Increase/Decrease, y los 846 tests de la suite completa configurada. El nuevo detector/modelo y los Insights existentes alcanzan 100 % de cobertura. No se realizaron solicitudes live a Strava ni nueva validación contra datos reales.
+Validación automatizada del 7 de octubre de 2026: 48 tests del detector y 7 del modelo, incluidos episodios maximales, mínimos, huecos y cadenas desconectadas, conteo exclusivo, distancia cero, entradas inconsistentes sin corrección, orden, errores, fechas calendario y ausencia de mutaciones. Pasan 212 tests focalizados de Insights/modelos/historial, incluida regresión de Increase/Decrease, y los 846 tests de la suite completa configurada. El nuevo detector/modelo y los Insights existentes alcanzan 100 % de cobertura. En aquel incremento no se realizaron solicitudes live a Strava ni nueva validación contra datos reales; la validación offline final conjunta posterior se documenta más abajo.
 
-Insights V1 sigue IN PROGRESS. Los tres Insights planificados están implementados; la validación offline final conjunta y el cierre formal son el próximo paso. No se implementa ningún Insight adicional.
+Insights V1 está COMPLETE con los tres contratos anteriores, tras la validación offline final conjunta. La siguiente fase es AI Coach V1 design. No se implementa ningún Insight adicional ni Coach todavía.
 
 ⸻
 
@@ -639,6 +639,26 @@ El SHA-256 original permanece intacto antes y después: 69bb43aa007f7c010e8babc8
 
 ⸻
 
+Validación offline final conjunta y cierre de Insights V1 — 7 de octubre de 2026
+
+Se reutilizó exclusivamente local_validation/strava_snapshot_2026-09-28.json, sin solicitudes de red ni datos nuevos. El SHA-256 antes y después es 69bb43aa007f7c010e8babc8dbdb1693cdab491bae79475e87acc1b8431038ac. Las 89 actividades exportadas contienen 59 Run y 468586.9 m. Analytics reconstruye exactamente las 24 observaciones ya suministradas, del 20/04 al 28/09, sin crear semanas: 23 transiciones consecutivas, cinco observaciones cero-Run y una semana final abierta al extraer.
+
+Resultados exactos sobre el mismo historial:
+
+* PersistentWeeklyRunningDistanceIncrease: 1 resultado, 22/06 → 13/07; distancias (10057.0, 31246.6, 35607.5, 36571.5) m, conteos (2, 4, 4, 4), cambios (21189.6, 4360.9000000000015, 964.0) m con las tres transiciones fechadas originales de Trends.
+* PersistentWeeklyRunningDistanceDecrease: 0 resultados. 27/07 → 17/08 presenta (41238.7, 21190.3, 19115.9, 0.0) m y (4, 2, 2, 0) Run: el cuarto dato no es elegible y no se reinterpreta como disminución persistente válida.
+* ObservedRunningAfterZeroRunWeeks: 1 resultado; first_zero_week_date = 2026-08-17, observed_zero_week_count = 3, running_week_date = 2026-09-07, running_week_activity_count = 2, running_week_distance_meters = 15495.9. Las semanas 17/08, 24/08 y 31/08 contienen cero Run suministradas y forman un único episodio maximal.
+
+Una agrupación independiente de registros Run por semana ISO local verificó los totales y enumeró todas las ventanas/episodios. No se encontraron falsos positivos ni negativos. Los conteos y moving time coinciden exactamente; distancia coincide exactamente con los totales float de la captura y difiere como máximo 3.637978807091713e-12 m de las sumas Decimal independientes, dentro de las tolerancias existentes de auditoría, sin tolerancia ni redondeo en detección. Las transiciones iguales entre semanas cero no generan Increase/Decrease; la semana aislada cero del 01/06 y la semana final cero sin observación siguiente no generan episodio. Solo existe un episodio que cumple el contrato en esta captura; la separación de múltiples episodios se valida mediante los tests existentes.
+
+Se contrastaron 27 variantes: orden normal, inverso, permutado y retirada individual en memoria de cada una de las 24 semanas. Todas coinciden con el oráculo independiente. No se rellenaron huecos ni se crearon puentes. Retirar 24/08, 31/08 o 07/09 elimina el episodio; retirar 17/08 conserva correctamente un episodio nuevo de dos ceros desde 24/08. Retirar cualquier miembro de Increase elimina ese resultado. Valores, orden, identidades y resúmenes TrainingType permanecen intactos; los objetos reales de Trends retenidos como evidencia conservan identidad y valores.
+
+Tras la auditoría, la suite completa configurada pasó con 846 tests. Cobertura combinada 97.79086892488954 % (664/679), statements 98.37251356238698 % (544/553), branches 95.23809523809524 % (120/126); ambos módulos detectores y los tres modelos de Insight tienen 100 %. No se modificó código de producción ni contratos y no se encontró ningún defecto pendiente. Evidencia detallada y tabla completa de observaciones: local_validation/insights_v1_report.md.
+
+INSIGHTS V1 — COMPLETE con exactamente PersistentWeeklyRunningDistanceIncrease, PersistentWeeklyRunningDistanceDecrease y ObservedRunningAfterZeroRunWeeks. El cierre valida los contratos sobre observaciones suministradas, no cobertura/completitud ni cierre calendario. No acredita inactividad real, descanso, fisiología ni retorno conductual; no interpreta ni recomienda. AI Coach V1 design es la siguiente fase, sin implementación de Coach en este cierre.
+
+⸻
+
 🧠 Principios de desarrollo
 
 1. Desarrollo incremental
@@ -713,7 +733,7 @@ Dos WeeklyAnalysis consecutivos → cambios absolutos y porcentuales de distanci
 
 ↓
 
-Insights V1 🟡 IN PROGRESS
+Insights V1 ✅ COMPLETE
 
 Persistent Weekly Running Distance Increase ✅ — implementado y validado, incluida validación offline.
 
@@ -721,7 +741,7 @@ Persistent Weekly Running Distance Decrease ✅ — implementado y validado medi
 
 ObservedRunningAfterZeroRunWeeks ✅ — tercer Insight implementado y validado mediante tests automatizados.
 
-Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro observaciones elegibles; Analytics + historial → episodio maximal de al menos dos semanas cero-Run seguido de una observación con Run, por conteo exclusivamente. Los tres Insights planificados están implementados. Insights V1 sigue IN PROGRESS; la validación offline final conjunta y el cierre formal son la siguiente etapa.
+Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro observaciones elegibles; Analytics + historial → episodio maximal de al menos dos semanas cero-Run seguido de una observación con Run, por conteo exclusivamente. Los tres Insights planificados están implementados y validados conjuntamente offline. Insights V1 está COMPLETE; la siguiente etapa es AI Coach V1 design, sin implementación automática.
 
 ↓
 
@@ -749,7 +769,7 @@ Esta reclasificación conserva las posibilidades del roadmap sin incorporarlas a
 
 💡 Insights implementados y posibilidades futuras
 
-Implementados y validados mediante tests: Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, con los contratos específicos descritos anteriormente. Increase también dispone de validación offline. La validación offline final conjunta y el cierre formal de Insights V1 son el próximo paso.
+Implementados y validados mediante tests: Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, con los contratos específicos descritos anteriormente. Los tres disponen de validación offline conjunta. Insights V1 está COMPLETE; AI Coach V1 design es el próximo paso.
 
 Las siguientes posibilidades siguen pendientes de definición o implementación; no son requisitos obligatorios para cerrar Insights V1:
 
@@ -791,7 +811,7 @@ Actualmente conocemos al menos:
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
-* Los tres Insights planificados están implementados y validados mediante tests; Insights V1 sigue IN PROGRESS, pendiente de validación offline final conjunta y cierre formal.
+* Insights V1 está COMPLETE con los tres Insights aprobados, implementados y validados mediante tests y auditoría offline conjunta. AI Coach V1 design es la siguiente fase; no existe Coach implementado.
 * No existe Coach.
 
 Estos elementos deben priorizarse según las necesidades del roadmap, no necesariamente por su orden técnico.
@@ -800,7 +820,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Insights V1 — IN PROGRESS. Los tres Insights planificados —Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks— están implementados y validados mediante tests; Increase también está validado offline. El próximo trabajo es la validación offline final conjunta y el cierre formal de Insights V1. No se marca COMPLETE todavía ni se inicia otro Insight automáticamente. Weekly Analytics V1 y Trends V1 están COMPLETE; AI Coach permanece pendiente. Longest run, TrainingType, Easy/Quality, anomalías y rendimiento comparable siguen siendo posibilidades futuras, no requisitos obligatorios de cierre. TrainingType trends solo se planteará si una necesidad concreta demuestra que requiere comparaciones temporales por tipo.
+Insights V1 — COMPLETE. Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks constituyen el alcance cerrado: implementados, probados y validados conjuntamente offline. El próximo trabajo es diseñar AI Coach V1: definir su alcance, entradas, interpretación contextual y criterios de evaluación. No se implementa Coach todavía ni se inicia otro Insight automáticamente. Weekly Analytics V1 y Trends V1 están COMPLETE; AI Coach permanece pendiente. Longest run, TrainingType, Easy/Quality, anomalías y rendimiento comparable siguen siendo posibilidades futuras, no requisitos obligatorios de cierre. TrainingType trends solo se planteará si una necesidad concreta demuestra que requiere comparaciones temporales por tipo.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
