@@ -65,7 +65,7 @@ Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
-AI Coach	🟡 Incremento 1 implementado — modelos de petición y conocimiento fijo; Coach operativo pendiente
+AI Coach	🟡 Incrementos 1–2 implementados — petición, conocimiento fijo y CoachContext; Coach operativo pendiente
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
 
@@ -73,9 +73,9 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 1: modelos de petición y paquete de conocimiento fijo
+AI Coach V1 — Incremento 2: CoachContext y selección determinista de evidencia
 
-Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Solo se implementa el Incremento 1; no se añaden Insights ni se construye todavía un Coach operativo.
+Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Se implementan únicamente los Incrementos 1–2; no se añaden Insights ni se construye todavía un Coach operativo.
 
 Arquitectura aprobada: validar petición → construir CoachContext determinísticamente → suministrar conocimiento fijo aprobado → generar y validar CoachResponse → renderizar. Se conservan las capas existentes; no hay AthleteProfile, TrainingPlan, motor genérico de reglas, capa médica, RAG, vectores ni investigación externa en runtime. La población prevista son corredores adultos (18+), sin campo de edad ni inferencia o validación de edad.
 
@@ -86,9 +86,20 @@ Implementado en Incremento 1:
 * Cuatro limitaciones de aplicación aprobadas, no accionables: aumento persistente de distancia, calidad, carreras relativamente más largas y frecuencia de días. Ningún candidato no aprobado está disponible en runtime. Este paquete no permite recomendar conteos de días, calidad, carreras más largas ni mantener/reducir carga por un patrón de distancia.
 * Carga local determinista con validación estricta de estructura, identidad, revisiones, referencias y fingerprint del contenido JSON canónico. Los cambios de contenido requieren una nueva revisión aprobada, no una sustitución silenciosa. No se accede a las URLs de fuentes.
 
-Pendientes: CoachContext, CoachResponse, prompt, integración LLM, renderer, evaluaciones semánticas tests/llm e integración UI. La ventana reciente de cuatro semanas completadas y el fondo pre-interrupción acotado son decisiones aprobadas, todavía sin implementación. No se añaden campos ni cálculos a Analytics, Trends o Insights.
+Pendientes: CoachResponse, prompt, integración LLM, renderer, evaluaciones semánticas tests/llm e integración UI. No se añaden campos ni cálculos a Analytics, Trends o Insights.
 
 Validación del Incremento 1 — 8 de octubre de 2026: 161 tests focalizados pasan, con 100 % de cobertura de statements y branches en los dos módulos Python nuevos. Suite completa: 1.007 tests pasan; cobertura combinada 98,33 %, statements 98,74 % y branches 96,81 %. pytest/Allure conserva resultados tradicionales; no se ejecutan evaluaciones LLM ni se realizan solicitudes externas. Los 846 tests existentes siguen pasando y no hay cambios en código ni tests de Analytics, Trends o Insights.
+
+Implementado en Incremento 2:
+
+* CoachContext inmutable reutiliza goal, constraints y RunnerContext originales. El builder recibe historial WeeklyAnalysis suministrado, referencia consciente de timezone, ZoneInfo y metadatos opcionales de fuente, data-as-of, cobertura y fechas de observaciones conocidas como parciales. La validación de la petición sigue siendo la del Incremento 1; el caller utiliza la misma referencia/timezone.
+* Selección exacta de las cuatro semanas calendario completadas anteriores, sin rellenar huecos ni sustituirlos por semanas antiguas. Conserva ceros y observaciones parciales identificadas; la semana abierta se expone por separado, siempre parcial y con data-as-of conocido o explícitamente desconocido.
+* Reutiliza normalización, cuatro Trends aprobados y los tres detectores concretos. Las comparaciones solo usan semanas recientes aptas; los Insights se detectan primero sobre todo el historial completado apto y después se filtran por semana final dentro de la ventana reciente. El resultado distingue última semana completada de episodios anteriores en la ventana, sin promover un resultado antiguo si falta la semana más reciente. Parciales conocidos rompen transiciones y patrones.
+* El episodio de retorno observado más reciente dentro de la ventana conserva sus semanas cero maximales y enlaza hasta cuatro observaciones positivas consecutivas inmediatamente anteriores. Se detiene ante hueco, cero, parcial o frontera de datos, sin buscar un período alternativo. No requiere interpretar texto del corredor ni calcula baseline, capacidad o recomendaciones.
+* Evidencia semanal con totales y conteos de las seis categorías TrainingType, de procedencia por nombre, sin distancia/tiempo por tipo. Referencias deterministas por tipo y fechas para observaciones, Trends e Insights; referencias separadas para goal, constraints, RunnerContext y hechos temporales. Se preservan procedencias de observación, derivación y reporte; conocimiento e interpretación posterior permanecen fuera de CoachContext.
+* Períodos locales con lunes final exclusivo, recomendación desde el lunes posterior a la semana de referencia hasta el siguiente lunes y días calendario hasta target_date, sin inferir fase, taper ni readiness. Data-as-of anterior al cierre local identifica parcialidad; datos de semanas futuras o data-as-of posterior a referencia se rechazan. Cobertura no suministrada permanece desconocida. Limitaciones materiales describen huecos, parciales, metadatos/cobertura desconocidos o incompletos y background no disponible, cuando corresponde.
+
+Validación del Incremento 2 — 8 de octubre de 2026: 60 tests focalizados pasan con 100 % de statements y branches en los dos módulos nuevos. Suite completa: 1.067 tests pasan, incluidos los 1.007 anteriores; cobertura combinada 98,66 %, statements 98,97 % y branches 97,58 %. Resultados tradicionales pytest/Allure, sin servicios externos ni evaluaciones LLM. Analytics, Trends, Insights, modelos de petición y paquete de conocimiento del Incremento 1 permanecen sin cambios.
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
@@ -485,7 +496,7 @@ El Insight describe observaciones suministradas. Cero Run no demuestra inactivid
 
 Validación automatizada del 7 de octubre de 2026: 48 tests del detector y 7 del modelo, incluidos episodios maximales, mínimos, huecos y cadenas desconectadas, conteo exclusivo, distancia cero, entradas inconsistentes sin corrección, orden, errores, fechas calendario y ausencia de mutaciones. Pasan 212 tests focalizados de Insights/modelos/historial, incluida regresión de Increase/Decrease, y los 846 tests de la suite completa configurada. El nuevo detector/modelo y los Insights existentes alcanzan 100 % de cobertura. En aquel incremento no se realizaron solicitudes live a Strava ni nueva validación contra datos reales; la validación offline final conjunta posterior se documenta más abajo.
 
-Insights V1 está COMPLETE con los tres contratos anteriores, tras la validación offline final conjunta. No se implementa ningún Insight adicional. AI Coach V1 tiene diseño aprobado y únicamente su Incremento 1 implementado; no existe Coach operativo.
+Insights V1 está COMPLETE con los tres contratos anteriores, tras la validación offline final conjunta. No se implementa ningún Insight adicional. AI Coach V1 tiene diseño aprobado y únicamente sus Incrementos 1–2 implementados; no existe Coach operativo.
 
 ⸻
 
@@ -758,9 +769,9 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incremento 1 implementado; Coach operativo pendiente
+AI Coach 🟡 Incrementos 1–2 implementados; Coach operativo pendiente
 
-Petición validada y conocimiento fijo implementados. Próximo incremento sujeto a revisión: CoachContext y selección determinista de evidencia; después CoachResponse, renderer, prompt/integración LLM y evaluación semántica, por incrementos separados.
+Petición validada, conocimiento fijo y CoachContext determinista implementados. Próximo incremento sujeto a autorización: frontera CoachResponse y renderer; después prompt/integración LLM y evaluación semántica, por incrementos separados.
 
 ↓
 
@@ -819,13 +830,13 @@ Actualmente conocemos al menos:
 * No existe deduplicación.
 * No existe un application entry point real.
 * src/main.py está vacío.
-* src/ai contiene únicamente la carga y el paquete local de Training Knowledge V1; no hay prompt ni integración LLM.
+* src/ai contiene carga del conocimiento local y builder CoachContext; no hay prompt ni integración LLM.
 * No existe UI.
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
-* Insights V1 está COMPLETE con los tres Insights aprobados, implementados y validados mediante tests y auditoría offline conjunta. AI Coach V1 tiene únicamente modelos de petición y conocimiento fijo implementados.
-* No existe Coach operativo, CoachContext ni CoachResponse.
+* Insights V1 está COMPLETE con los tres Insights aprobados, implementados y validados mediante tests y auditoría offline conjunta. AI Coach V1 tiene petición, conocimiento fijo y CoachContext implementados.
+* No existe Coach operativo ni CoachResponse.
 
 Estos elementos deben priorizarse según las necesidades del roadmap, no necesariamente por su orden técnico.
 
@@ -833,7 +844,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Revisar el Incremento 1 de AI Coach V1 antes de autorizar el Incremento 2: modelos CoachContext y builder determinista conforme al contrato aprobado. No se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. CoachResponse, prompt, LLM, renderer y evaluación semántica permanecen pendientes; no se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Revisar el Incremento 2 de AI Coach V1 antes de autorizar el Incremento 3: frontera CoachResponse y renderer conforme al contrato aprobado. No se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. CoachResponse, prompt, LLM, renderer y evaluación semántica permanecen pendientes; no se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
