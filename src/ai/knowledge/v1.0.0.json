@@ -1,0 +1,264 @@
+{
+  "package_id": "AI_COACH_V1_KNOWLEDGE",
+  "version": "1.0.0",
+  "status": "approved",
+  "population": "Adult runners (18+). This is a product applicability boundary, not an age field, inference or validation requirement.",
+  "application_boundary": [
+    "Use only this fixed approved knowledge for material coaching recommendations. No fallback to unapproved LLM training knowledge or runtime research.",
+    "Provide useful general direction and priorities for the next recommendation week, not a Training Plan.",
+    "Do not prescribe day-by-day schedules, exact workouts, distances, durations, paces, heart-rate zones, interval structures, numeric progression targets, multiweek plans or race-time predictions.",
+    "Distinguish Strava-observed records, deterministic derivations, attributed RunnerContext and approved knowledge. Name-based TrainingType classifications are not measured intensity or readiness.",
+    "Missing or uncertain prerequisites require withholding the affected recommendation or focused clarification; other independently supported partial guidance may remain available. An if-appropriate qualifier must not conceal a missing prerequisite.",
+    "Health-related context may influence caution, but must not become diagnosis, treatment, rehabilitation advice or medical clearance. Do not resolve source differences through invented rules."
+  ],
+  "sources": [
+    {
+      "id": "HHS_PHYSICAL_ACTIVITY_GUIDELINES_2018",
+      "title": "Physical Activity Guidelines for Americans, second edition",
+      "author": "U.S. Department of Health and Human Services",
+      "publication_date": "2018",
+      "url": "https://odphp.health.gov/sites/default/files/2019-09/Physical_Activity_Guidelines_2nd_edition.pdf",
+      "locator": "Chapter 6; Increase Physical Activity Gradually Over Time; printed page 90",
+      "supporting_guidance": "Reviewed paraphrase: increase activity gradually toward goals, with individualization informed by fitness and experience.",
+      "knowledge_basis": "Evidence-informed public-health organizational guidance; not a running-specific return prescription.",
+      "review_notes": [
+        "The relevant passage was reviewed through indexed extraction; full PDF retrieval failed during the approved research.",
+        "Detailed inactive-person guidance is not automatically applicable to an experienced runner after vacation. Numeric recommendations are not adopted."
+      ]
+    },
+    {
+      "id": "WHO_PHYSICAL_ACTIVITY_GUIDELINES_2020",
+      "title": "WHO Guidelines on Physical Activity and Sedentary Behaviour",
+      "author": "World Health Organization",
+      "publication_date": "2020",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK566046/",
+      "locator": "Recommendations; Adults; Good Practice Statements",
+      "supporting_guidance": "Reviewed paraphrase: start with small amounts of physical activity and increase gradually.",
+      "knowledge_basis": "Organizational good-practice statement, distinguished from formally graded recommendations.",
+      "review_notes": [
+        "Relevant text was reviewed through indexed recommendations and the executive summary.",
+        "Broad adult physical-activity guidance corroborates the principle, not a running-specific return dose or timeline."
+      ]
+    },
+    {
+      "id": "ACE_RETURN_TO_EXERCISE_2024",
+      "title": "How to Overcome the Reversibility Principle and Help Your Clients Get Back on Track",
+      "author": "ACE Certified publication; reviewed expert article",
+      "publication_date": "2024-09",
+      "url": "https://www.acefitness.org/continuing-education/certified/september-2024/8712/how-to-overcome-the-reversibility-principle-and-help-your-clients-get-back-on-track/",
+      "locator": "The All-Important Why?; Taking an Individualized Approach; Type of Exercise; conclusion",
+      "supporting_guidance": "Reviewed paraphrase: consider the reason for the break and previous training; begin cardiorespiratory exercise slowly rather than immediately restoring previous demands. Research on optimal return strategies is limited.",
+      "knowledge_basis": "Return-specific expert interpretation published by an exercise-professional organization, not a formal consensus guideline or controlled return-strategy comparison.",
+      "review_notes": [
+        "Stronger assertions about inevitable injury or specific fitness loss are not adopted.",
+        "Supports individualized resumption; does not supply V1 running-day counts, workout categories or progression formulas."
+      ]
+    },
+    {
+      "id": "CDC_ROAD_TO_HEALTH_2022",
+      "title": "Road to Health Toolkit: Activities Guide",
+      "author": "Centers for Disease Control and Prevention",
+      "publication_date": "2022",
+      "url": "https://stacks.cdc.gov/view/cdc/132408/cdc_132408_DS1.pdf#page=33",
+      "locator": "Appendix; Be Active, Be Safe; printed page 29 (PDF page 33)",
+      "supporting_guidance": "Reviewed paraphrase: slow or stop activity when very tired or when joints hurt; its restart example concerns an illness-related break.",
+      "knowledge_basis": "Community-health education for diabetes prevention; applicability caution, not individualized running or vacation-return guidance.",
+      "review_notes": [
+        "Activity-time caution must not become a general weekly fatigue prescription.",
+        "Illness-specific restart advice and surrounding medical advice are not adopted as a Coach medical layer."
+      ]
+    },
+    {
+      "id": "ENGLAND_ATHLETICS_TRAINING_PACE_2024",
+      "title": "Simplifying the running jargon: Training pace",
+      "author": "England Athletics; Tom Craggs, National Endurance Manager",
+      "publication_date": "2024-04-25",
+      "url": "https://www.englandathletics.org/news/simplifying-the-running-jargon-training-pace-2/",
+      "locator": "Easy vs. steady state running; Which is more beneficial for training?",
+      "supporting_guidance": "Reviewed paraphrase: easy running is relaxed and fully conversational; keep intended easy running relaxed rather than drifting into harder steady running.",
+      "knowledge_basis": "Named expert organizational running guidance in an educational interview, not a systematic review or tested weekly decision rule.",
+      "review_notes": [
+        "Comfortable conversation is a qualitative prospective description, not a physiological threshold.",
+        "Steady running may permit more effortful conversation; that must not dilute the approved relaxed, comfortable full-conversation description."
+      ]
+    },
+    {
+      "id": "RRCA_TRAIN_DONT_STRAIN",
+      "title": "Education for Runners",
+      "author": "Road Runners Club of America",
+      "publication_date": null,
+      "url": "https://www.rrca.org/education/for-runners/",
+      "locator": "Managing Aches and Pains; Train, don't strain",
+      "supporting_guidance": "Reviewed paraphrase: running need not be all-out to provide benefits; conversation is a practical guide to effort.",
+      "knowledge_basis": "Organizational guidance principally for beginners; no individualized weekly distribution rule.",
+      "review_notes": [
+        "Publication/revision date and underlying evidence are not clearly documented.",
+        "Surrounding medical advice, frequency prescriptions and other numerical recommendations are not imported."
+      ]
+    },
+    {
+      "id": "NYRR_START_RUNNING_2024",
+      "title": "How to Get Started Running in the New Year",
+      "author": "NYRR Staff; New York Road Runners",
+      "publication_date": "2024-12-26",
+      "url": "https://www.nyrr.org/run/photos-and-stories/2024/how-to-get-started-running-in-the-new-year",
+      "locator": "Introduction; How Far, How Fast, How Often",
+      "supporting_guidance": "Reviewed paraphrase: addresses new and returning runners and describes easy running through the ability to speak in sentences.",
+      "knowledge_basis": "Practical organizational guidance for recreational beginners and returners, not a tested prescription for established runners.",
+      "review_notes": [
+        "Only qualitative effort guidance is adopted. No session frequency or detailed execution advice is adopted.",
+        "Its conversational description is less detailed than England Athletics; the package retains comfortable full conversation without equating these descriptions to measured intensity."
+      ]
+    },
+    {
+      "id": "ENGLAND_ATHLETICS_RETURN_2022",
+      "title": "The perfect way to return to running",
+      "author": "England Athletics; no named author in the reviewed record",
+      "publication_date": "2022-04-06",
+      "url": "https://www.englandathletics.org/news/the-perfect-way-to-return-to-running/",
+      "locator": "Start slowly",
+      "supporting_guidance": "Reviewed paraphrase: a gradual comeback at lower demands includes easy running as an initial component.",
+      "knowledge_basis": "Supplementary organizational return guidance without a named author or traceable supporting studies.",
+      "review_notes": [
+        "Categorical claims about fitness loss and damage are not adopted.",
+        "This supplementary passage does not independently authorize an interruption rationale; use the separately approved return item and its prerequisites."
+      ]
+    }
+  ],
+  "actionable_items": [
+    {
+      "id": "TK_RETURN_AFTER_REPORTED_INTERRUPTION",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": true,
+      "guidance": "When a recent qualifying recorded episode is accompanied by RunnerContext confirming an actual training interruption and resumption, recommend a gradual, individualized resumption. Previous recorded volume may explain history, but is not current capacity, an immediate target or something that must eventually be recovered.",
+      "knowledge_basis": "Bounded synthesis of organizational gradual-progression good practice and return-specific expert interpretation; not a validated running return formula. Prerequisites are product application restrictions, not a source-derived physiological threshold.",
+      "source_ids": ["HHS_PHYSICAL_ACTIVITY_GUIDELINES_2018", "WHO_PHYSICAL_ACTIVITY_GUIDELINES_2020", "ACE_RETURN_TO_EXERCISE_2024", "CDC_ROAD_TO_HEALTH_2022"],
+      "prerequisites": [
+        "Adult-runner product scope applies without collecting or inferring age.",
+        "A recent qualifying ObservedRunningAfterZeroRunWeeks result under the approved Coach history contract.",
+        "Original RunnerContext clearly confirms an actual training interruption and subsequent resumption corresponding to that recorded episode.",
+        "Recent evidence satisfies the approved history/applicability boundary; unresolved reported circumstances must not be concealed by generic return advice.",
+        "Any statements about previous recorded volume reference actual supplied pre-interruption background observations."
+      ],
+      "permitted_conclusions": [
+        "Recommend gradual individualized resumption as a non-numeric next-week direction.",
+        "Advise against making immediate restoration of pre-interruption volume the objective.",
+        "Explain supplied previous weekly volume as historical context, distinct from current observations and capacity.",
+        "Apply the gradual-return principle without historical background, while omitting discussion of unknown previous volume."
+      ],
+      "limitations_exceptions": [
+        "The Insight alone establishes only consecutive supplied zero-Run observations followed by observed Run activity, not actual inactivity, rest, interruption, resumption or detraining.",
+        "Resume progressively does not mean increase next week. No amount, rate, deadline, rebuilding timeline or requirement to recover old volume is supported.",
+        "No running-day count, numeric frequency reduction, quality-work recommendation, longer-run recommendation or exact volume is supported.",
+        "No fitness-loss estimate, race readiness, injury prediction or medical safety conclusion is supported.",
+        "Missing background does not invalidate gradual resumption; it prevents claims about previous recorded volume.",
+        "Do not use this item as injury rehabilitation, illness-return medical advice or clearance to continue despite discomfort or conflicting treatment advice.",
+        "Fatigue, poor sleep and stress remain attributed context, not a basis for invented physiology, weekly prescriptions or therapeutic claims.",
+        "Race proximity does not justify accelerated rebuilding. Historical volume is never an immediate target or a mandatory eventual recovery objective."
+      ],
+      "reviewed_conflicts_differences": [
+        "HHS and WHO address broad physical activity; ACE addresses returning exercisers; CDC's explicit restart example concerns illness. They do not share a runner-specific dose or prerequisite checklist.",
+        "The detector's at-least-two-zero-week definition is a recorded-pattern rule, not an evidence-derived physiological threshold.",
+        "Stronger source claims about injury or fitness loss are excluded. No reviewed difference is resolved by adopting an invented numerical compromise."
+      ]
+    },
+    {
+      "id": "TK_EASY_RUNNING_PRIORITY",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": true,
+      "guidance": "For an adult runner undertaking running training, the Coach may recommend making relaxed, conversational running a priority in the following week and keeping intended easy running genuinely easy. Easy means relaxed effort at which comfortable full conversation is possible.",
+      "knowledge_basis": "Expert and organizational running guidance supports a qualitative definition and general training component. Application to the following week is a bounded product interpretation, not evidence of optimal weekly structure for every runner.",
+      "source_ids": ["ENGLAND_ATHLETICS_TRAINING_PACE_2024", "RRCA_TRAIN_DONT_STRAIN", "NYRR_START_RUNNING_2024", "ENGLAND_ATHLETICS_RETURN_2022"],
+      "prerequisites": [
+        "Adult-runner product scope applies without collecting or inferring age.",
+        "Current running or resumption is established by recent supplied evidence or an explicit attributed user report.",
+        "Availability permits running in the recommendation week.",
+        "Supplied circumstances do not leave applicability of running guidance materially unresolved; no affirmative medical clearance or new health questionnaire is implied.",
+        "An interruption-specific rationale additionally requires TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0 and its qualifying evidence plus RunnerContext confirmation."
+      ],
+      "permitted_conclusions": [
+        "Recommend qualitative attention to relaxed, conversational running as a general training component, without inventing an individual deficit.",
+        "Describe prospective easy effort through comfortable full conversation and keeping intended easy running relaxed.",
+        "Use a confirmed interruption as an additional rationale only through the separately approved return item."
+      ],
+      "limitations_exceptions": [
+        "Easy is not a pace, heart-rate zone, measured physiological intensity or verified description of previous runs.",
+        "Priority does not prescribe a weekly percentage, an exclusively easy week, running-day counts or easy-session counts.",
+        "No quality-work inclusion/exclusion, total-load direction, longer-run structure, progression, taper, race readiness or medical safety conclusion is supported.",
+        "TrainingType.EASY counts are name-based labels, not measured easy effort. Zero EASY labels do not establish absence of easy running.",
+        "Increasing, decreasing or stable distance and persistent distance Insights do not automatically change applicability or establish a recovery need.",
+        "Historical volume does not set easy-running volume or prove current capacity.",
+        "Discomfort, illness, fatigue, poor sleep or stress do not establish that easy running is safe, therapeutic or preferable to rest. Withhold affected guidance or clarify material uncertainty rather than saying just run easy.",
+        "Race proximity does not turn this general priority into taper, race execution or catch-up training guidance."
+      ],
+      "reviewed_conflicts_differences": [
+        "England Athletics distinguishes comfortable conversation from more effortful conversation during steady running; RRCA and NYRR use less detailed conversational descriptions. Retain relaxed comfortable full conversation without claiming a shared scientific threshold.",
+        "Sources address established runners, beginners and returners differently. The return-specific passage supplies supplementary context only through the approved return item's prerequisites.",
+        "These sources are expert/organizational guidance, not direct research establishing an optimal next-week distribution. Numerical prescriptions and categorical fitness-loss or damage claims are excluded."
+      ]
+    }
+  ],
+  "application_limitations": [
+    {
+      "id": "LIMIT_PERSISTENT_WEEKLY_RUNNING_DISTANCE_INCREASE",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": false,
+      "topic": "Persistent weekly running-distance increase",
+      "statements": [
+        "PersistentWeeklyRunningDistanceIncrease establishes three strict weekly distance increases across four qualifying observations; interpret recorded evolution factually.",
+        "The pattern does not establish excessive, beneficial, dangerous or physiologically significant progression, improved fitness, inadequate recovery or injury risk.",
+        "The pattern does not justify maintaining, reducing or continuing progression next week. Maintain is not an unsupported neutral/default prescription.",
+        "Magnitude remains visible through observations and Trends, but no approved threshold converts it into a coaching recommendation.",
+        "Other independently approved knowledge may support guidance when this Insight is present. No pattern-based maintain/reduce item is approved."
+      ]
+    },
+    {
+      "id": "LIMIT_QUALITY_ORIENTED_RUNNING",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": false,
+      "topic": "Quality-oriented running",
+      "statements": [
+        "General training value does not establish that a specific runner should include, limit or avoid quality-oriented work next week.",
+        "No approved V1 item supports quality inclusion, exclusion, deferral, a specific session count or an at-most-one limit.",
+        "TrainingType.TEMPO and TrainingType.INTERVALS are name-based classifications, not verified physiological intensity, execution or readiness; missing labels do not prove missing quality work.",
+        "Recent history, confirmed interruption, target-date proximity and user reports do not supply an approved quality-readiness rule.",
+        "The return and easy-priority items do not authorize quality decisions. Withholding unsupported guidance is distinct from recommending avoidance."
+      ]
+    },
+    {
+      "id": "LIMIT_RELATIVELY_LONGER_RUNS",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": false,
+      "topic": "Relatively longer runs",
+      "statements": [
+        "Longer runs are recognized components of half-marathon preparation in general, but this does not establish next-week inclusion for a specific runner.",
+        "Half-marathon goal and target-date proximity alone do not justify a relatively longer run.",
+        "Weekly totals, activity counts, Trends and Insights do not establish individual-run distribution or longer-run readiness.",
+        "TrainingType.LONG is name-based, not actual longest-run exposure, magnitude, effort or tolerance. Absence of LONG labels does not prove absence of relatively longer runs.",
+        "Historical weekly volume is not current single-run capacity; confirmed interruption is not longer-run readiness; easy effort does not make longer running appropriate or safe.",
+        "Withholding unsupported inclusion differs from advising avoidance. No exact distance, duration, percentage, progression or eligibility threshold is approved."
+      ]
+    },
+    {
+      "id": "LIMIT_RUNNING_DAY_FREQUENCY",
+      "revision": "1.0.0",
+      "status": "approved",
+      "actionable": false,
+      "topic": "Running-day frequency",
+      "statements": [
+        "recommended_running_days remains optional and must be unspecified when no approved knowledge supports a count. This package contains no specific-count item.",
+        "available_training_days_per_week is strictly a maximum constraint, not recommended use. No use-all-days, availability-minus-one or other default heuristic is approved.",
+        "running_activity_count counts activities, not distinct running days. Historical activity counts or Trends must not be interpreted as running-day frequency.",
+        "A user-reported familiar running frequency is attributed context, not automatically a recommendation; clipping it to availability does not establish appropriateness.",
+        "The return item does not justify numeric frequency reduction, and the easy-priority item does not justify any running-day or session count.",
+        "Race proximity, stress, sleep, fatigue and discomfort do not independently justify inventing a count.",
+        "Zero availability is a hard structural constraint: no positive running-day recommendation is permitted. An unspecified count must not be replaced by an implied count in prose."
+      ]
+    }
+  ]
+}
