@@ -1,5 +1,6 @@
 """One-shot OpenAI execution behind the approved Increment 3 boundary."""
 
+from collections.abc import Iterator
 from dataclasses import asdict
 from datetime import date, datetime
 import json
@@ -10,7 +11,7 @@ from zoneinfo import ZoneInfo
 from openai import OpenAI, OpenAIError
 
 from src.ai.coach_response import parse_coach_response
-from src.ai.training_knowledge import load_training_knowledge
+from src.ai.training_knowledge import TrainingKnowledgePackage, load_training_knowledge
 from src.models.coach_context import CoachContext
 from src.models.coach_response import CoachResponse
 
@@ -151,6 +152,62 @@ def _json_value(value: object) -> str:
     raise TypeError(f"Unsupported serialization type: {type(value).__name__}")
 
 
+def _schema_nodes(value: object) -> Iterator[dict]:
+    """Visit each literal schema object once, without expanding shared refs."""
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _schema_nodes(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _schema_nodes(child)
+
+
+def _constrain_reference_schema(
+    schema: dict, context: CoachContext, knowledge: TrainingKnowledgePackage,
+) -> None:
+    """Specialize the freshly loaded template in memory, never the domain.
+
+    Limits from the official Structured Outputs guide: 1,000 enum values
+    across the schema; 15,000 characters for an enum with >250 values;
+    120,000 characters across property/definition names, enums and consts.
+    Each reference enum is shared across its users and counted only once.
+    """
+    identifiers = list(dict.fromkeys(entry.reference for entry in context.evidence_references))
+    if not identifiers:
+        raise CoachConfigurationError("Coach execution requires a nonempty evidence registry.")
+    schema["$defs"]["evidence_reference"] = {"type": "string", "enum": identifiers}
+    schema["properties"]["relevant_evidence"]["items"] = {"$ref": "#/$defs/evidence_reference"}
+    schema["$defs"]["statement"]["properties"]["evidence_references"]["items"] = {
+        "$ref": "#/$defs/evidence_reference",
+    }
+    if not knowledge.actionable_items or not knowledge.application_limitations:
+        raise CoachConfigurationError("Coach execution requires nonempty approved knowledge item groups.")
+    knowledge_references = [
+        f"{item.id}@{item.revision}"
+        for item in (*knowledge.actionable_items, *knowledge.application_limitations)
+    ]
+    schema["$defs"]["knowledge_reference"] = {"type": "string", "enum": knowledge_references}
+    schema["$defs"]["statement"]["properties"]["knowledge_references"]["items"] = {
+        "$ref": "#/$defs/knowledge_reference",
+    }
+    nodes = list(_schema_nodes(schema))
+    enums = [node["enum"] for node in nodes if "enum" in node]
+    if sum(len(values) for values in enums) > 1000:
+        raise CoachConfigurationError("Coach transport schema exceeds the Structured Outputs enum-count limit.")
+    if any(len(values) > 250 and sum(len(value) for value in values) > 15000 for values in enums):
+        raise CoachConfigurationError("Coach transport schema exceeds the Structured Outputs per-enum text limit.")
+    text_size = sum(
+        sum(len(name) for name in node.get("properties", {}))
+        + sum(len(name) for name in node.get("$defs", {}))
+        + sum(len(value) for value in node.get("enum", []))
+        + len(node.get("const", ""))
+        for node in nodes
+    )
+    if text_size > 120000:
+        raise CoachConfigurationError("Coach transport schema exceeds the Structured Outputs schema-text limit.")
+
+
 def generate_coach_response(context: CoachContext) -> CoachResponse:
     """Receive an already built context; call once and return only validated output.
 
@@ -164,12 +221,16 @@ def generate_coach_response(context: CoachContext) -> CoachResponse:
         raise CoachConfigurationError("Set OPENAI_API_KEY before executing Coach.")
     if not model or not model.strip():
         raise CoachConfigurationError("Set OPENAI_COACH_MODEL to a structured-output capable model.")
-    knowledge = load_training_knowledge()
+    try:
+        knowledge = load_training_knowledge()
+    except ValueError:
+        raise CoachConfigurationError("The approved Training Knowledge package could not be loaded.") from None
     try:
         prompt = _PROMPT_PATH.read_text(encoding="utf-8")
         schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         raise CoachConfigurationError("Coach V1 prompt/schema could not be loaded.") from None
+    _constrain_reference_schema(schema, context, knowledge)
     payload = json.dumps(
         {"coach_context": asdict(context), "training_knowledge": asdict(knowledge)},
         default=_json_value, ensure_ascii=False, allow_nan=False,

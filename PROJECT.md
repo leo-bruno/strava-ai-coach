@@ -65,7 +65,7 @@ Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
-AI Coach	🟡 Incrementos 1–4 implementados — ejecución LLM controlada con diagnóstico seguro; primera llamada real rechazada, evaluación semántica pendiente
+AI Coach	🟡 Incrementos 1–4 implementados — ejecución LLM controlada con diagnóstico seguro y enums de evidencia/conocimiento; respuesta real validada y evaluación semántica pendientes
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
 
@@ -73,7 +73,7 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 4: prompt versionado, integración OpenAI y ejecución controlada
+AI Coach V1 — Incremento 4: corrección de referencias, integración OpenAI y ejecución controlada
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Se implementan únicamente los Incrementos 1–4; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. La evaluación semántica permanece pendiente.
 
@@ -86,7 +86,7 @@ Implementado en Incremento 1:
 * Cuatro limitaciones de aplicación aprobadas, no accionables: aumento persistente de distancia, calidad, carreras relativamente más largas y frecuencia de días. Ningún candidato no aprobado está disponible en runtime. Este paquete no permite recomendar conteos de días, calidad, carreras más largas ni mantener/reducir carga por un patrón de distancia.
 * Carga local determinista con validación estricta de estructura, identidad, revisiones, referencias y fingerprint del contenido JSON canónico. Los cambios de contenido requieren una nueva revisión aprobada, no una sustitución silenciosa. No se accede a las URLs de fuentes.
 
-Pendientes tras el Incremento 4: identificar el fallo concreto de la primera respuesta real y lograr una respuesta real validada mediante decisión manual, evaluaciones semánticas tests/llm e integración UI interactiva. No se añaden campos ni cálculos a Analytics, Trends o Insights.
+Pendientes tras el Incremento 4: validar manualmente las restricciones de evidencia/conocimiento y lograr una respuesta real validada, evaluaciones semánticas tests/llm e integración UI interactiva. No se añaden campos ni cálculos a Analytics, Trends o Insights.
 
 Validación del Incremento 1 — 8 de octubre de 2026: 161 tests focalizados pasan, con 100 % de cobertura de statements y branches en los dos módulos Python nuevos. Suite completa: 1.007 tests pasan; cobertura combinada 98,33 %, statements 98,74 % y branches 96,81 %. pytest/Allure conserva resultados tradicionales; no se ejecutan evaluaciones LLM ni se realizan solicitudes externas. Los 846 tests existentes siguen pasando y no hay cambios en código ni tests de Analytics, Trends o Insights.
 
@@ -135,6 +135,34 @@ Uso diagnóstico, solo si el desarrollador decide explícitamente realizar otra 
 No se ha ejecutado este comando durante la mejora. Los diagnósticos se prueban con respuestas y errores sintéticos, sin nuevas llamadas reales, reintentos ni recomendaciones fallback. Incrementos 1–3, paquete aprobado, prompt y schema de transporte permanecen sin cambios. Incremento 5 no se inicia.
 
 Validación de la mejora diagnóstica — 13 de octubre de 2026: 104 tests focalizados pasan (55 nuevos), con 100 % de statements y branches en coach.py y coach_manual.py. Suite completa: 1.277 tests pasan, incluidos los 1.222 anteriores, sin warnings. Cobertura combinada 99,07 %, statements 99,26 % y branches 98,49 %. Se regeneran resultados Allure; HTML no validado. Se verifican fallos reales del parser sobre fixtures sintéticos, errores desconocidos, referencias y claves JSON maliciosas, protección de datos sensibles, compatibilidad del error/CLI y una única invocación sin retry ni fallback. No se hacen llamadas reales ni evaluación semántica.
+
+Corrección de referencias de evidencia del Incremento 4:
+
+La segunda ejecución real comunicada por el usuario devolvió UNKNOWN_EVIDENCE_REFERENCE. La investigación confirmó que el contexto serializado incluía la registry completa: 20 identificadores en el fixture manual. El prompt pedía usar referencias existentes pero no identificaba la lista autoritativa; el schema aceptaba strings arbitrarios. Las observaciones semanales incluían su ID inline, mientras que Trends e Insights lo exponían en la registry separada. El error confirma una referencia ausente, pero el valor/campo rechazado no se conservó: reconstrucción de nombres, paths, etiquetas de procedencia o referencias a secciones ausentes son hipótesis, no causas concretas demostradas.
+
+* `coach_v1.txt` exige copiar literalmente cada referencia de relevant_evidence y de cualquier statement evidence_references desde `coach_context.evidence_references[*].reference`. Prohíbe IDs inventados o reconstruidos, paths JSON, etiquetas de procedencia y referencias a secciones ausentes. La pertenencia a la lista no prueba que una afirmación esté respaldada.
+* Cada ejecución carga de nuevo la plantilla versionada `coach_v1.schema.json` y añade solo en memoria una definición string enum compartida por ambos campos de evidencia. Los valores proceden exclusivamente de la registry actual, sin IDs hardcodeados ni interpretación de RunnerContext; se conservan formato y orden, eliminando solo duplicados en el enum. No se cambia el archivo de plantilla ni la serialización de CoachContext, la estructura de CoachResponse o los campos de conocimiento. No existe cache compartida entre llamadas.
+* La registry vacía falla con CoachConfigurationError antes de construir el cliente o invocar al proveedor. No se envía un enum vacío, no se inventa un ID y no se produce coaching fallback. Los contextos válidos del builder conservan las referencias de petición y calendario aun sin semanas observadas.
+* Se comprueban los límites documentados de Structured Outputs: como máximo 1.000 valores enum totales (incluidos los tres status), 15.000 caracteres por enum con más de 250 valores y 120.000 caracteres totales de nombres de propiedades/definiciones, enums y consts. El enum compartido se cuenta una sola vez. Un exceso falla con mensaje de configuración seguro antes de llamar; no se trunca la evidencia. La forma actual conserva 17 propiedades de objeto y tres niveles de anidación de objetos, dentro de los límites de 5.000 y diez. El fixture genera 23 valores enum totales y 1.089 caracteres sujetos al límite global. Compatibilidad documental: [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat) admite enums y referencias a definiciones compartidas.
+* El parser/validador del Incremento 3 sigue siendo obligatorio e idéntico. Un proveedor mockeado que devuelve IDs ajenos al enum sigue fallando con UNKNOWN_EVIDENCE_REFERENCE, una sola invocación y sin retries ni fallback. Diagnósticos y CLI siguen conservando sus contratos.
+
+Limitaciones restantes: no se ha hecho una nueva llamada real para validar la aceptación live del schema generado. La corrección restringe identificadores, pero no prueba que las citas respalden el texto, que los prerrequisitos se cumplan ni que las recomendaciones sean semánticamente correctas. La evaluación semántica permanece pendiente y no se inicia el Incremento 5. Los límites de esquema son los documentados al implementar esta corrección; cambios futuros del proveedor o de la plantilla requieren revisión. Cualquier nueva ejecución real sigue siendo una decisión manual.
+
+Validación de la corrección de referencias — 13 de octubre de 2026: 121 tests focalizados pasan (17 nuevos), con 100 % de statements y branches en coach.py y coach_manual.py. Suite completa: 1.294 tests pasan, incluidos los 1.277 anteriores, sin warnings. Cobertura combinada 99,10 %, statements 99,28 % y branches 98,55 %. Resultados Allure regenerados; HTML no validado. Se verifican enums exactos y compartidos en todos los statements, aislamiento entre solicitudes, inmutabilidad de plantilla/contexto, registry vacía, límites de enum/texto/estructura, parser y diagnósticos existentes, una sola invocación sin retries ni fallback. Se mantienen las pruebas de SDK con transporte HTTP falso. No se ha hecho ninguna llamada real ni evaluación semántica durante esta corrección.
+
+Corrección de referencias de conocimiento del Incremento 4:
+
+La ejecución real posterior comunicada por el usuario falló con UNKNOWN_KNOWLEDGE_REFERENCE. Se confirmó que el paquete enviado incluía sus ítems y revisiones, y que el prompt enumeraba los seis pares válidos, pero knowledge_references seguía aceptando strings arbitrarios en el transporte. La serialización mantiene id y revision como campos separados; las propiedades reference computadas no forman parte de asdict. El diagnóstico confirma ausencia del par completo en el conjunto aprobado, sin conservar el valor rechazado. Uso de ID sin revisión, revisión no aprobada, identidad del paquete o ID de fuente son hipótesis, no causas concretas demostradas.
+
+* La especialización existente carga de nuevo la plantilla versionada y deriva en memoria un enum compartido de pares completos ID@revision desde todos los actionable_items y application_limitations del paquete cargado. Todos los statements lo usan en knowledge_references. No hay identificadores hardcodeados ni enums independientes de ID y revisión, por lo que no se generan combinaciones cruzadas. Identidades de paquete y fuentes no pertenecen al conjunto permitido. La plantilla, el archivo aprobado, las capas de dominio, CoachContext, respuesta y serialización permanecen sin cambios. El enum de evidencia mantiene sus valores y ubicaciones.
+* `coach_v1.txt` exige los pares completos exactos de los ítems aprobados, prohíbe IDs sin revisión, revisiones no aprobadas, identificadores reconstruidos, identidades del paquete y fuentes. Las limitaciones pueden explicar límites, pero nunca autorizar recomendaciones, tampoco mezcladas con ítems accionables. El enum permite arrays vacíos donde el dominio los admite; no añade obligaciones de citar conocimiento a observaciones factuales ya respaldadas por evidencia.
+* La carga estricta del paquete sigue determinando aprobación, identidad, revisiones y fingerprint. Una configuración ausente, vacía, inválida o alterada falla antes del proveedor con CoachConfigurationError y mensaje seguro, sin texto original del error. No se cambian contratos de errores de respuesta ni sus diagnósticos. La especialización también rechaza grupos de conocimiento vacíos antes de enviar un schema vacío. No se reintenta, no se persiste respuesta ni se produce coaching fallback.
+* Los límites documentados se comprueban después de insertar ambos enums compartidos. El fixture genera 29 valores enum (20 de evidencia, seis de conocimiento y tres status), 1.339 caracteres sujetos al límite global, 17 propiedades de objeto y tres niveles de objetos. El presupuesto de 1.000 enums permite como máximo 991 IDs de evidencia con este paquete/plantilla; las pruebas anteriores se actualizan para contar los seis valores adicionales, sin debilitar validación. Se verifican límites exactos globales y de texto combinados. Enums y definiciones compartidas están admitidos por [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
+* El parser y validador del Incremento 3 permanecen obligatorios e idénticos. Respuestas mockeadas que ignoran el enum siguen fallando con UNKNOWN_KNOWLEDGE_REFERENCE. Usar una referencia válida de limitación como autoridad falla con RECOMMENDATION_AUTHORITY_INVALID. La existencia de una referencia no acredita soporte semántico ni aplicabilidad de sus prerrequisitos.
+
+Limitaciones restantes: la aceptación live del schema con ambos enums no se ha verificado; no se realiza ninguna llamada real durante la corrección. Las respuestas reales previas no se recuperan ni se identifica retrospectivamente su string inválido. Persisten validación semántica, groundedness, utilidad y aplicabilidad como trabajo pendiente del Incremento 5, que no se inicia. Cualquier nueva ejecución real requiere una decisión manual.
+
+Validación de la corrección de conocimiento — 13 de octubre de 2026: 146 tests focalizados pasan (25 nuevos), con 100 % de statements y branches en coach.py y coach_manual.py. Suite completa: 1.319 tests pasan, incluidos los 1.294 anteriores, sin warnings. Cobertura combinada 99,10 %, statements 99,28 % y branches 98,56 %. Resultados Allure regenerados; HTML no validado. Se verifican los seis pares exactos, todos los statements, exclusión de paquete/fuentes, arrays vacíos válidos, enum de evidencia intacto, límites globales combinados, ausencia de estado compartido, rechazo por autoridad/diagnóstico, configuración inválida/vacía y una única invocación sin retries ni fallback. Plantilla, paquete, serialización y capas de Incrementos 1–3 permanecen sin cambios. Solo mocks y transporte HTTP falso; ninguna llamada real ni evaluación semántica.
 
 Configuración y ejecución real opcional (solo desarrolladores):
 
@@ -562,7 +590,7 @@ Automated Tests
 
 Actualmente (13 de octubre de 2026):
 
-1.277 tests passing; cobertura combinada 99,07 %. La validación por incremento de Coach consta en Current Focus.
+1.319 tests passing; cobertura combinada 99,10 %. La validación por incremento de Coach consta en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -902,7 +930,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Revisar la mejora diagnóstica del Incremento 4 de AI Coach V1. Cualquier nueva ejecución real para identificar el primer fallo requiere decisión manual; la mejora no ejecuta llamadas ni recupera respuestas anteriores. La evaluación semántica es el Incremento 5 y requiere autorización separada; no se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Revisar las restricciones de evidencia y conocimiento del Incremento 4 de AI Coach V1. Cualquier nueva ejecución real con ambos enums requiere decisión manual; la corrección no ejecuta llamadas ni recupera respuestas anteriores. La evaluación semántica es el Incremento 5 y requiere autorización separada; no se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
