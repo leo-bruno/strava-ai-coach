@@ -1,0 +1,139 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "guidance_available",
+        "clarification_required",
+        "insufficient_support"
+      ]
+    },
+    "recommendation_period": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string"
+        },
+        "end_exclusive": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end_exclusive"
+      ],
+      "additionalProperties": false
+    },
+    "current_state": {
+      "$ref": "#/$defs/statement"
+    },
+    "recent_evolution": {
+      "$ref": "#/$defs/statement"
+    },
+    "relevant_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_week_recommendation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/recommendation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/statement"
+      }
+    },
+    "clarification_questions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/statement"
+      }
+    }
+  },
+  "required": [
+    "status",
+    "recommendation_period",
+    "current_state",
+    "recent_evolution",
+    "relevant_evidence",
+    "next_week_recommendation",
+    "limitations",
+    "clarification_questions"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "statement": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "evidence_references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "knowledge_references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "evidence_references",
+        "knowledge_references"
+      ],
+      "additionalProperties": false
+    },
+    "recommendation": {
+      "type": "object",
+      "properties": {
+        "overall_direction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/statement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recommended_running_days": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "training_priorities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "reasoning": {
+          "$ref": "#/$defs/statement"
+        }
+      },
+      "required": [
+        "overall_direction",
+        "recommended_running_days",
+        "training_priorities",
+        "reasoning"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

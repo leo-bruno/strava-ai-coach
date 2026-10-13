@@ -65,7 +65,7 @@ Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
-AI Coach	🟡 Incrementos 1–3 implementados — petición, conocimiento, contexto y frontera de respuesta/renderizado; Coach operativo pendiente
+AI Coach	🟡 Incrementos 1–4 implementados — ejecución LLM controlada con diagnóstico seguro; primera llamada real rechazada, evaluación semántica pendiente
 Training Planning	⏳ Futuro
 UI	⏳ Futuro
 
@@ -73,9 +73,9 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 3: CoachResponse, validación determinista y renderer
+AI Coach V1 — Incremento 4: prompt versionado, integración OpenAI y ejecución controlada
 
-Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Se implementan únicamente los Incrementos 1–3; no se añaden Insights ni se construye todavía un Coach operativo.
+Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Se implementan únicamente los Incrementos 1–4; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. La evaluación semántica permanece pendiente.
 
 Arquitectura aprobada: validar petición → construir CoachContext determinísticamente → suministrar conocimiento fijo aprobado → generar y validar CoachResponse → renderizar. Se conservan las capas existentes; no hay AthleteProfile, TrainingPlan, motor genérico de reglas, capa médica, RAG, vectores ni investigación externa en runtime. La población prevista son corredores adultos (18+), sin campo de edad ni inferencia o validación de edad.
 
@@ -86,7 +86,7 @@ Implementado en Incremento 1:
 * Cuatro limitaciones de aplicación aprobadas, no accionables: aumento persistente de distancia, calidad, carreras relativamente más largas y frecuencia de días. Ningún candidato no aprobado está disponible en runtime. Este paquete no permite recomendar conteos de días, calidad, carreras más largas ni mantener/reducir carga por un patrón de distancia.
 * Carga local determinista con validación estricta de estructura, identidad, revisiones, referencias y fingerprint del contenido JSON canónico. Los cambios de contenido requieren una nueva revisión aprobada, no una sustitución silenciosa. No se accede a las URLs de fuentes.
 
-Pendientes: prompt, integración LLM, evaluaciones semánticas tests/llm e integración UI interactiva. No se añaden campos ni cálculos a Analytics, Trends o Insights.
+Pendientes tras el Incremento 4: identificar el fallo concreto de la primera respuesta real y lograr una respuesta real validada mediante decisión manual, evaluaciones semánticas tests/llm e integración UI interactiva. No se añaden campos ni cálculos a Analytics, Trends o Insights.
 
 Validación del Incremento 1 — 8 de octubre de 2026: 161 tests focalizados pasan, con 100 % de cobertura de statements y branches en los dos módulos Python nuevos. Suite completa: 1.007 tests pasan; cobertura combinada 98,33 %, statements 98,74 % y branches 96,81 %. pytest/Allure conserva resultados tradicionales; no se ejecutan evaluaciones LLM ni se realizan solicitudes externas. Los 846 tests existentes siguen pasando y no hay cambios en código ni tests de Analytics, Trends o Insights.
 
@@ -111,6 +111,51 @@ Implementado en Incremento 3:
 La validación estructural no prueba significado ni aplicabilidad. Confirmación real de la interrupción en texto libre, fidelidad de afirmaciones y referencias, restricciones implícitas en prosa, adecuación de preguntas para resolver incertidumbre y utilidad siguen pendientes de evaluación semántica. No se implementan extracción de contexto, reglas por palabras clave ni motor general.
 
 Validación del Incremento 3 — 9 de octubre de 2026: 106 tests focalizados pasan con 100 % de statements y branches en los tres módulos nuevos. Suite completa: 1.173 tests pasan, incluidos los 1.067 anteriores; cobertura combinada 98,99 %, statements 99,19 % y branches 98,37 %. Fixtures manuales y pytest/Allure; sin LLM ni servicios externos. Incrementos 1–2, paquete de conocimiento, Analytics, Trends e Insights permanecen sin cambios.
+
+Implementado en Incremento 4 — 13 de octubre de 2026:
+
+* Prompt local versionado `src/ai/prompts/coach_v1.txt`: evidencia suministrada, paquete AI_COACH_V1_KNOWLEDGE@1.0.0 completo, dos ítems accionables y cuatro limitaciones vinculantes. RunnerContext se envía exclusivamente como dato de usuario; sus instrucciones incrustadas no tienen autoridad. No añade reglas, prescripciones detalladas ni TrainingPlan.
+* `src/ai/coach.py` recibe CoachContext ya construido, carga conocimiento y prompt, serializa todos sus campos y realiza exactamente una invocación OpenAI Chat Completions. SDK oficial `openai==2.54.0`, `max_retries=0` y `store=False`; cierra el cliente tras la llamada. No hay herramientas, sincronización Strava, investigación de fuentes, background, persistencia local ni fallback.
+* Structured Outputs estricto mediante `src/ai/prompts/coach_v1.schema.json`. Los modelos aprobados son dataclasses, no un JSON Schema de proveedor: el transporte conserva exactamente sus nombres y estructura. Objetos con todos los campos requeridos y `additionalProperties=false`; opcionales explícitamente null, tuples como arrays, enums como valores, fechas/timestamps ISO 8601 y ZoneInfo como clave IANA. El paquete incluye fuentes, prerrequisitos, conclusiones, excepciones, limitaciones y fingerprint. No se alteran los contratos aprobados. Fechas válidas, referencias, autoridad, períodos, conteos y coherencia entre status/secciones siguen en `parse_coach_response` y el validador del Incremento 3, sin duplicar sus reglas. Documentación oficial: [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
+* Errores separados: CoachConfigurationError, CoachProviderError, CoachRefusalError, CoachMalformedOutputError y CoachInvalidResponseError. JSON sintácticamente inválido, contenido ausente o truncado son errores de output; campos inválidos, duplicados, constantes JSON no estándar y fallos de dominio son errores de respuesta. No se convierten en insufficient_support, no se reintenta y no se generan recomendaciones fallback. Los mensajes de error no incluyen contenido del proveedor ni RunnerContext; el módulo no registra datos.
+
+Mejora diagnóstica del Incremento 4:
+
+* La frontera de integración clasifica el primer ValueError del parser/validador mediante una allowlist explícita de códigos y explicaciones fijas. La clasificación no revalida, no modifica respuestas ni cambia reglas de dominio. CoachInvalidResponseError conserva clase, constructor y mensaje por defecto; solo añade metadatos diagnósticos seguros. Errores desconocidos usan UNKNOWN_VALIDATION_FAILURE.
+* El flag opcional `--diagnose-validation` muestra solo el código permitido y su explicación fija en stderr si falla la validación, con salida 1. Sin el flag, el texto de error y comportamiento del CLI permanecen iguales. El flag no autoriza una llamada: sigue siendo obligatorio `--allow-real-api-call`. En éxito se conserva el renderer; errores operativos conservan su clasificación habitual.
+* Nunca se imprimen mensajes ValueError originales, referencias controladas por el proveedor, respuesta JSON, RunnerContext, claves ni locals del traceback. Se inspeccionan errores solo en memoria y se descartan sufijos dinámicos; no se registra ni persiste contenido. Los diagnósticos identifican el primer motivo reconocido, no todos los defectos ni la ubicación exacta de un campo. Mensajes internos nuevos o cambiados caen en el diagnóstico genérico.
+* Códigos de diagnóstico: JSON_DUPLICATE_FIELD, JSON_NONSTANDARD_CONSTANT, RESPONSE_STRUCTURE_INVALID, STATUS_INVALID, TEXT_INVALID, DATE_FORMAT_INVALID, DATE_VALUE_INVALID, UNKNOWN_EVIDENCE_REFERENCE, UNKNOWN_KNOWLEDGE_REFERENCE, DUPLICATE_EVIDENCE_REFERENCE, DUPLICATE_KNOWLEDGE_REFERENCE, STATEMENT_SUPPORT_MISSING, KNOWLEDGE_PACKAGE_INVALID, PERIOD_MISMATCH, RECOMMENDATION_AUTHORITY_INVALID, RECOMMENDATION_EVIDENCE_MISSING, RETURN_EVIDENCE_MISSING, GUIDANCE_SECTIONS_INVALID, CLARIFICATION_SECTIONS_INVALID, CLARIFICATION_AUTHORITY_INVALID, INSUFFICIENT_SUPPORT_SECTIONS_INVALID, RUNNING_DAY_COUNT_INVALID, RUNNING_DAY_COUNT_UNSUPPORTED, ZERO_AVAILABILITY, EMPTY_RECOMMENDATION, EASY_DIRECTION_UNSUPPORTED y UNKNOWN_VALIDATION_FAILURE.
+
+Uso diagnóstico, solo si el desarrollador decide explícitamente realizar otra llamada potencialmente de pago con el entorno configurado:
+
+```bash
+.venv/bin/python -m src.ai.coach_manual --allow-real-api-call --diagnose-validation
+```
+
+No se ha ejecutado este comando durante la mejora. Los diagnósticos se prueban con respuestas y errores sintéticos, sin nuevas llamadas reales, reintentos ni recomendaciones fallback. Incrementos 1–3, paquete aprobado, prompt y schema de transporte permanecen sin cambios. Incremento 5 no se inicia.
+
+Validación de la mejora diagnóstica — 13 de octubre de 2026: 104 tests focalizados pasan (55 nuevos), con 100 % de statements y branches en coach.py y coach_manual.py. Suite completa: 1.277 tests pasan, incluidos los 1.222 anteriores, sin warnings. Cobertura combinada 99,07 %, statements 99,26 % y branches 98,49 %. Se regeneran resultados Allure; HTML no validado. Se verifican fallos reales del parser sobre fixtures sintéticos, errores desconocidos, referencias y claves JSON maliciosas, protección de datos sensibles, compatibilidad del error/CLI y una única invocación sin retry ni fallback. No se hacen llamadas reales ni evaluación semántica.
+
+Configuración y ejecución real opcional (solo desarrolladores):
+
+Requiere `OPENAI_API_KEY` y `OPENAI_COACH_MODEL` no vacíos en el entorno del proceso. No existe modelo por defecto ni carga automática de `.env`. Configuración seleccionada para el primer experimento manual: `gpt-4.1-mini-2025-04-14`, snapshot explícito con soporte Structured Outputs y Chat Completions según [la ficha oficial del modelo](https://developers.openai.com/api/docs/models/gpt-4.1-mini). Esto no acredita su calidad de coaching; el modelo puede cambiarse por entorno y requiere acceso en la cuenta OpenAI.
+
+Desde la raíz del repositorio, instalar dependencias y ejecutar solo si se decide realizar la llamada potencialmente de pago:
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+# En zsh, introducir la clave sin mostrarla ni escribirla en el historial:
+read -rs 'OPENAI_API_KEY?OpenAI API key: '
+export OPENAI_API_KEY
+export OPENAI_COACH_MODEL=gpt-4.1-mini-2025-04-14
+.venv/bin/python -m src.ai.coach_manual --allow-real-api-call
+```
+
+`OPENAI_API_KEY` debe estar exportada antes del último comando; nunca copiarla al código ni a Git. El comando sin el flag falla antes de llamar al proveedor. Reutiliza exclusivamente `context_fixture()` del Incremento 3, con referencia fija 8 de octubre de 2026 y período 12–19 de octubre de 2026, sin RunnerContext personal: no representa datos actuales ni un atleta real. El import de fixture es exclusivo del comando de desarrollo. Muestra únicamente CoachResponse validado mediante el renderer existente, o un error tipado en stderr con salida 1; sin archivo de salida ni persistencia. `store=False` desactiva almacenamiento de la completion para ese uso; no implica ausencia de todas las políticas de retención del proveedor. Las llamadas reales transmiten contexto al proveedor y pueden generar coste; la implementación y mejora diagnóstica no han realizado llamadas reales. El usuario informó de una primera ejecución manual con gpt-4.1-mini-2025-04-14 que devolvió CoachInvalidResponseError; no se conservó su respuesta en la aplicación.
+
+Limitaciones operativas: se utilizan los límites de timeout predeterminados del SDK. Sin retries, un timeout, rate limit, indisponibilidad, rechazo, truncado o incompatibilidad del modelo falla explícitamente y requiere una nueva decisión manual. La primera ejecución real comunicada por el usuario alcanzó parse_coach_response: no fue un error de rechazo del schema por la API, pero la respuesta no superó la frontera local. El mensaje genérico impide identificar retrospectivamente el primer fallo; no acredita una respuesta Coach válida ni la calidad semántica del modelo. Validación determinista comprueba estructura y referencias, no fidelidad de prosa, aplicabilidad real de prerrequisitos ni resistencia semántica a prompt injection. Las pruebas comprueban separación de instrucciones/datos, pero no prueban obediencia del modelo. Evaluación semántica, groundedness, utilidad y restricciones expresadas en prosa siguen pendientes de Incremento 5. No se inicia automáticamente.
+
+Validación del Incremento 4 — 13 de octubre de 2026: 49 tests focalizados pasan, con 100 % de statements y branches en coach.py y coach_manual.py. Suite completa: 1.222 tests pasan, incluidos los 1.173 anteriores; cobertura combinada 99,05 %, statements 99,25 % y branches 98,45 %. Resultados Allure regenerados; no se valida HTML Allure. Clientes mockeados y transporte HTTP local falso para comprobar éxito con SDK y ausencia de retry ante 429; cero llamadas reales, sin evaluación semántica. Incrementos 1–3 y sus contratos permanecen sin cambios.
 
 Weekly Analytics V1 está aprobada como COMPLETE: resume el volumen y la composición por TrainingType de las Run suministradas para una semana local. La implementación y la validación de sus tres dimensiones están cerradas.
 
@@ -507,7 +552,7 @@ El Insight describe observaciones suministradas. Cero Run no demuestra inactivid
 
 Validación automatizada del 7 de octubre de 2026: 48 tests del detector y 7 del modelo, incluidos episodios maximales, mínimos, huecos y cadenas desconectadas, conteo exclusivo, distancia cero, entradas inconsistentes sin corrección, orden, errores, fechas calendario y ausencia de mutaciones. Pasan 212 tests focalizados de Insights/modelos/historial, incluida regresión de Increase/Decrease, y los 846 tests de la suite completa configurada. El nuevo detector/modelo y los Insights existentes alcanzan 100 % de cobertura. En aquel incremento no se realizaron solicitudes live a Strava ni nueva validación contra datos reales; la validación offline final conjunta posterior se documenta más abajo.
 
-Insights V1 está COMPLETE con los tres contratos anteriores, tras la validación offline final conjunta. No se implementa ningún Insight adicional. AI Coach V1 tiene diseño aprobado y únicamente sus Incrementos 1–3 implementados; no existe Coach operativo.
+Insights V1 está COMPLETE con los tres contratos anteriores, tras la validación offline final conjunta. No se implementa ningún Insight adicional. AI Coach V1 tiene diseño aprobado y sus Incrementos 1–4 implementados; la ejecución LLM está disponible solo mediante opt-in del desarrollador, sin validación semántica.
 
 ⸻
 
@@ -515,9 +560,11 @@ Insights V1 está COMPLETE con los tres contratos anteriores, tras la validació
 
 Automated Tests
 
-Actualmente:
+Actualmente (13 de octubre de 2026):
 
-846 tests passing
+1.277 tests passing; cobertura combinada 99,07 %. La validación por incremento de Coach consta en Current Focus.
+
+Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
 El contrato de los modelos semanales cuenta con 14 tests, el cálculo de estructura por tipo con 26 y la construcción Activities → WeeklyAnalysis con 13. Pasan los 112 tests de Weekly Analytics; junto con los 107 del clasificador existente, pasan 219 tests específicos. Los 230 tests de src/trends siguen pasando, junto con los 36 tests de los seis modelos temporales: 266 tests del conjunto auditado de Trends V1. Increase conserva sus 7 tests de modelo y 40 tests de detector. Decrease añade 7 tests de modelo y 54 tests de detectores, incluida una regresión conjunta, para 108 tests de los dos primeros Insights y sus modelos. ObservedRunningAfterZeroRunWeeks añade 48 tests de detector y 7 de modelo, para 163 tests de Insights y sus modelos. Pasan 212 tests focalizados de Insights/modelos/historial. La suite completa configurada pasa con 846 tests: 845 Unit y 1 Integration mockeado. La cobertura global combinada de statements y branches es 97,79086892488954 % (664/679), con 544/553 statements (98,37251356238698 %) y 120/126 branches (95,23809523809524 %); los tres modelos de Insight y src/insights alcanzan el 100 %; los seis módulos de Trends y los seis modelos de cambio implementados alcanzan el 100 %; el cálculo de estructura, el constructor semanal y los modelos semanales alcanzan el 100 %. Se conservan los tests existentes de volumen, clasificación y mapper. Los 7 tests adicionales de la utilidad local de captura constan como validados anteriormente y no forman parte de la suite configurada.
 
@@ -780,9 +827,9 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–3 implementados; Coach operativo pendiente
+AI Coach 🟡 Incrementos 1–4 implementados; ejecución controlada disponible, evaluación semántica pendiente
 
-Petición validada, conocimiento fijo, CoachContext determinista y frontera CoachResponse/renderer implementados. Próximo incremento sujeto a autorización: prompt versionado e integración LLM con pruebas mock; después evaluación semántica, por separado.
+Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. La primera llamada real comunicada falló en validación local; cualquier nueva ejecución requiere decisión manual. Incremento 5 (evaluación semántica) sujeto a autorización separada; no se inicia automáticamente.
 
 ↓
 
@@ -841,13 +888,13 @@ Actualmente conocemos al menos:
 * No existe deduplicación.
 * No existe un application entry point real.
 * src/main.py está vacío.
-* src/ai contiene carga del conocimiento local, builder CoachContext y frontera CoachResponse; no hay prompt ni integración LLM.
+* src/ai contiene conocimiento local, builder CoachContext, frontera CoachResponse, prompt versionado y ejecución OpenAI explícita. La compatibilidad live y calidad semántica todavía no están validadas.
 * Existe renderer de texto plano, pero no UI interactiva.
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
-* Insights V1 está COMPLETE con los tres Insights aprobados, implementados y validados mediante tests y auditoría offline conjunta. AI Coach V1 tiene petición, conocimiento fijo, CoachContext y frontera CoachResponse/renderer implementados.
-* No existe Coach operativo ni evaluación semántica implementada.
+* Insights V1 está COMPLETE con los tres Insights aprobados, implementados y validados mediante tests y auditoría offline conjunta. AI Coach V1 tiene petición, conocimiento fijo, CoachContext, frontera CoachResponse/renderer y ejecución LLM controlada implementados.
+* Coach dispone de ejecución de desarrollador; no existe evaluación semántica implementada ni integración de producto end-to-end.
 
 Estos elementos deben priorizarse según las necesidades del roadmap, no necesariamente por su orden técnico.
 
@@ -855,7 +902,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Revisar el Incremento 3 de AI Coach V1 antes de autorizar el Incremento 4: prompt versionado e integración LLM con pruebas mock conforme al contrato aprobado. No se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. Prompt, LLM y evaluación semántica permanecen pendientes; no se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Revisar la mejora diagnóstica del Incremento 4 de AI Coach V1. Cualquier nueva ejecución real para identificar el primer fallo requiere decisión manual; la mejora no ejecuta llamadas ni recupera respuestas anteriores. La evaluación semántica es el Incremento 5 y requiere autorización separada; no se inicia automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
@@ -865,4 +912,4 @@ El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persist
 
 ⸻
 
-Last updated: 9 October 2026
+Last updated: 13 October 2026
