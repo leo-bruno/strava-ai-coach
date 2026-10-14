@@ -73,9 +73,19 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5A offline COMPLETE: dieciséis controles revisados y aceptación verificada. Incremento 4 CLOSED
+AI Coach V1 — Incremento 5B-01 COMPLETE: preparación, dry-run y captura controlada verificados offline. Incrementos 4 y 5A cerrados.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
+
+Incremento 5B-01 — ejecución sintética controlada (14 de octubre de 2026)
+
+Implementado únicamente en tests/llm/increment5b/: selección explícita de un escenario, preparación equivalente a 5A, dry-run por defecto sin key ni cliente OpenAI, cohort local inmutable con ocho escenarios y presupuesto aprobado inicial cero (máximo ocho). Se reutiliza generate_coach_response y su validación, enums, max_retries=0 y store=False, sin modificar producción, dataset/reviews 5A, prompts, schemas ni conocimiento. No se añaden dependencias.
+
+Una reserva exclusiva y sincronizada a disco consume el intento antes de invocar Coach; una captura terminal separada conserva únicamente CoachResponse validado o categoría de fallo segura. Máximo un intento por escenario, sin retries, iteración automática ni reemplazo de resultados. Locks POSIX de cohort y proveedor compartido impiden ejecución paralela incluso entre cohorts. Interrupciones, crash o fallo de escritura conservan la reserva consumida/incierta; archivos parciales o alterados bloquean ejecución. Fingerprints congelados enlazan inputs, contexto, dataset, código, prompt, schema especializado y conocimiento. Capturas locales bajo test-results/increment5b/ ignorado, con permisos restrictivos y sin keys, headers, cuerpos rechazados ni logs de contexto.
+
+Aceptación 5B-01: todos los criterios PASS mediante verificación offline. 70 tests nuevos PASS y 97 tests 5A PASS (167 focalizados); suite completa **1.486 tests PASS**, incluidos los 1.416 anteriores, sin warnings. Cobertura combinada de producción **99,10 %**, runner 5B-01 **96,59 %** (statements 97,66 %, branches 93,75 %), conjunto producción + tooling 5A/5B **98,67 %**. Se comprueban las ocho equivalencias, guards, presupuesto, duplicados, locks, fallos/interrupciones, integridad, ausencia de filtraciones y SDK simulado. CLI dry-run real de preparación verificada con cero llamadas. Ninguna llamada real OpenAI/Strava ni cohort live creado durante la implementación; ninguna regresión observada.
+
+**Incremento 5B-01 COMPLETE**, limitado a mecanismo de ejecución/captura probado con mocks. Token usage, modelo reportado por proveedor y coste son null porque producción no los expone; no significan cero. SHA-256 detecta cambios accidentales, no autentica modificaciones deliberadas del operador. Locks/durabilidad se limitan a filesystem local POSIX; no hay soporte Windows/distribuido. Presupuesto por cohort no controla otros comandos manuales ni la cuenta del proveedor. Respuesta estructural válida sigue siendo texto no confiable, no PASS semántico. 5B-02 (review humano y reportes de respuestas generadas) permanece diferido y no implementado. No se inicia ejecución real ni evaluación de rendimiento sin autorización explícita.
 
 Incremento 5A — implementación offline y aceptación final (14 de octubre de 2026)
 
@@ -653,9 +663,9 @@ Insights V1 está COMPLETE con los tres contratos anteriores, tras la validació
 
 Automated Tests
 
-Actualmente (13 de octubre de 2026):
+Actualmente (14 de octubre de 2026):
 
-1.416 tests passing; cobertura combinada de producción 99,10 %, producción más evaluador 99,02 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
+1.486 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,67 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -920,7 +930,7 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4 cerrados; Incremento 5A offline COMPLETE; rendimiento de modelos sin evaluar
+AI Coach 🟡 Incrementos 1–4 y 5A cerrados; 5B-01 COMPLETE offline; rendimiento de modelos sin evaluar
 
 Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
@@ -995,7 +1005,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. El próximo paso requiere que el usuario defina y autorice un nuevo alcance; no se inicia Incremento 5B, evaluación de modelos, conexión de Strava, ejecución OpenAI ni UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. Incremento 5B-01 autorizado está COMPLETE con preparación y captura controlada verificadas offline. El siguiente alcance candidato es 5B-02, review humano y reportes de respuestas generadas, sujeto a autorización separada; no se inicia evaluación de modelos, conexión de Strava, ejecución real OpenAI ni UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
