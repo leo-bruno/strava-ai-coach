@@ -73,9 +73,23 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5B-01 COMPLETE: preparación, dry-run y captura controlada verificados offline. Incrementos 4 y 5A cerrados.
+AI Coach V1 — Incremento 5B-02 COMPLETE: review humano offline y reportes implementados; rendimiento del modelo todavía UNEVALUATED.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
+
+Incremento 5B-02 — review humano y reporting offline (14 de octubre de 2026)
+
+Implementado exclusivamente en tests/llm/increment5b/evaluate.py y tests colocados: consumidor offline de capturas 5B-01, sin llamadas, generación, LLM judge ni dependencias nuevas. Se reutilizan adaptación, parser/validator, rúbrica de seis dimensiones, agregación y helpers de integridad existentes. Producción, prompts, schemas, conocimiento, dataset/reviews 5A y runner/guards 5B-01 permanecen sin cambios.
+
+El manifest congelado, las reservas y las capturas se verifican contra fingerprints y versiones actuales. Cada respuesta SUCCESS se revalida contra su CoachContext original antes de permitir review. Los ocho escenarios siempre figuran: ausentes, refusals, errores de proveedor/configuración, malformed/rechazos de dominio e interrupciones son unassessable; reservas sin resultado permanecen inciertas. Archivos alterados/parciales se muestran como errores de integridad sin contenido rechazado. Manifest obsoleto o reviews inválidos se rechazan explícitamente, sin inferir decisiones.
+
+Reviews nuevos empiezan UNEVALUATED y no copian verdicts de controles authored. Cada entrada enlaza escenario, respuesta, captura, dataset/rúbrica y evaluador mediante hashes; registra identidad/timestamp/stage, seis outcomes con explicaciones y affected_fields exactos. Hallazgos críticos solo humanos, con condición original o finding adicional de seguridad justificado; descripciones y ubicaciones se preservan. FAIL domina, incertidumbre permanece UNEVALUATED y adjudicación debe ser explícita. La edición humana requiere validación y sellado explícitos a un archivo nuevo; no se sobrescriben capturas ni reviews previos. Las identidades son declaraciones, no autenticación independiente.
+
+Reportes canónicos reproducibles separan FRAMEWORK_ACCEPTANCE/integridad técnica, estructura, completitud humana, STUDY_COMPLETENESS, MODEL_ACCEPTANCE y hallazgos críticos. Denominadores valid/8, fully reviewed/valid y semantic PASS/FAIL/8; rates con denominador cero son null. Missing, inciertos, interrumpidos, inválidos y fallos permanecen visibles; totales reconciliados. No se incluyen cuerpos completos de respuesta ni RunnerContext. Un fallo del modelo detectado correctamente puede coexistir con framework PASS. Modelo PASS exige ocho respuestas válidas, ocho reviews completos PASS, statuses permitidos y cero críticos; fallo conocido da FAIL, estudio incompleto sin fallo conocido queda UNEVALUATED.
+
+Validación: **86 tests nuevos PASS**, más 70 tests 5B-01 y 97 tests 5A (253 focalizados). Suite completa **1.572 tests PASS**, incluidos los 1.486 anteriores, sin warnings. Evaluador 5B-02: **100 % statements y branches**; producción conserva **99,10 %** combinada; conjunto producción y tooling **98,83 %** combinada. Se verifican revalidación, bindings obsoletos, archivos modificados, outcomes unassessable, reviews incompletos, críticos adicionales/precedencia, denominadores, aceptación 8/8, fallos conocidos, incertidumbre y regeneración determinista. Los juicios de tests son simulaciones explícitas, nunca reviews humanos reales.
+
+**Incremento 5B-02 COMPLETE como implementación del framework offline.** FRAMEWORK_ACCEPTANCE verificado mediante tests e integridad; ninguna evaluación real de respuestas generadas se realizó durante esta implementación. Actual generated-model performance permanece UNEVALUATED y no se declara un estudio real COMPLETE ni modelo aceptado. Ocho escenarios ofrecen cobertura parcial de las siete características ISTQB CT-AI, sin generalización estadística, fairness ni intervención runtime. No se ejecutaron APIs ni se inicia 5B-03; cualquier ejecución/evaluación real siguiente requiere autorización explícita.
 
 Incremento 5B-01 — ejecución sintética controlada (14 de octubre de 2026)
 
@@ -85,7 +99,7 @@ Una reserva exclusiva y sincronizada a disco consume el intento antes de invocar
 
 Aceptación 5B-01: todos los criterios PASS mediante verificación offline. 70 tests nuevos PASS y 97 tests 5A PASS (167 focalizados); suite completa **1.486 tests PASS**, incluidos los 1.416 anteriores, sin warnings. Cobertura combinada de producción **99,10 %**, runner 5B-01 **96,59 %** (statements 97,66 %, branches 93,75 %), conjunto producción + tooling 5A/5B **98,67 %**. Se comprueban las ocho equivalencias, guards, presupuesto, duplicados, locks, fallos/interrupciones, integridad, ausencia de filtraciones y SDK simulado. CLI dry-run real de preparación verificada con cero llamadas. Ninguna llamada real OpenAI/Strava ni cohort live creado durante la implementación; ninguna regresión observada.
 
-**Incremento 5B-01 COMPLETE**, limitado a mecanismo de ejecución/captura probado con mocks. Token usage, modelo reportado por proveedor y coste son null porque producción no los expone; no significan cero. SHA-256 detecta cambios accidentales, no autentica modificaciones deliberadas del operador. Locks/durabilidad se limitan a filesystem local POSIX; no hay soporte Windows/distribuido. Presupuesto por cohort no controla otros comandos manuales ni la cuenta del proveedor. Respuesta estructural válida sigue siendo texto no confiable, no PASS semántico. 5B-02 (review humano y reportes de respuestas generadas) permanece diferido y no implementado. No se inicia ejecución real ni evaluación de rendimiento sin autorización explícita.
+**Incremento 5B-01 COMPLETE**, limitado a mecanismo de ejecución/captura probado con mocks. Token usage, modelo reportado por proveedor y coste son null porque producción no los expone; no significan cero. SHA-256 detecta cambios accidentales, no autentica modificaciones deliberadas del operador. Locks/durabilidad se limitan a filesystem local POSIX; no hay soporte Windows/distribuido. Presupuesto por cohort no controla otros comandos manuales ni la cuenta del proveedor. Respuesta estructural válida sigue siendo texto no confiable, no PASS semántico. Al cierre de 5B-01, 5B-02 (review humano y reportes) permanecía diferido; su implementación offline posterior se documenta arriba. No se inicia ejecución real ni evaluación de rendimiento sin autorización explícita.
 
 Incremento 5A — implementación offline y aceptación final (14 de octubre de 2026)
 
@@ -665,7 +679,7 @@ Automated Tests
 
 Actualmente (14 de octubre de 2026):
 
-1.486 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,67 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
+1.572 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,83 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -930,7 +944,7 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4 y 5A cerrados; 5B-01 COMPLETE offline; rendimiento de modelos sin evaluar
+AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; rendimiento de modelos sin evaluar
 
 Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
@@ -1005,7 +1019,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. Incremento 5B-01 autorizado está COMPLETE con preparación y captura controlada verificadas offline. El siguiente alcance candidato es 5B-02, review humano y reportes de respuestas generadas, sujeto a autorización separada; no se inicia evaluación de modelos, conexión de Strava, ejecución real OpenAI ni UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. Incremento 5B-01 autorizado está COMPLETE con preparación y captura controlada verificadas offline. 5B-02 está COMPLETE como implementación offline de review y reporting, sin evaluar respuestas reales de modelos. El próximo alcance requiere autorización explícita; no se inicia 5B-03, evaluación real de modelos, conexión de Strava, ejecución OpenAI ni UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 

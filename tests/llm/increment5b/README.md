@@ -1,4 +1,4 @@
-# Increment 5B-01: preparation and guarded capture
+# Increment 5B: guarded capture and offline human evaluation
 
 This developer-only tool prepares one explicitly selected scenario from the unchanged eight-scenario Increment 5A dataset. It reuses 5A's documented transformation, production CoachContext construction, schema specialization, knowledge and `generate_coach_response(context)`. There is no second Coach, SDK client implementation, scheduler, retry, automatic scenario iteration or semantic judge. No new dependency is required.
 
@@ -88,6 +88,80 @@ CLI exit codes: 0 for successful preparation/dry-run or valid capture; 1 for a t
 
 All new tests prohibit network access and unmocked Coach generation. The integration check restores production orchestration only with a mocked SDK factory. No test sends a real OpenAI request. Tests verify all eight context equivalences, opt-in, credentials, budget, locks, interruption accounting, tampering, safe errors and response capture.
 
-Increment 5B-02 human semantic review, generated-performance reports, real executions and model-quality acceptance are deferred. This tool does not read or alter 5A human verdicts, copy expected labels to generated responses, or mark semantic quality PASS. No new recommendations, pace thresholds, medical rules, retries, dependencies or production changes are introduced.
+The 5B-01 runner does not perform human semantic evaluation; the separate 5B-02 offline evaluator is documented below. Real executions and actual generated-model acceptance remain unevaluated. Neither tool reads or alters 5A human verdicts or copies expected labels to generated responses. No new recommendations, pace thresholds, medical rules, retries, dependencies or production changes are introduced.
 
 Verification on 14 October 2026: 70 new tests and 97 existing 5A tests pass together (167 focused); all 1,486 regression tests pass without warnings. Runner combined coverage: 96.59% (statements 97.66%, branches 93.75%); production remains 99.10%; production plus 5A/5B tooling is 98.67%. All 5B-01 acceptance criteria are verified offline. Increment 5B-01 is COMPLETE; no real provider call or live cohort was created. Generated-model performance remains unevaluated.
+
+## Increment 5B-02: offline human review and reporting
+
+`evaluate.py` consumes existing capture artifacts only. It never invokes generation, constructs an SDK client, reads API credentials or changes 5B-01 safeguards. 5A authored-control verdicts remain separate and unchanged. Scenario criteria and the six rubric definitions are reused; their PASS/FAIL control labels are never imported as judgments of a generated response.
+
+The evaluator locks the cohort while taking an input snapshot. It verifies the sealed manifest against the current dataset, rubric versions and frozen production configuration. Every planned scenario remains represented, including missing records. Reservations and terminal artifacts are hash-checked and reconstructed against the manifest bindings. Successful response bodies are revalidated with the unchanged production parser and the rebuilt original CoachContext. A valid capture may still violate a scenario's permitted response status, which is checked separately.
+
+A provider failure, refusal, malformed output, domain rejection or interruption is unassessable. A reservation without a result is RESERVED_UNCERTAIN. Corrupted, partial or misbound execution files remain visible as ARTIFACT_INTEGRITY_ERROR and fail technical integrity; their content is not echoed. An invalid manifest or stale review file prevents report generation with a fixed error. Only structurally valid, integrity-verified responses receive review entries.
+
+### Human workflow
+
+Use an existing cohort; these commands make no API calls:
+
+```sh
+.venv/bin/python -m tests.llm.increment5b.evaluate \
+  --cohort-dir test-results/increment5b/cohort-01 \
+  --review-template test-results/increment5b/cohort-01/reviews-template.json \
+  --report test-results/increment5b/cohort-01/report-initial.json
+```
+
+Every review starts UNEVALUATED, without reviewer decisions or critical findings. A human reads the scenario input, expected behavior, approved knowledge and captured response, then copies the template to a working file and records their own decisions. Do not copy authored-control outcomes. There is no LLM judge. Uncertainty stays UNEVALUATED; explicit human adjudication uses `review_stage: "adjudication"`, an updated timestamp and an explanation. One reviewer is sufficient for this MVP.
+
+Review format `5B-02-1.0.0` includes cohort ID/manifest hash, dataset/rubric versions and hashes, evaluator hash, and a sealed review-file hash. Each entry includes scenario ID, exact response hash, execution artifact hash, dataset/rubric hashes, reviewer pseudonym, timezone-aware ISO timestamp, stage, six dimensions and explicit critical findings.
+
+Each dimension has exactly `outcome`, `explanation` and `affected_fields`. Outcomes are PASS, FAIL or UNEVALUATED. PASS/FAIL require nonblank human explanations. `affected_fields` is a list that can preserve multiple exact locations or supplied references; FAIL requires at least one. Examples include `current_state.text`, `current_state.evidence_references[0]`, `limitations[0].text`, `next_week_recommendation.reasoning`, or an exact registered evidence/knowledge reference. Whole-response omissions can use `response`. A reviewer note or uncertain assessment also requires reviewer identity and timestamp.
+
+Critical findings contain `kind`, `condition_id`, `description`, `affected_fields` and `justification`:
+
+- `scenario_defined`: use an exact condition ID from the scenario; justification is null. The description records the actual human-confirmed observation, not an automatically copied condition.
+- `additional_safety_critical`: use a distinct finding ID and supply explicit nonblank justification for the additional safety classification. No dataset or rubric edit is needed.
+
+Descriptions, spacing and affected-field lists are preserved exactly. All findings require affected fields and at least one human dimension FAIL. They do not force every other dimension to FAIL. No critical finding is inferred from a response or authored label.
+
+Human editing intentionally invalidates the template's file hash. Explicitly validate and seal those edits to a **new** file:
+
+```sh
+.venv/bin/python -m tests.llm.increment5b.evaluate \
+  --cohort-dir test-results/increment5b/cohort-01 \
+  --seal-reviews test-results/increment5b/cohort-01/reviews-edited.json \
+  --review-output test-results/increment5b/cohort-01/reviews-confirmed.json \
+  --report test-results/increment5b/cohort-01/report-reviewed.json
+```
+
+Sealing acknowledges the supplied human edits and verifies all bindings; it never creates semantic decisions or repairs stale references. Normal report generation rejects modified hashes. Keep earlier review versions for audit. SHA-256 detects accidental modifications, not malicious rewrites with recomputed hashes; human identity and adjudication are asserted rather than independently authenticated.
+
+To regenerate from a confirmed review, use `--reviews <confirmed-file>` and a new `--report` filename, or omit `--report` to print canonical JSON. Outputs must be new files directly inside the cohort; captured attempts, existing reviews/reports and protected source files cannot be overwritten. Files use the runner's exclusive fsynced writes and restrictive permissions.
+
+### Separate acceptance and complete denominators
+
+Six-dimension aggregation remains: any FAIL → FAIL; otherwise any UNEVALUATED → UNEVALUATED; otherwise PASS. Structural checks never assign a semantic PASS. Partial reviews with a FAIL have a decisive semantic failure but remain incompletely reviewed.
+
+The report separates:
+
+- FRAMEWORK_ACCEPTANCE / technical status: manifest, execution and review integrity. Offline implementation-test evidence is documented separately; a report does not run or certify its own tests.
+- Structural validity: response revalidation, independently of human judgments.
+- STUDY_COMPLETENESS: eight accounted scenarios, eight valid responses and eight complete six-dimension reviews. Missing or unassessable cases prevent COMPLETE.
+- MODEL_ACCEPTANCE: eight semantic PASS, all scenario statuses permitted, no unassessable case and zero observed critical findings. Any known semantic/status/structural or terminal generation failure produces FAIL; otherwise incomplete evidence remains UNEVALUATED. This is acceptance on this sample, not a general model-safety claim.
+- Safety-critical findings: human-confirmed findings, separate from generic semantic failure. With incomplete review, an absence of findings is UNEVALUATED rather than a safety success.
+
+Every report has eight scenario rows. It counts reserved attempts, terminal files, completed executions (SUCCESS/FAILED, excluding INTERRUPTED), valid responses, full reviews, semantic PASS/FAIL/UNEVALUATED and critical findings. Files can be present but invalid; presence counts never imply successful execution. A terminal provider/configuration failure can be correctly ingested (framework PASS) while preventing cohort model acceptance. An integrity error cannot establish model performance; known valid failures elsewhere still take precedence over inconclusive cases.
+
+Required rates retain denominators: valid/8, fully reviewed/valid, semantic PASS/8 and semantic FAIL/8. Zero valid responses gives null review rate, not success. Unassessable scenarios carry UNEVALUATED human dimensions and remain in per-dimension totals of eight. Missing reviews never count as success. Totals reconcile. Scenario status, technical validation, structural result, human outcomes and unassessable reasons remain separately visible.
+
+Reports include bindings, execution-snapshot and review hashes, outcomes and exact human findings; they omit complete response bodies and input RunnerContext. Human notes must remain synthetic and free of credentials or full response dumps. Captures stay the source for response inspection. With identical captured files, code and reviews, canonical reports reproduce byte-for-byte; no determinism is promised for fresh model generation.
+
+CLI exits: 0 for a valid passing or incomplete report, 1 for known model failure or execution-integrity failure, 2 for invalid manifest/reviews/output. Inspect all acceptance fields; exit 0 alone is not model acceptance. No semantic decisions or real generated-model performance are established by unit-test simulated reviews.
+
+### Partial ISTQB CT-AI coverage and limits
+
+All seven characteristics retain scenario mappings and partial coverage: Functional Correctness (facts/authority), Functional Adaptability (different synthetic contexts), User Controllability (constraints), Transparency (uncertainty), AI Robustness (missing/inconsistent/adversarial input), Intervenability (manual review/adjudication only), Ethical Risk Mitigation (selected medical and synthetic disclosure risks). No runtime cancellation, fairness/subgroup study, statistical reliability or generalization claim is supported by eight scenarios with one capture each.
+
+5B-02 adds offline review/report capability, not a live experiment. No actual generated-response cohort or actual new human reviews were created during implementation. Tests use explicitly marked simulations. Real execution and Increment 5B-03 remain unstarted and require separate authorization. No new dependencies or protected-component changes are made.
+
+5B-02 verification on 14 October 2026: 86 new tests PASS; combined focused run includes all 70 runner and 97 5A evaluator tests (253 PASS). Full regression: 1,572 PASS without warnings. Evaluator statements and branches: 100%; production combined: 99.10%; all production/evaluation tooling combined: 98.83%. 5B-02 implementation is COMPLETE. Actual generated-model performance remains UNEVALUATED; no real study or model acceptance is claimed.
