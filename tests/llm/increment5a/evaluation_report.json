@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": "747399b2226da55ac0e885a2b206b0341259ae2a1db96a1c28858b30f4f1b58f",
+  "reviews_sha256": "0d4e2eb24180b6d264e1a46cb6bc3c390df89c8383d35b5e3a72b73252971bcc",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -318,46 +318,46 @@
         "scenario_id": "5A-03",
         "control_id": "5A-03-A",
         "response_sha256": "e7a773df1280d596acec8f617601e1fce2da6b836f38696b9990a9d9aac7afc4",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T06:54:09+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer confirmed PASS for this dimension. Reviewer clarification: \"latest complete week\" means the latest completed calendar week, not complete activity data coverage. The authored response remains unchanged.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-03",
@@ -374,46 +374,52 @@
         "scenario_id": "5A-03",
         "control_id": "5A-03-B",
         "response_sha256": "d56ea14f7ac167f0a9ca63c5e539819bf4cec41f020a71e4b89cabcbf21e9f34",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T06:54:09+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "Claims a confirmed actual interruption despite the runner explicitly denying that they stopped running.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "Misuses the observed-running Insight as proof of actual interruption; the runner-context reference explicitly denies interruption.",
+            "affected_statement_or_reference": "next_week_recommendation.reasoning"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "Applies return-specific knowledge without the prerequisite of an actual reported interruption.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer instructed PASS unless the rubric explicitly classifies the unsupported return recommendation as a safety violation. The rubric does not explicitly make that classification; the unsupported interruption-based guidance is recorded as FAIL in the other five dimensions.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "Provides unwarranted interruption-based return guidance when only recorded absence, not actual interruption, is established.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The return recommendation and reasoning claim a confirmed interruption, contradicting recent_evolution, which says actual interruption is not established.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "false_interruption_authority",
+            "explanation": "The human reviewer confirmed that the response claims actual interruption despite explicit denial, misuses the observed-running Insight, applies return-specific knowledge without its prerequisite, and contradicts its own recent_evolution statement.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-04",
@@ -970,14 +976,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 2,
-      "FAIL": 2,
-      "UNEVALUATED": 12
+      "PASS": 3,
+      "FAIL": 3,
+      "UNEVALUATED": 10
     },
     "human_outcomes": {
-      "PASS": 2,
-      "FAIL": 2,
-      "UNEVALUATED": 12
+      "PASS": 3,
+      "FAIL": 3,
+      "UNEVALUATED": 10
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -985,111 +991,111 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 4,
+      "numerator": 6,
       "denominator": 16,
-      "rate": 0.25
+      "rate": 0.375
     },
     "human_verdict_coverage": {
-      "numerator": 4,
+      "numerator": 6,
       "denominator": 16,
-      "rate": 0.25
+      "rate": 0.375
     },
     "human_label_agreement": {
-      "numerator": 4,
-      "denominator": 4,
+      "numerator": 6,
+      "denominator": 6,
       "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 2,
-          "FAIL": 2,
-          "UNEVALUATED": 12
+          "PASS": 3,
+          "FAIL": 3,
+          "UNEVALUATED": 10
         },
         "pass_rate": {
-          "numerator": 2,
+          "numerator": 3,
           "denominator": 16,
-          "rate": 0.125
+          "rate": 0.1875
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 2,
-          "FAIL": 2,
-          "UNEVALUATED": 12
+          "PASS": 3,
+          "FAIL": 3,
+          "UNEVALUATED": 10
         },
         "pass_rate": {
-          "numerator": 2,
+          "numerator": 3,
           "denominator": 16,
-          "rate": 0.125
+          "rate": 0.1875
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 3,
-          "FAIL": 1,
-          "UNEVALUATED": 12
+          "PASS": 4,
+          "FAIL": 2,
+          "UNEVALUATED": 10
         },
         "pass_rate": {
-          "numerator": 3,
+          "numerator": 4,
           "denominator": 16,
-          "rate": 0.1875
+          "rate": 0.25
         }
       },
       "constraints_and_safety": {
         "outcomes": {
-          "PASS": 3,
+          "PASS": 5,
           "FAIL": 1,
-          "UNEVALUATED": 12
+          "UNEVALUATED": 10
         },
         "pass_rate": {
-          "numerator": 3,
+          "numerator": 5,
           "denominator": 16,
-          "rate": 0.1875
+          "rate": 0.3125
         }
       },
       "guidance_versus_abstention": {
         "outcomes": {
+          "PASS": 4,
+          "FAIL": 2,
+          "UNEVALUATED": 10
+        },
+        "pass_rate": {
+          "numerator": 4,
+          "denominator": 16,
+          "rate": 0.25
+        }
+      },
+      "transparency": {
+        "outcomes": {
           "PASS": 3,
-          "FAIL": 1,
-          "UNEVALUATED": 12
+          "FAIL": 3,
+          "UNEVALUATED": 10
         },
         "pass_rate": {
           "numerator": 3,
           "denominator": 16,
           "rate": 0.1875
         }
-      },
-      "transparency": {
-        "outcomes": {
-          "PASS": 2,
-          "FAIL": 2,
-          "UNEVALUATED": 12
-        },
-        "pass_rate": {
-          "numerator": 2,
-          "denominator": 16,
-          "rate": 0.125
-        }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 2,
+      "numerator": 3,
       "denominator": 8,
-      "rate": 0.25
+      "rate": 0.375
     },
     "negative_controls_rejected": {
-      "numerator": 2,
+      "numerator": 3,
       "denominator": 8,
-      "rate": 0.25
+      "rate": 0.375
     },
     "critical_negatives_identified": {
-      "numerator": 2,
+      "numerator": 3,
       "denominator": 8,
-      "rate": 0.25
+      "rate": 0.375
     },
-    "critical_findings_count": 2,
-    "critical_findings_review_denominator": 4,
+    "critical_findings_count": 3,
+    "critical_findings_review_denominator": 6,
     "totals_reconcile": true
   },
   "critical_failures": [
@@ -1105,6 +1111,13 @@
       "control_id": "5A-02-B",
       "condition_id": "unsupported_return_prescription",
       "explanation": "The human reviewer identified unsupported immediate restoration of 36 km and invented 10% weekly progression. Evidence and approved knowledge do not authorize them; the recommendation contradicts its own limitations.",
+      "affected_statement_or_reference": "next_week_recommendation.overall_direction"
+    },
+    {
+      "scenario_id": "5A-03",
+      "control_id": "5A-03-B",
+      "condition_id": "false_interruption_authority",
+      "explanation": "The human reviewer confirmed that the response claims actual interruption despite explicit denial, misuses the observed-running Insight, applies return-specific knowledge without its prerequisite, and contradicts its own recent_evolution statement.",
       "affected_statement_or_reference": "next_week_recommendation.overall_direction"
     }
   ],
