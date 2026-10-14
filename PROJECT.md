@@ -73,11 +73,11 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5A offline implementado; revisión humana pendiente. Incremento 4 CLOSED
+AI Coach V1 — Incremento 5A offline COMPLETE: dieciséis controles revisados y aceptación verificada. Incremento 4 CLOSED
 
-Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de sus expectativas y la evaluación de respuestas generadas permanecen pendientes.
+Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
 
-Incremento 5A — implementación offline y estado de aceptación (13 de octubre de 2026)
+Incremento 5A — implementación offline y aceptación final (14 de octubre de 2026)
 
 El alcance autorizado se limita a tests/llm/increment5a/: ocho escenarios sintéticos, exactamente dieciséis controles escritos (uno esperado PASS y otro esperado FAIL por escenario), rúbrica, revisión humana y reporte auditable. No se modifica producción, contratos, prompts ni conocimiento aprobado; no hay dependencias nuevas, red, LLM judge, datos reales de Strava, nuevas recomendaciones ni captura/persistencia de respuestas del proveedor. Los controles authored son fixtures, no resultados de un modelo. No se extiende a una plataforma de evaluación genérica.
 
@@ -89,13 +89,15 @@ La frontera estructural reutiliza parse_coach_response sin cambios: los diecisé
 
 Un reviewer humano es suficiente. Debe registrar seis outcomes con explicaciones, ubicaciones/referencias afectadas cuando corresponda y hallazgos críticos explícitos. Incertidumbre permanece UNEVALUATED hasta adjudicación humana explícita. Se rechazan revisiones duplicadas, incompletas en estructura o vinculadas a fingerprints obsoletos. Un FAIL parcial no completa las dimensiones pendientes. El formato identifica reviewer y timestamp; no autentica la identidad ni conserva un historial inmutable de adjudicación.
 
-El reporte inicial evaluation_report.json y reviews.template.json contienen únicamente outcomes humanos UNEVALUATED: 0/16 controles completamente revisados, 0/8 positivos aceptados, 0/8 negativos rechazados, 0/8 defectos críticos identificados; 16/16 gates estructurales PASS. Totales semánticos PASS 0, FAIL 0, UNEVALUATED 16. Agreement humano tiene denominador 0 y valor null, nunca éxito. Se incluyen denominadores por dimensión/control, identificadores y hashes de dataset/rúbrica, controles, código, prompt, plantilla y conocimiento; no cuerpos de respuesta ni contextos. generated_model_performance: UNEVALUATED. Los resultados de pytest comprueban tooling con revisiones simuladas identificadas como tests, no acreditan revisión humana ni rendimiento del Coach.
+Al implementar el MVP, el reporte inicial y la plantilla contenían únicamente outcomes humanos UNEVALUATED: 0/16 controles completamente revisados, 0/8 positivos aceptados, 0/8 negativos rechazados, 0/8 defectos críticos identificados; 16/16 gates estructurales PASS. Totales semánticos PASS 0, FAIL 0, UNEVALUATED 16. Agreement humano tiene denominador 0 y valor null, nunca éxito. Se incluyen denominadores por dimensión/control, identificadores y hashes de dataset/rúbrica, controles, código, prompt, plantilla y conocimiento; no cuerpos de respuesta ni contextos. generated_model_performance: UNEVALUATED. Los resultados de pytest comprueban tooling con revisiones simuladas identificadas como tests, no acreditan revisión humana ni rendimiento del Coach.
 
 Las siete características ISTQB CT-AI están mapeadas con cobertura parcial: Functional Correctness, Functional Adaptability, User Controllability, Transparency, AI Robustness, Intervenability y Ethical Risk Mitigation. Intervenability abarca revisión/adjudicación humana, no veto/cancelación en runtime. No se mide fairness, subgrupos, consistencia estadística, generalización ni desempeño de modelos. El conjunto pequeño y authored no permite esas conclusiones.
 
 Validación automatizada: 97 tests focalizados PASS; suite completa **1.416 tests PASS**, incluidos los 1.319 anteriores, sin warnings. Cobertura combinada de producción sin cambios **99,10 %** (1.654/1.669). Evaluador 5A: **98,70 %** combinada, statements 99,38 %, branches 97,18 %. Producción más evaluador: **99,02 %** combinada (2.111/2.132), statements 99,30 %, branches 98,21 %. Coach, manual, contexto y parser conservan 100 %. Se usa python -m pytest desde la raíz, con --cov=src y --cov=tests.llm.increment5a.evaluate para la ejecución completa. No se regeneró HTML Allure. No se hizo llamada real ni evaluación de modelo.
 
-Aceptación: PASS para ocho escenarios/dieciséis controles, etiquetas documentadas, siete mapeos parciales, gates estructurales, tratamiento de UNEVALUATED, reconciliación del reporte y regresión automatizada. PENDING para los ocho positivos revisados PASS, ocho negativos revisados FAIL, identificación humana de todos los defectos críticos y ausencia confirmada de críticos clasificados PASS, además de las dieciséis revisiones completas de seis dimensiones. No hay fallo técnico conocido. **Incremento 5A NO COMPLETE: PENDING_HUMAN_REVIEW.** Próximo paso: un humano revisa los dieciséis controles con la plantilla y regenera el reporte; solo tras satisfacer todos los criterios podrá cerrarse 5A. No se autoriza automáticamente evaluación generativa ni otro incremento.
+Aceptación final — 14 de octubre de 2026: **todos los criterios PASS**. Ocho escenarios y dieciséis controles, etiquetas esperadas documentadas, siete características con cobertura parcial, 16/16 gates estructurales y statuses permitidos verificados. El usuario completó 16/16 revisiones (100 %), con las 96 dimensiones evaluadas: ocho controles positivos PASS, ocho negativos FAIL, cero controles UNEVALUATED. Los ocho defectos críticos esperados están registrados; ningún negativo crítico recibe PASS. Agreement con expectativas 16/16 y totales reconciliados. Revisiones anteriores y fingerprints de respuestas, dataset, producción, prompt y conocimiento permanecen sin cambios; el evaluador no registra errores de integridad. Las decisiones humanas, incluidas las distinciones de seguridad y calendario aprobadas, se preservan como tales. En 5A-08 se registra uso indebido de referencias válidas y eco de canary artificial, no fabricación observada ni extracción demostrada de un secreto real.
+
+Verificación final: 97 tests offline focalizados PASS y suite completa 1.416 tests PASS, sin warnings. Se repite cobertura: producción 99,10 %, evaluador 98,70 %, combinado 99,02 %, sin regresiones observadas. **Incremento 5A COMPLETE: MVP de evaluación offline aceptado.** El reporte final evaluation_report.json y reviews.template.json contienen las revisiones humanas completas. generated_model_performance permanece UNEVALUATED: este cierre valida el framework sobre controles authored, no rendimiento, robustez ni seguridad general del modelo. No se inicia Incremento 5B, integración UI ni evaluación generativa; cualquier siguiente alcance requiere autorización explícita.
 
 Arquitectura aprobada: validar petición → construir CoachContext determinísticamente → suministrar conocimiento fijo aprobado → generar y validar CoachResponse → renderizar. Se conservan las capas existentes; no hay AthleteProfile, TrainingPlan, motor genérico de reglas, capa médica, RAG, vectores ni investigación externa en runtime. La población prevista son corredores adultos (18+), sin campo de edad ni inferencia o validación de edad.
 
@@ -106,7 +108,7 @@ Implementado en Incremento 1:
 * Cuatro limitaciones de aplicación aprobadas, no accionables: aumento persistente de distancia, calidad, carreras relativamente más largas y frecuencia de días. Ningún candidato no aprobado está disponible en runtime. Este paquete no permite recomendar conteos de días, calidad, carreras más largas ni mantener/reducir carga por un patrón de distancia.
 * Carga local determinista con validación estricta de estructura, identidad, revisiones, referencias y fingerprint del contenido JSON canónico. Los cambios de contenido requieren una nueva revisión aprobada, no una sustitución silenciosa. No se accede a las URLs de fuentes.
 
-Pendientes tras el cierre del Incremento 4: completar las revisiones humanas del MVP offline 5A autorizado, evaluar modelos en un alcance posterior autorizado e integrar UI posteriormente. La primera ejecución real validada utiliza exclusivamente un fixture sintético. No se añaden campos ni cálculos a Analytics, Trends o Insights.
+Incremento 5A offline está cerrado. Pendientes tras los cierres de Incrementos 1–4 y 5A: evaluar modelos en un alcance posterior autorizado e integrar UI posteriormente. La primera ejecución real validada utiliza exclusivamente un fixture sintético. No se añaden campos ni cálculos a Analytics, Trends o Insights.
 
 Validación del Incremento 1 — 8 de octubre de 2026: 161 tests focalizados pasan, con 100 % de cobertura de statements y branches en los dos módulos Python nuevos. Suite completa: 1.007 tests pasan; cobertura combinada 98,33 %, statements 98,74 % y branches 96,81 %. pytest/Allure conserva resultados tradicionales; no se ejecutan evaluaciones LLM ni se realizan solicitudes externas. Los 846 tests existentes siguen pasando y no hay cambios en código ni tests de Analytics, Trends o Insights.
 
@@ -653,7 +655,7 @@ Automated Tests
 
 Actualmente (13 de octubre de 2026):
 
-1.416 tests passing; cobertura combinada de producción 99,10 %, producción más evaluador 99,02 %. La validación por incremento de Coach y el estado pendiente de 5A constan en Current Focus.
+1.416 tests passing; cobertura combinada de producción 99,10 %, producción más evaluador 99,02 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -685,7 +687,7 @@ Actualmente no existen:
 
 * Live-service tests.
 * Browser E2E.
-* Evaluación de respuestas generadas por LLM. Existe tooling offline 5A con controles authored; revisiones humanas pendientes.
+* Evaluación de respuestas generadas por LLM. Existe tooling offline 5A validado con dieciséis controles authored y revisiones humanas completas.
 * CI workflows.
 
 ⸻
@@ -918,9 +920,9 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4 cerrados; Incremento 5A offline implementado con revisión humana pendiente
+AI Coach 🟡 Incrementos 1–4 cerrados; Incremento 5A offline COMPLETE; rendimiento de modelos sin evaluar
 
-Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A autorizado implementa controles sintéticos offline y queda pendiente de revisión humana. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
+Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
 ↓
 
@@ -993,7 +995,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED. Incremento 5A está implementado offline, con ocho escenarios y dieciséis controles authored; NO COMPLETE por falta de revisiones humanas. El próximo paso es revisar los seis criterios por control, registrar hallazgos críticos y adjudicar explícitamente cualquier incertidumbre antes de regenerar el reporte y evaluar el cierre. No se evaluará rendimiento de modelos, conectará Strava ni ejecutará OpenAI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. El próximo paso requiere que el usuario defina y autorice un nuevo alcance; no se inicia Incremento 5B, evaluación de modelos, conexión de Strava, ejecución OpenAI ni UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios. No se reabre investigación externa ni se adoptan más ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
@@ -1003,4 +1005,4 @@ El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persist
 
 ⸻
 
-Last updated: 13 October 2026
+Last updated: 14 October 2026
