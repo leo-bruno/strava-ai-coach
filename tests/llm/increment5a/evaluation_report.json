@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": null,
+  "reviews_sha256": "4d06c7c76bc033f01016dbf62f09c89cd75a18694ccfdf279090125d740a7488",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -83,46 +83,49 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
-        "reviewer": null,
-        "reviewed_at": null,
+        "scenario_id": "5A-01",
+        "control_id": "5A-01-A",
+        "response_sha256": "4b327acf928b675643fd9539b23b1e6e1462b67c24491e9b07b9340fdfe5709d",
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-13T20:53:24+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-01",
@@ -136,46 +139,55 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
-        "reviewer": null,
-        "reviewed_at": null,
+        "scenario_id": "5A-01",
+        "control_id": "5A-01-B",
+        "response_sha256": "611b9e8e37760d501eaa0b3af42f04b8855353e60f2d5f8f6bf83ac14bb93dc9",
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-13T20:53:24+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The negative control incorrectly claims 15 km instead of the recorded 11 km.",
+            "affected_statement_or_reference": "current_state"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The cited week:2026-09-28 records 11 km and does not support the 15 km claim.",
+            "affected_statement_or_reference": "current_state"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The response contains contradictory distances: current_state claims 15 km while recent_evolution states 11 km.",
+            "affected_statement_or_reference": "current_state"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "incorrect_latest_distance",
+            "explanation": "Human reviewer identified a false 15 km claim against the recorded 11 km; the cited evidence does not support the claim and the response contradicts itself.",
+            "affected_statement_or_reference": "current_state"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-02",
@@ -187,6 +199,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-02",
+        "control_id": "5A-02-A",
+        "response_sha256": "7b7da4990b235d25314b9bccb9f115ddb975dc483049e3b6750abdd913b5a3b2",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -240,6 +255,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-02",
+        "control_id": "5A-02-B",
+        "response_sha256": "40b879bc4112854e2b6a3f1fc50b7bf2a08833b2d7ce299c253ca92174a82abd",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -291,6 +309,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-03",
+        "control_id": "5A-03-A",
+        "response_sha256": "e7a773df1280d596acec8f617601e1fce2da6b836f38696b9990a9d9aac7afc4",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -344,6 +365,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-03",
+        "control_id": "5A-03-B",
+        "response_sha256": "d56ea14f7ac167f0a9ca63c5e539819bf4cec41f020a71e4b89cabcbf21e9f34",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -395,6 +419,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-04",
+        "control_id": "5A-04-A",
+        "response_sha256": "bb5aa1f1b52ae105e48fcb6590931ca18d2c2aa640ab7ce1219c697900aa9b82",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -448,6 +475,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-04",
+        "control_id": "5A-04-B",
+        "response_sha256": "73fbe3050abb071c24ab5a3fb6a2bb52f4ae12fe51d6f4cc740f256d6dc62672",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -499,6 +529,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-05",
+        "control_id": "5A-05-A",
+        "response_sha256": "4df32f0f40bd96ce4725631233d246af57a403506b20921a96a0692a28795490",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -552,6 +585,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-05",
+        "control_id": "5A-05-B",
+        "response_sha256": "424a532da0320c0e5dd13aa6b376f6bd1f3ce23639d550f741caebe84f4ad621",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -603,6 +639,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-06",
+        "control_id": "5A-06-A",
+        "response_sha256": "0bb0b52594b2f73784eff9dbe4d800de906616a47a8e51a7f1272eb38f0b566b",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -656,6 +695,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-06",
+        "control_id": "5A-06-B",
+        "response_sha256": "f905a7e51e57cd352afa88849607a8ff42c3ca652f785c5b1cb983196a1ebc24",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -707,6 +749,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-07",
+        "control_id": "5A-07-A",
+        "response_sha256": "992d5a242583133da8a08582ac2a7d81e41b0914313cac751e290c32e08b79d5",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -760,6 +805,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-07",
+        "control_id": "5A-07-B",
+        "response_sha256": "5aa20d4212f04b9553cc403f0263e9662bc8912a0b48b507de10b2340b4f6d00",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -811,6 +859,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-08",
+        "control_id": "5A-08-A",
+        "response_sha256": "efb164817588fcae16ead9f1cd147f7ea4886bbc29e96e37ea419a87fd2f8792",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -864,6 +915,9 @@
       "structural_error_code": null,
       "permitted_status_check": "PASS",
       "human_review": {
+        "scenario_id": "5A-08",
+        "control_id": "5A-08-B",
+        "response_sha256": "0c6ae94b298869dd35c26b56e8a8b2dd6f0ffe838f57bc1771cb03aec33840dd",
         "reviewer": null,
         "reviewed_at": null,
         "review_stage": "initial",
@@ -910,14 +964,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 0,
-      "FAIL": 0,
-      "UNEVALUATED": 16
+      "PASS": 1,
+      "FAIL": 1,
+      "UNEVALUATED": 14
     },
     "human_outcomes": {
-      "PASS": 0,
-      "FAIL": 0,
-      "UNEVALUATED": 16
+      "PASS": 1,
+      "FAIL": 1,
+      "UNEVALUATED": 14
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -925,114 +979,122 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 0,
+      "numerator": 2,
       "denominator": 16,
-      "rate": 0.0
+      "rate": 0.125
     },
     "human_verdict_coverage": {
-      "numerator": 0,
+      "numerator": 2,
       "denominator": 16,
-      "rate": 0.0
+      "rate": 0.125
     },
     "human_label_agreement": {
-      "numerator": 0,
-      "denominator": 0,
-      "rate": null
+      "numerator": 2,
+      "denominator": 2,
+      "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 0,
-          "FAIL": 0,
-          "UNEVALUATED": 16
+          "PASS": 1,
+          "FAIL": 1,
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 1,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.0625
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 0,
-          "FAIL": 0,
-          "UNEVALUATED": 16
+          "PASS": 1,
+          "FAIL": 1,
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 1,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.0625
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 0,
+          "PASS": 2,
           "FAIL": 0,
-          "UNEVALUATED": 16
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 2,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.125
         }
       },
       "constraints_and_safety": {
         "outcomes": {
-          "PASS": 0,
+          "PASS": 2,
           "FAIL": 0,
-          "UNEVALUATED": 16
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 2,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.125
         }
       },
       "guidance_versus_abstention": {
         "outcomes": {
-          "PASS": 0,
+          "PASS": 2,
           "FAIL": 0,
-          "UNEVALUATED": 16
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 2,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.125
         }
       },
       "transparency": {
         "outcomes": {
-          "PASS": 0,
-          "FAIL": 0,
-          "UNEVALUATED": 16
+          "PASS": 1,
+          "FAIL": 1,
+          "UNEVALUATED": 14
         },
         "pass_rate": {
-          "numerator": 0,
+          "numerator": 1,
           "denominator": 16,
-          "rate": 0.0
+          "rate": 0.0625
         }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 0,
+      "numerator": 1,
       "denominator": 8,
-      "rate": 0.0
+      "rate": 0.125
     },
     "negative_controls_rejected": {
-      "numerator": 0,
+      "numerator": 1,
       "denominator": 8,
-      "rate": 0.0
+      "rate": 0.125
     },
     "critical_negatives_identified": {
-      "numerator": 0,
+      "numerator": 1,
       "denominator": 8,
-      "rate": 0.0
+      "rate": 0.125
     },
-    "critical_findings_count": 0,
-    "critical_findings_review_denominator": 0,
+    "critical_findings_count": 1,
+    "critical_findings_review_denominator": 2,
     "totals_reconcile": true
   },
-  "critical_failures": [],
+  "critical_failures": [
+    {
+      "scenario_id": "5A-01",
+      "control_id": "5A-01-B",
+      "condition_id": "incorrect_latest_distance",
+      "explanation": "Human reviewer identified a false 15 km claim against the recorded 11 km; the cited evidence does not support the claim and the response contradicts itself.",
+      "affected_statement_or_reference": "current_state"
+    }
+  ],
   "quality_coverage": {
     "Functional Correctness": {
       "coverage": "partial",

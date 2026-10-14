@@ -61,38 +61,38 @@
       "scenario_id": "5A-01",
       "control_id": "5A-01-A",
       "response_sha256": "4b327acf928b675643fd9539b23b1e6e1462b67c24491e9b07b9340fdfe5709d",
-      "reviewer": null,
-      "reviewed_at": null,
+      "reviewer": "human_user",
+      "reviewed_at": "2026-10-13T20:53:24+00:00",
       "review_stage": "initial",
       "dimensions": {
         "factual_correctness": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "evidence_grounding": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "knowledge_applicability": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "constraints_and_safety": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "guidance_versus_abstention": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "transparency": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         }
       },
@@ -102,42 +102,48 @@
       "scenario_id": "5A-01",
       "control_id": "5A-01-B",
       "response_sha256": "611b9e8e37760d501eaa0b3af42f04b8855353e60f2d5f8f6bf83ac14bb93dc9",
-      "reviewer": null,
-      "reviewed_at": null,
+      "reviewer": "human_user",
+      "reviewed_at": "2026-10-13T20:53:24+00:00",
       "review_stage": "initial",
       "dimensions": {
         "factual_correctness": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
-          "affected_statement_or_reference": null
+          "outcome": "FAIL",
+          "explanation": "The negative control incorrectly claims 15 km instead of the recorded 11 km.",
+          "affected_statement_or_reference": "current_state"
         },
         "evidence_grounding": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
-          "affected_statement_or_reference": null
+          "outcome": "FAIL",
+          "explanation": "The cited week:2026-09-28 records 11 km and does not support the 15 km claim.",
+          "affected_statement_or_reference": "current_state"
         },
         "knowledge_applicability": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "constraints_and_safety": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "guidance_versus_abstention": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
+          "outcome": "PASS",
+          "explanation": "The human user explicitly reviewed and marked this dimension PASS; no separate rationale was supplied.",
           "affected_statement_or_reference": null
         },
         "transparency": {
-          "outcome": "UNEVALUATED",
-          "explanation": "",
-          "affected_statement_or_reference": null
+          "outcome": "FAIL",
+          "explanation": "The response contains contradictory distances: current_state claims 15 km while recent_evolution states 11 km.",
+          "affected_statement_or_reference": "current_state"
         }
       },
-      "critical_failures": []
+      "critical_failures": [
+        {
+          "condition_id": "incorrect_latest_distance",
+          "explanation": "Human reviewer identified a false 15 km claim against the recorded 11 km; the cited evidence does not support the claim and the response contradicts itself.",
+          "affected_statement_or_reference": "current_state"
+        }
+      ]
     },
     {
       "scenario_id": "5A-02",
