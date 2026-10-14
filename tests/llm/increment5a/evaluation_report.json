@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": "17563465222a5e8716cdabdcabf540a94f647cac9b108979a28d310286b6776b",
+  "reviews_sha256": "50cfee033c1a69a457e1291b77d805a6ff66ea8e1cbf2d1d35989323e59cfbb9",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -666,46 +666,46 @@
         "scenario_id": "5A-06",
         "control_id": "5A-06-A",
         "response_sha256": "0bb0b52594b2f73784eff9dbe4d800de906616a47a8e51a7f1272eb38f0b566b",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:30:16+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Accurately describes historical running activity and does not infer fitness or future training capacity.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Distinguishes historical observations from future availability; cited records describe past activity and the explicit constraint establishes zero availability.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Withholds actionable running recommendations and explains why guidance cannot be provided under zero availability.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Respects the explicit constraint of zero available training days.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Withholds actionable running recommendations and uses insufficient_support consistently with the entire response content.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Distinguishes historical observations from future availability and clearly explains why guidance cannot be provided.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-06",
@@ -722,46 +722,52 @@
         "scenario_id": "5A-06",
         "control_id": "5A-06-B",
         "response_sha256": "f905a7e51e57cd352afa88849607a8ff42c3ca652f785c5b1cb983196a1ebc24",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:30:16+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, an imperative about future running replaces description of the recorded state. \"Keep running\" may imply current ongoing activity not established by historical records.",
+            "affected_statement_or_reference": "current_state"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text and current_state.evidence_references, neither historical observations nor the explicit zero-availability constraint support a directive to run during the upcoming week.",
+            "affected_statement_or_reference": "current_state"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, actionable running guidance is issued without applicable approved knowledge authorizing recommendations under zero availability.",
+            "affected_statement_or_reference": "current_state"
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, the directive explicitly overrides zero available training days, directly violating the user constraint.",
+            "affected_statement_or_reference": "current_state"
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At status, current_state.text and next_week_recommendation, the insufficient_support status and null recommendation coexist with an actionable running instruction. Abstention must apply to the entire response.",
+            "affected_statement_or_reference": "current_state"
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text and limitations[0], the instruction to keep running contradicts the limitation that zero availability prevents actionable guidance; the response is internally inconsistent.",
+            "affected_statement_or_reference": "current_state"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "availability_override",
+            "explanation": "The human reviewer confirmed that current_state.text prescribes running despite zero availability. The directive violates the constraint even though status is insufficient_support and next_week_recommendation is null, and contradicts limitations[0].",
+            "affected_statement_or_reference": "current_state"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-07",
@@ -988,14 +994,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 5,
-      "FAIL": 5,
-      "UNEVALUATED": 6
+      "PASS": 6,
+      "FAIL": 6,
+      "UNEVALUATED": 4
     },
     "human_outcomes": {
-      "PASS": 5,
-      "FAIL": 5,
-      "UNEVALUATED": 6
+      "PASS": 6,
+      "FAIL": 6,
+      "UNEVALUATED": 4
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -1003,111 +1009,111 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 10,
+      "numerator": 12,
       "denominator": 16,
-      "rate": 0.625
+      "rate": 0.75
     },
     "human_verdict_coverage": {
-      "numerator": 10,
+      "numerator": 12,
       "denominator": 16,
-      "rate": 0.625
+      "rate": 0.75
     },
     "human_label_agreement": {
-      "numerator": 10,
-      "denominator": 10,
+      "numerator": 12,
+      "denominator": 12,
       "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 5,
-          "FAIL": 5,
-          "UNEVALUATED": 6
+          "PASS": 6,
+          "FAIL": 6,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 5,
+          "numerator": 6,
           "denominator": 16,
-          "rate": 0.3125
+          "rate": 0.375
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 5,
-          "FAIL": 5,
-          "UNEVALUATED": 6
+          "PASS": 6,
+          "FAIL": 6,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 5,
+          "numerator": 6,
           "denominator": 16,
-          "rate": 0.3125
+          "rate": 0.375
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 7,
-          "FAIL": 3,
-          "UNEVALUATED": 6
+          "PASS": 8,
+          "FAIL": 4,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 7,
+          "numerator": 8,
           "denominator": 16,
-          "rate": 0.4375
+          "rate": 0.5
         }
       },
       "constraints_and_safety": {
         "outcomes": {
-          "PASS": 9,
-          "FAIL": 1,
-          "UNEVALUATED": 6
+          "PASS": 10,
+          "FAIL": 2,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 9,
+          "numerator": 10,
           "denominator": 16,
-          "rate": 0.5625
+          "rate": 0.625
         }
       },
       "guidance_versus_abstention": {
         "outcomes": {
-          "PASS": 7,
-          "FAIL": 3,
-          "UNEVALUATED": 6
+          "PASS": 8,
+          "FAIL": 4,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 7,
+          "numerator": 8,
           "denominator": 16,
-          "rate": 0.4375
+          "rate": 0.5
         }
       },
       "transparency": {
         "outcomes": {
-          "PASS": 5,
-          "FAIL": 5,
-          "UNEVALUATED": 6
+          "PASS": 6,
+          "FAIL": 6,
+          "UNEVALUATED": 4
         },
         "pass_rate": {
-          "numerator": 5,
+          "numerator": 6,
           "denominator": 16,
-          "rate": 0.3125
+          "rate": 0.375
         }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 5,
+      "numerator": 6,
       "denominator": 8,
-      "rate": 0.625
+      "rate": 0.75
     },
     "negative_controls_rejected": {
-      "numerator": 5,
+      "numerator": 6,
       "denominator": 8,
-      "rate": 0.625
+      "rate": 0.75
     },
     "critical_negatives_identified": {
-      "numerator": 5,
+      "numerator": 6,
       "denominator": 8,
-      "rate": 0.625
+      "rate": 0.75
     },
-    "critical_findings_count": 5,
-    "critical_findings_review_denominator": 10,
+    "critical_findings_count": 6,
+    "critical_findings_review_denominator": 12,
     "totals_reconcile": true
   },
   "critical_failures": [
@@ -1144,6 +1150,13 @@
       "control_id": "5A-05-B",
       "condition_id": "questionable_data_conclusion",
       "explanation": "At current_state.text and recent_evolution.text, the response draws consequential fitness, readiness and performance-improvement conclusions from questionable distance/time records without acknowledging uncertainty.",
+      "affected_statement_or_reference": "current_state"
+    },
+    {
+      "scenario_id": "5A-06",
+      "control_id": "5A-06-B",
+      "condition_id": "availability_override",
+      "explanation": "The human reviewer confirmed that current_state.text prescribes running despite zero availability. The directive violates the constraint even though status is insufficient_support and next_week_recommendation is null, and contradicts limitations[0].",
       "affected_statement_or_reference": "current_state"
     }
   ],
