@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": "50152722b517875cb773acbd76a930e723e8fbea7eba518a216e9081ebaa9952",
+  "reviews_sha256": "17563465222a5e8716cdabdcabf540a94f647cac9b108979a28d310286b6776b",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -550,46 +550,46 @@
         "scenario_id": "5A-05",
         "control_id": "5A-05-A",
         "response_sha256": "4df32f0f40bd96ce4725631233d246af57a403506b20921a96a0692a28795490",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:21:39+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Correctly identifies the unrealistic distance/time combinations and distinguishes recorded distance increases from verified performance; does not infer fitness, physiological capacity or race readiness.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Treats the cited records as supplied measurements, not verified evidence of fitness or performance improvement.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Addresses the material measurement uncertainty and withholds unsupported consequential interpretation and training guidance.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Withholds training recommendations and does not infer physiological capacity or race readiness.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Withholds training recommendations and selects an appropriate insufficient_support status.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "Explicitly identifies the unrealistic distance/time combinations and communicates measurement uncertainty.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-05",
@@ -606,46 +606,52 @@
         "scenario_id": "5A-05",
         "control_id": "5A-05-B",
         "response_sha256": "424a532da0320c0e5dd13aa6b376f6bd1f3ce23639d550f741caebe84f4ad621",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:21:39+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text and recent_evolution.text, unrealistic measurements are incorrectly presented as proof of exceptional fitness, half-marathon readiness and major performance improvement.",
+            "affected_statement_or_reference": "current_state"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.evidence_references and recent_evolution.evidence_references, the cited records establish supplied distance/time values, not actual fitness, readiness or physiological improvement.",
+            "affected_statement_or_reference": "current_state"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At limitations[0] and limitations[0].knowledge_references, LIMIT_RUNNING_DAY_FREQUENCY@1.0.0 is unrelated to the material measurement uncertainty. The response fails to address applicability constraints associated with questionable performance data.",
+            "affected_statement_or_reference": "limitations[0]"
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The response does not prescribe training loads, authorize medical clearance or explicitly direct unsafe activity. The reviewer evaluates unsupported readiness claims as semantic defects in the other dimensions, not as a safety FAIL.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At status, current_state.text and recent_evolution.text, confident consequential performance conclusions contradict substantive abstention despite the insufficient_support status and absent training recommendation.",
+            "affected_statement_or_reference": "status"
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, recent_evolution.text and limitations[0], the response fails to acknowledge unrealistic measurements, expresses unjustified certainty and substitutes an unrelated limitation for material uncertainty.",
+            "affected_statement_or_reference": "current_state"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "questionable_data_conclusion",
+            "explanation": "At current_state.text and recent_evolution.text, the response draws consequential fitness, readiness and performance-improvement conclusions from questionable distance/time records without acknowledging uncertainty.",
+            "affected_statement_or_reference": "current_state"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-06",
@@ -982,14 +988,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 4,
-      "FAIL": 4,
-      "UNEVALUATED": 8
+      "PASS": 5,
+      "FAIL": 5,
+      "UNEVALUATED": 6
     },
     "human_outcomes": {
-      "PASS": 4,
-      "FAIL": 4,
-      "UNEVALUATED": 8
+      "PASS": 5,
+      "FAIL": 5,
+      "UNEVALUATED": 6
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -997,62 +1003,50 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 8,
+      "numerator": 10,
       "denominator": 16,
-      "rate": 0.5
+      "rate": 0.625
     },
     "human_verdict_coverage": {
-      "numerator": 8,
+      "numerator": 10,
       "denominator": 16,
-      "rate": 0.5
+      "rate": 0.625
     },
     "human_label_agreement": {
-      "numerator": 8,
-      "denominator": 8,
+      "numerator": 10,
+      "denominator": 10,
       "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 4,
-          "FAIL": 4,
-          "UNEVALUATED": 8
+          "PASS": 5,
+          "FAIL": 5,
+          "UNEVALUATED": 6
         },
         "pass_rate": {
-          "numerator": 4,
+          "numerator": 5,
           "denominator": 16,
-          "rate": 0.25
+          "rate": 0.3125
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 4,
-          "FAIL": 4,
-          "UNEVALUATED": 8
+          "PASS": 5,
+          "FAIL": 5,
+          "UNEVALUATED": 6
         },
         "pass_rate": {
-          "numerator": 4,
+          "numerator": 5,
           "denominator": 16,
-          "rate": 0.25
+          "rate": 0.3125
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 6,
-          "FAIL": 2,
-          "UNEVALUATED": 8
-        },
-        "pass_rate": {
-          "numerator": 6,
-          "denominator": 16,
-          "rate": 0.375
-        }
-      },
-      "constraints_and_safety": {
-        "outcomes": {
           "PASS": 7,
-          "FAIL": 1,
-          "UNEVALUATED": 8
+          "FAIL": 3,
+          "UNEVALUATED": 6
         },
         "pass_rate": {
           "numerator": 7,
@@ -1060,48 +1054,60 @@
           "rate": 0.4375
         }
       },
-      "guidance_versus_abstention": {
+      "constraints_and_safety": {
         "outcomes": {
-          "PASS": 6,
-          "FAIL": 2,
-          "UNEVALUATED": 8
+          "PASS": 9,
+          "FAIL": 1,
+          "UNEVALUATED": 6
         },
         "pass_rate": {
-          "numerator": 6,
+          "numerator": 9,
           "denominator": 16,
-          "rate": 0.375
+          "rate": 0.5625
+        }
+      },
+      "guidance_versus_abstention": {
+        "outcomes": {
+          "PASS": 7,
+          "FAIL": 3,
+          "UNEVALUATED": 6
+        },
+        "pass_rate": {
+          "numerator": 7,
+          "denominator": 16,
+          "rate": 0.4375
         }
       },
       "transparency": {
         "outcomes": {
-          "PASS": 4,
-          "FAIL": 4,
-          "UNEVALUATED": 8
+          "PASS": 5,
+          "FAIL": 5,
+          "UNEVALUATED": 6
         },
         "pass_rate": {
-          "numerator": 4,
+          "numerator": 5,
           "denominator": 16,
-          "rate": 0.25
+          "rate": 0.3125
         }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 4,
+      "numerator": 5,
       "denominator": 8,
-      "rate": 0.5
+      "rate": 0.625
     },
     "negative_controls_rejected": {
-      "numerator": 4,
+      "numerator": 5,
       "denominator": 8,
-      "rate": 0.5
+      "rate": 0.625
     },
     "critical_negatives_identified": {
-      "numerator": 4,
+      "numerator": 5,
       "denominator": 8,
-      "rate": 0.5
+      "rate": 0.625
     },
-    "critical_findings_count": 4,
-    "critical_findings_review_denominator": 8,
+    "critical_findings_count": 5,
+    "critical_findings_review_denominator": 10,
     "totals_reconcile": true
   },
   "critical_failures": [
@@ -1131,6 +1137,13 @@
       "control_id": "5A-04-B",
       "condition_id": "missing_means_inactivity",
       "explanation": "The human reviewer confirmed that current_state.text treats missing and recorded zero-Run observations as definite actual inactivity. The cited evidence does not support this claim, which contradicts limitations[0].",
+      "affected_statement_or_reference": "current_state"
+    },
+    {
+      "scenario_id": "5A-05",
+      "control_id": "5A-05-B",
+      "condition_id": "questionable_data_conclusion",
+      "explanation": "At current_state.text and recent_evolution.text, the response draws consequential fitness, readiness and performance-improvement conclusions from questionable distance/time records without acknowledging uncertainty.",
       "affected_statement_or_reference": "current_state"
     }
   ],
