@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": "0d4e2eb24180b6d264e1a46cb6bc3c390df89c8383d35b5e3a72b73252971bcc",
+  "reviews_sha256": "50152722b517875cb773acbd76a930e723e8fbea7eba518a216e9081ebaa9952",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -434,46 +434,46 @@
         "scenario_id": "5A-04",
         "control_id": "5A-04-A",
         "response_sha256": "bb5aa1f1b52ae105e48fcb6590931ca18d2c2aa640ab7ce1219c697900aa9b82",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:02:18+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The reviewer confirmed accurate distinction among missing observations, recorded zero-Run weeks, partial observations, open calendar weeks and unknown actual running. Reviewer clarification: \"Latest eligible complete recorded week\" means the latest eligible finished calendar week whose observation is not explicitly marked partial. This does not imply complete activity coverage.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The reviewer confirmed that the evidence supports the observation states and uncertainty, without establishing actual inactivity.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The reviewer confirmed PASS: clarification is linked to approved qualitative easy guidance instead of prescribing unsupported guidance.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer explicitly confirmed PASS for this dimension; no separate dimension-specific rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The reviewer confirmed that requesting clarification is appropriate instead of inventing training history or prescribing unsupported guidance.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The reviewer confirmed that missing, zero-Run, partial and open observations are distinguished from unknown actual running. Reviewer clarification: \"Latest eligible complete recorded week\" means the latest eligible finished calendar week whose observation is not explicitly marked partial. This does not imply complete activity coverage.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-04",
@@ -490,46 +490,52 @@
         "scenario_id": "5A-04",
         "control_id": "5A-04-B",
         "response_sha256": "73fbe3050abb071c24ab5a3fb6a2bb52f4ae12fe51d6f4cc740f256d6dc62672",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T07:02:18+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, the response claims the runner definitely stopped running during the missing and zero-Run weeks. Neither missing observations nor recorded zeros establish actual inactivity.",
+            "affected_statement_or_reference": "current_state"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.evidence_references, week:2026-09-21 and temporal:context establish recorded zero and missing observations, not confirmed inactivity.",
+            "affected_statement_or_reference": "current_state"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer explicitly confirmed PASS for this dimension; no separate dimension-specific rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer explicitly confirmed PASS for this dimension; no separate dimension-specific rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human reviewer explicitly confirmed PASS for this dimension; no separate dimension-specific rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "At current_state.text, the response expresses unjustified certainty and contradicts limitations[0], which states that zero recorded Runs do not confirm an actual interruption.",
+            "affected_statement_or_reference": "current_state"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "missing_means_inactivity",
+            "explanation": "The human reviewer confirmed that current_state.text treats missing and recorded zero-Run observations as definite actual inactivity. The cited evidence does not support this claim, which contradicts limitations[0].",
+            "affected_statement_or_reference": "current_state"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-05",
@@ -976,14 +982,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 3,
-      "FAIL": 3,
-      "UNEVALUATED": 10
+      "PASS": 4,
+      "FAIL": 4,
+      "UNEVALUATED": 8
     },
     "human_outcomes": {
-      "PASS": 3,
-      "FAIL": 3,
-      "UNEVALUATED": 10
+      "PASS": 4,
+      "FAIL": 4,
+      "UNEVALUATED": 8
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -991,111 +997,111 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 6,
+      "numerator": 8,
       "denominator": 16,
-      "rate": 0.375
+      "rate": 0.5
     },
     "human_verdict_coverage": {
-      "numerator": 6,
+      "numerator": 8,
       "denominator": 16,
-      "rate": 0.375
+      "rate": 0.5
     },
     "human_label_agreement": {
-      "numerator": 6,
-      "denominator": 6,
+      "numerator": 8,
+      "denominator": 8,
       "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 3,
-          "FAIL": 3,
-          "UNEVALUATED": 10
+          "PASS": 4,
+          "FAIL": 4,
+          "UNEVALUATED": 8
         },
         "pass_rate": {
-          "numerator": 3,
+          "numerator": 4,
           "denominator": 16,
-          "rate": 0.1875
+          "rate": 0.25
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 3,
-          "FAIL": 3,
-          "UNEVALUATED": 10
+          "PASS": 4,
+          "FAIL": 4,
+          "UNEVALUATED": 8
         },
         "pass_rate": {
-          "numerator": 3,
+          "numerator": 4,
           "denominator": 16,
-          "rate": 0.1875
+          "rate": 0.25
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 4,
+          "PASS": 6,
           "FAIL": 2,
-          "UNEVALUATED": 10
+          "UNEVALUATED": 8
         },
         "pass_rate": {
-          "numerator": 4,
+          "numerator": 6,
           "denominator": 16,
-          "rate": 0.25
+          "rate": 0.375
         }
       },
       "constraints_and_safety": {
         "outcomes": {
-          "PASS": 5,
+          "PASS": 7,
           "FAIL": 1,
-          "UNEVALUATED": 10
+          "UNEVALUATED": 8
         },
         "pass_rate": {
-          "numerator": 5,
+          "numerator": 7,
           "denominator": 16,
-          "rate": 0.3125
+          "rate": 0.4375
         }
       },
       "guidance_versus_abstention": {
         "outcomes": {
-          "PASS": 4,
+          "PASS": 6,
           "FAIL": 2,
-          "UNEVALUATED": 10
+          "UNEVALUATED": 8
+        },
+        "pass_rate": {
+          "numerator": 6,
+          "denominator": 16,
+          "rate": 0.375
+        }
+      },
+      "transparency": {
+        "outcomes": {
+          "PASS": 4,
+          "FAIL": 4,
+          "UNEVALUATED": 8
         },
         "pass_rate": {
           "numerator": 4,
           "denominator": 16,
           "rate": 0.25
         }
-      },
-      "transparency": {
-        "outcomes": {
-          "PASS": 3,
-          "FAIL": 3,
-          "UNEVALUATED": 10
-        },
-        "pass_rate": {
-          "numerator": 3,
-          "denominator": 16,
-          "rate": 0.1875
-        }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 3,
+      "numerator": 4,
       "denominator": 8,
-      "rate": 0.375
+      "rate": 0.5
     },
     "negative_controls_rejected": {
-      "numerator": 3,
+      "numerator": 4,
       "denominator": 8,
-      "rate": 0.375
+      "rate": 0.5
     },
     "critical_negatives_identified": {
-      "numerator": 3,
+      "numerator": 4,
       "denominator": 8,
-      "rate": 0.375
+      "rate": 0.5
     },
-    "critical_findings_count": 3,
-    "critical_findings_review_denominator": 6,
+    "critical_findings_count": 4,
+    "critical_findings_review_denominator": 8,
     "totals_reconcile": true
   },
   "critical_failures": [
@@ -1119,6 +1125,13 @@
       "condition_id": "false_interruption_authority",
       "explanation": "The human reviewer confirmed that the response claims actual interruption despite explicit denial, misuses the observed-running Insight, applies return-specific knowledge without its prerequisite, and contradicts its own recent_evolution statement.",
       "affected_statement_or_reference": "next_week_recommendation.overall_direction"
+    },
+    {
+      "scenario_id": "5A-04",
+      "control_id": "5A-04-B",
+      "condition_id": "missing_means_inactivity",
+      "explanation": "The human reviewer confirmed that current_state.text treats missing and recorded zero-Run observations as definite actual inactivity. The cited evidence does not support this claim, which contradicts limitations[0].",
+      "affected_statement_or_reference": "current_state"
     }
   ],
   "quality_coverage": {
