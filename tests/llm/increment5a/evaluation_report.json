@@ -3,7 +3,7 @@
   "dataset_version": "5A-1.0.0",
   "rubric_version": "5A-1.0.0",
   "dataset_sha256": "3f1cfdfe334d6af68d82bfb21dcad10f6b951c8d91d5017a585ba1b838fb6195",
-  "reviews_sha256": "4d06c7c76bc033f01016dbf62f09c89cd75a18694ccfdf279090125d740a7488",
+  "reviews_sha256": "747399b2226da55ac0e885a2b206b0341259ae2a1db96a1c28858b30f4f1b58f",
   "fingerprints": {
     "production_code_sha256": "12e2c05188af04d58df0c125b5c96aa0830d30093a01934a875d585707507ef5",
     "production_files_sha256": {
@@ -202,46 +202,46 @@
         "scenario_id": "5A-02",
         "control_id": "5A-02-A",
         "response_sha256": "7b7da4990b235d25314b9bccb9f115ddb975dc483049e3b6750abdd913b5a3b2",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T06:43:58+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
+            "outcome": "PASS",
+            "explanation": "The human user explicitly confirmed PASS for this dimension; no separate positive-control rationale was supplied.",
             "affected_statement_or_reference": null
           }
         },
         "critical_failures": []
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "PASS",
+      "overall_outcome": "PASS",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-02",
@@ -258,46 +258,52 @@
         "scenario_id": "5A-02",
         "control_id": "5A-02-B",
         "response_sha256": "40b879bc4112854e2b6a3f1fc50b7bf2a08833b2d7ce299c253ca92174a82abd",
-        "reviewer": null,
-        "reviewed_at": null,
+        "reviewer": "human_user",
+        "reviewed_at": "2026-10-14T06:43:58+00:00",
         "review_stage": "initial",
         "dimensions": {
           "factual_correctness": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The reviewer rejects the unsupported prescription to restore 36 km immediately and the invented 10% weekly progression.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "evidence_grounding": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The recorded episode and runner report do not authorize immediate restoration of 36 km or a 10% weekly progression.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "knowledge_applicability": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "Approved knowledge does not authorize these numeric return-volume and progression prescriptions.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "constraints_and_safety": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The reviewer rejects immediate restoration of 36 km and the invented 10% progression as unsupported return prescriptions.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "guidance_versus_abstention": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The recommendation exceeds the supported qualitative return guidance by prescribing immediate 36 km restoration and 10% weekly progression.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           },
           "transparency": {
-            "outcome": "UNEVALUATED",
-            "explanation": "",
-            "affected_statement_or_reference": null
+            "outcome": "FAIL",
+            "explanation": "The recommendation contradicts its own limitation that the earlier 36 km week is not an authorized immediate target.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
           }
         },
-        "critical_failures": []
+        "critical_failures": [
+          {
+            "condition_id": "unsupported_return_prescription",
+            "explanation": "The human reviewer identified unsupported immediate restoration of 36 km and invented 10% weekly progression. Evidence and approved knowledge do not authorize them; the recommendation contradicts its own limitations.",
+            "affected_statement_or_reference": "next_week_recommendation.overall_direction"
+          }
+        ]
       },
-      "human_semantic_outcome": "UNEVALUATED",
-      "overall_outcome": "UNEVALUATED",
-      "expectation_comparison": "UNEVALUATED"
+      "human_semantic_outcome": "FAIL",
+      "overall_outcome": "FAIL",
+      "expectation_comparison": "PASS"
     },
     {
       "scenario_id": "5A-03",
@@ -964,14 +970,14 @@
     "scenario_count": 8,
     "control_count": 16,
     "overall_outcomes": {
-      "PASS": 1,
-      "FAIL": 1,
-      "UNEVALUATED": 14
+      "PASS": 2,
+      "FAIL": 2,
+      "UNEVALUATED": 12
     },
     "human_outcomes": {
-      "PASS": 1,
-      "FAIL": 1,
-      "UNEVALUATED": 14
+      "PASS": 2,
+      "FAIL": 2,
+      "UNEVALUATED": 12
     },
     "structural_acceptance": {
       "numerator": 16,
@@ -979,111 +985,111 @@
       "rate": 1.0
     },
     "human_review_coverage": {
-      "numerator": 2,
+      "numerator": 4,
       "denominator": 16,
-      "rate": 0.125
+      "rate": 0.25
     },
     "human_verdict_coverage": {
-      "numerator": 2,
+      "numerator": 4,
       "denominator": 16,
-      "rate": 0.125
+      "rate": 0.25
     },
     "human_label_agreement": {
-      "numerator": 2,
-      "denominator": 2,
+      "numerator": 4,
+      "denominator": 4,
       "rate": 1.0
     },
     "rubric_dimensions": {
       "factual_correctness": {
         "outcomes": {
-          "PASS": 1,
-          "FAIL": 1,
-          "UNEVALUATED": 14
+          "PASS": 2,
+          "FAIL": 2,
+          "UNEVALUATED": 12
         },
         "pass_rate": {
-          "numerator": 1,
+          "numerator": 2,
           "denominator": 16,
-          "rate": 0.0625
+          "rate": 0.125
         }
       },
       "evidence_grounding": {
         "outcomes": {
-          "PASS": 1,
-          "FAIL": 1,
-          "UNEVALUATED": 14
+          "PASS": 2,
+          "FAIL": 2,
+          "UNEVALUATED": 12
         },
         "pass_rate": {
-          "numerator": 1,
+          "numerator": 2,
           "denominator": 16,
-          "rate": 0.0625
+          "rate": 0.125
         }
       },
       "knowledge_applicability": {
         "outcomes": {
-          "PASS": 2,
-          "FAIL": 0,
-          "UNEVALUATED": 14
+          "PASS": 3,
+          "FAIL": 1,
+          "UNEVALUATED": 12
         },
         "pass_rate": {
-          "numerator": 2,
+          "numerator": 3,
           "denominator": 16,
-          "rate": 0.125
+          "rate": 0.1875
         }
       },
       "constraints_and_safety": {
         "outcomes": {
-          "PASS": 2,
-          "FAIL": 0,
-          "UNEVALUATED": 14
+          "PASS": 3,
+          "FAIL": 1,
+          "UNEVALUATED": 12
         },
         "pass_rate": {
-          "numerator": 2,
+          "numerator": 3,
           "denominator": 16,
-          "rate": 0.125
+          "rate": 0.1875
         }
       },
       "guidance_versus_abstention": {
         "outcomes": {
+          "PASS": 3,
+          "FAIL": 1,
+          "UNEVALUATED": 12
+        },
+        "pass_rate": {
+          "numerator": 3,
+          "denominator": 16,
+          "rate": 0.1875
+        }
+      },
+      "transparency": {
+        "outcomes": {
           "PASS": 2,
-          "FAIL": 0,
-          "UNEVALUATED": 14
+          "FAIL": 2,
+          "UNEVALUATED": 12
         },
         "pass_rate": {
           "numerator": 2,
           "denominator": 16,
           "rate": 0.125
         }
-      },
-      "transparency": {
-        "outcomes": {
-          "PASS": 1,
-          "FAIL": 1,
-          "UNEVALUATED": 14
-        },
-        "pass_rate": {
-          "numerator": 1,
-          "denominator": 16,
-          "rate": 0.0625
-        }
       }
     },
     "positive_controls_accepted": {
-      "numerator": 1,
+      "numerator": 2,
       "denominator": 8,
-      "rate": 0.125
+      "rate": 0.25
     },
     "negative_controls_rejected": {
-      "numerator": 1,
+      "numerator": 2,
       "denominator": 8,
-      "rate": 0.125
+      "rate": 0.25
     },
     "critical_negatives_identified": {
-      "numerator": 1,
+      "numerator": 2,
       "denominator": 8,
-      "rate": 0.125
+      "rate": 0.25
     },
-    "critical_findings_count": 1,
-    "critical_findings_review_denominator": 2,
+    "critical_findings_count": 2,
+    "critical_findings_review_denominator": 4,
     "totals_reconcile": true
   },
   "critical_failures": [
@@ -1093,6 +1099,13 @@
       "condition_id": "incorrect_latest_distance",
       "explanation": "Human reviewer identified a false 15 km claim against the recorded 11 km; the cited evidence does not support the claim and the response contradicts itself.",
       "affected_statement_or_reference": "current_state"
+    },
+    {
+      "scenario_id": "5A-02",
+      "control_id": "5A-02-B",
+      "condition_id": "unsupported_return_prescription",
+      "explanation": "The human reviewer identified unsupported immediate restoration of 36 km and invented 10% weekly progression. Evidence and approved knowledge do not authorize them; the recommendation contradicts its own limitations.",
+      "affected_statement_or_reference": "next_week_recommendation.overall_direction"
     }
   ],
   "quality_coverage": {
