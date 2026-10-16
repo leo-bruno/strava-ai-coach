@@ -1,6 +1,7 @@
 """One-shot OpenAI execution behind the approved Increment 3 boundary."""
 
 from collections.abc import Iterator
+from copy import deepcopy
 from dataclasses import asdict
 from datetime import date, datetime
 import json
@@ -191,6 +192,33 @@ def _constrain_reference_schema(
     schema["$defs"]["statement"]["properties"]["knowledge_references"]["items"] = {
         "$ref": "#/$defs/knowledge_reference",
     }
+    # Recommendation authority is narrower than explanatory knowledge references.
+    schema["$defs"]["actionable_reference"] = {
+        "type": "string", "enum": [item.reference for item in knowledge.actionable_items],
+    }
+    recommendation_statement = deepcopy(schema["$defs"]["statement"])
+    references = recommendation_statement["properties"]
+    references["evidence_references"]["minItems"] = 1
+    references["knowledge_references"].update(
+        minItems=1, items={"$ref": "#/$defs/actionable_reference"},
+    )
+    schema["$defs"]["recommendation_statement"] = recommendation_statement
+    recommendation = schema["$defs"]["recommendation"]["properties"]
+    statement_ref = {"$ref": "#/$defs/recommendation_statement"}
+    recommendation["training_priorities"]["items"] = dict(statement_ref)
+    recommendation["reasoning"] = dict(statement_ref)
+    # Presence is necessary, not confirmation of the report's meaning or safety.
+    has_return_prerequisites = (
+        bool(context.observed_running_insights)
+        and bool((context.runner_context.runner_context or "").strip())
+        and "request:runner_context" in identifiers
+    )
+    recommendation["overall_direction"] = (
+        {"anyOf": [dict(statement_ref), {"type": "null"}]}
+        if has_return_prerequisites else {"type": "null"}
+    )
+    # The pinned approved package authorizes no numeric running-day count.
+    recommendation["recommended_running_days"] = {"type": "null"}
     nodes = list(_schema_nodes(schema))
     enums = [node["enum"] for node in nodes if "enum" in node]
     if sum(len(values) for values in enums) > 1000:

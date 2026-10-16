@@ -73,9 +73,21 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5B-03: dos intentos reales de 5A-01; clarificaciones de aplicabilidad y autoridad verificadas offline, pendientes de nueva evaluación GPT autorizada.
+AI Coach V1 — Incremento 5B-03: tres intentos reales de 5A-01; especialización estructural de recomendaciones verificada offline, pendiente de nueva evaluación GPT autorizada.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
+
+Incremento 5B-03 — restricciones estructurales en generación (16 de octubre de 2026)
+
+El tercer intento real, cohort-03, terminó DOMAIN_VALIDATION_FAILURE / EASY_DIRECTION_UNSUPPORTED. El validator rechazó una dirección global sin autoridad de retorno; la respuesta no se conserva. Junto con abstención excesiva en cohort-01 y autoridad inválida en cohort-02, evidencia combinaciones que el schema de generación admitía y el contrato ya prohibía. No se modifica ni debilita el validator.
+
+Se extiende únicamente la especialización en memoria existente: prioridades y reasoning usan statements con evidencia y conocimiento no vacíos, y enum exclusivo de ítems actionable derivado del paquete cargado. Las explicaciones ordinarias y limitations conservan los seis pares aprobados. overall_direction queda null si falta Insight de retorno, texto RunnerContext no vacío o su referencia registrada. Su presencia solo deja la dirección opcional; no confirma que el reporte describa una interrupción ni autoriza guidance. Con prerequisites presentes, el validator sigue comprobando autoridad y referencias de retorno. recommended_running_days es null porque el paquete no autoriza ningún conteo. Se mantienen recomendación nullable y los statuses originales, incluido clarification_required; no se introduce needs_clarification ni un motor de elegibilidad.
+
+Compatibilidad revisada con la documentación oficial de [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat) y [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini): minItems está documentado para el modelo base, con objetos strict, campos requeridos, null, enums y referencias locales. No se usan allOf, contains ni condicionales de JSON Schema. El límite agregado se recalcula después de toda especialización. minItems no está documentado como compatible con fine-tunes; no se cambia el modelo ni se garantiza soporte universal. No se ha probado aceptación del schema contra un proveedor real.
+
+Validación offline: 32 casos adicionales respecto a la suite anterior y actualización de aserciones de shape/límites. 47 tests focalizados de schema PASS; 653 tests Coach/5A/5B PASS; suite completa 1.623 PASS sin warnings. coach.py tiene 100 % statements y branches; producción combinada 99,11 %, producción/tooling 98,84 %. Se comprueban los dieciséis controles authored, retorno válido, abstención/clarificación, restricciones de referencias, límites exactos, aislamiento entre solicitudes y validación independiente frente a mocks inválidos. Ni estos controles ni los tests prueban aceptación semántica del modelo.
+
+Prompt y template de schema, conocimiento aprobado, CoachContext, domain validators, dataset/rúbrica y tooling 5B permanecen sin cambios. cohort-01, cohort-02 y cohort-03 se preservan íntegros, sin nuevas llamadas, reservas o reportes. Los nuevos fingerprints de código/schema especializado exigen otro cohort con autorización explícita para evaluar GPT. Persiste la evaluación semántica de hechos, evidencia realmente sustentadora, circunstancias, seguridad y abstención adecuada; no se garantiza que el próximo resultado sea válido ni guidance_available.
 
 Incremento 5B-03 — clarificación de autoridad de recomendaciones (16 de octubre de 2026)
 
@@ -699,7 +711,7 @@ Automated Tests
 
 Actualmente (16 de octubre de 2026):
 
-1.591 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,83 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
+1.623 tests passing; cobertura combinada de producción 99,11 %, producción más tooling 5A/5B 98,84 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -964,7 +976,7 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con dos intentos reales y clarificaciones del prompt pendientes de validación live
+AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con tres intentos reales y especialización estructural pendiente de validación live
 
 Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
@@ -1039,7 +1051,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con dos intentos reales de 5A-01 y clarificaciones de aplicabilidad y autoridad verificadas offline; su efectividad en GPT sigue pendiente. El próximo paso es decidir explícitamente una nueva evaluación con cohort nuevo, preservando cohort-01, cohort-02 y sus resultados originales. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con tres intentos reales de 5A-01 y especialización estructural verificada offline; su efectividad en GPT sigue pendiente. El próximo paso es decidir explícitamente una nueva evaluación con cohort nuevo, preservando cohort-01, cohort-02, cohort-03 y sus resultados originales. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 

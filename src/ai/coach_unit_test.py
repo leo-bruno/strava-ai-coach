@@ -440,8 +440,11 @@ def test_evidence_enum_is_exact_and_shared_without_changing_payload_or_template(
         'coach_context': expected_json(asdict(context)),
         'training_knowledge': expected_json(asdict(load_training_knowledge())),
     }
-    # Only shared reference definitions and their users may differ.
+    # Only reference definitions/users and recommendation restrictions may differ.
     restored = deepcopy(schema)
+    restored['$defs'].pop('actionable_reference')
+    restored['$defs'].pop('recommendation_statement')
+    restored['$defs']['recommendation'] = deepcopy(template['$defs']['recommendation'])
     restored['$defs'].pop(top_items['$ref'].removeprefix('#/$defs/'))
     knowledge_items = schema['$defs']['statement']['properties']['knowledge_references']['items']
     restored['$defs'].pop(knowledge_items['$ref'].removeprefix('#/$defs/'))
@@ -463,11 +466,13 @@ def test_all_statement_locations_use_constrained_evidence(provider):
     assert schema['properties']['limitations']['items'] == stmt_ref
     assert schema['properties']['clarification_questions']['items'] == stmt_ref
     recommendation = schema['$defs']['recommendation']['properties']
-    assert stmt_ref in recommendation['overall_direction']['anyOf']
-    assert recommendation['training_priorities']['items'] == stmt_ref
-    assert recommendation['reasoning'] == stmt_ref
+    assert recommendation['overall_direction'] == {'type': 'null'}
+    rec_ref = {'$ref': '#/$defs/recommendation_statement'}
+    assert recommendation['training_priorities']['items'] == rec_ref
+    assert recommendation['reasoning'] == rec_ref
     items = schema['$defs']['statement']['properties']['evidence_references']['items']
     assert evidence_item_schema(schema, items)['enum'] == [entry.reference for entry in context_fixture().evidence_references]
+    assert schema['$defs']['recommendation_statement']['properties']['evidence_references']['items'] == items
 
 
 def test_no_cross_request_identifier_or_schema_leakage(provider):
@@ -535,7 +540,7 @@ def registry_context(count, width):
 
 
 @pytest.mark.parametrize('count,width,error', [
-    (992, 4, 'enum-count limit'),  # Six knowledge and three status values also count.
+    (990, 4, 'enum-count limit'),  # Six general, two actionable and three status values also count.
     (251, 60, 'per-enum text limit'),
     (250, 480, 'schema-text limit'),  # The template names/status values count too.
 ])
@@ -551,7 +556,7 @@ def test_over_limit_schema_fails_without_truncation_or_call(provider, count, wid
     provider[1].assert_not_called()
 
 
-@pytest.mark.parametrize('count,width', [(991, 4), (251, 59), (250, 477)])
+@pytest.mark.parametrize('count,width', [(989, 4), (251, 59), (250, 476)])
 def test_registry_within_provider_limits_can_be_submitted_once(provider, count, width):
     # Isolate schema submission from the fabricated registry's domain mismatch.
     context = registry_context(count, width)
@@ -636,8 +641,10 @@ def test_prompt_explicitly_scopes_recommendation_authority_and_limitations(provi
             'remain mandatory.') in prompt
 
 
-def test_generated_schema_keeps_supported_structure_and_static_size_limits(provider):
-    coach.generate_coach_response(context_fixture())
+@pytest.mark.parametrize('options', [{}, {'vacation': True, 'report': 'I stopped and resumed running.'}])
+def test_generated_schema_keeps_supported_structure_and_static_size_limits(provider, options):
+    context = context_fixture(**options)
+    coach.generate_coach_response(context)
     schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
     # Walk literal schema definitions without counting repeated $refs as fields.
     def objects(value):
@@ -651,6 +658,9 @@ def test_generated_schema_keeps_supported_structure_and_static_size_limits(provi
     nodes = list(objects(schema))
     property_count = 0
     for node in nodes:
+        if 'type' in node or '$ref' in node or 'anyOf' in node:
+            assert set(node) <= {'type', 'properties', 'required', 'additionalProperties',
+                                '$defs', '$ref', 'anyOf', 'enum', 'items', 'minItems'}
         assert not {'allOf', 'not', 'if', 'then', 'else', 'dependentRequired', 'dependentSchemas'} & node.keys()
         if node.get('type') == 'object':
             assert node['additionalProperties'] is False
@@ -658,7 +668,7 @@ def test_generated_schema_keeps_supported_structure_and_static_size_limits(provi
             property_count += len(node['properties'])
         if '$ref' in node:
             assert node['$ref'].removeprefix('#/$defs/') in schema['$defs']
-    assert property_count == 17
+    assert property_count == 20
     assert property_count <= 5000
     def object_depth(node):
         if '$ref' in node:
@@ -670,7 +680,7 @@ def test_generated_schema_keeps_supported_structure_and_static_size_limits(provi
         return max((object_depth(child) for child in node.get('anyOf', [])), default=0)
     assert object_depth(schema) == 3
     assert object_depth(schema) <= 10
-    assert sum(len(node.get('enum', [])) for node in nodes) == 29
+    assert sum(len(node.get('enum', [])) for node in nodes) == len(context.evidence_references) + 11
 
 
 @pytest.mark.parametrize('status', ['guidance_available', 'clarification_required', 'insufficient_support'])
@@ -720,7 +730,7 @@ def test_exact_knowledge_enum_with_atomic_pairs_and_unchanged_data(provider, sta
     provider[0].assert_called_once_with(api_key='unit-test-not-a-secret', max_retries=0)
 
 
-def test_all_statement_knowledge_locations_use_one_shared_enum(provider):
+def test_statement_knowledge_locations_use_general_or_actionable_enum(provider):
     coach.generate_coach_response(context_fixture())
     schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
     statement_ref = {'$ref': '#/$defs/statement'}
@@ -729,12 +739,16 @@ def test_all_statement_knowledge_locations_use_one_shared_enum(provider):
     for name in ('limitations', 'clarification_questions'):
         assert schema['properties'][name]['items'] == statement_ref
     rec = schema['$defs']['recommendation']['properties']
-    assert statement_ref in rec['overall_direction']['anyOf']
-    assert rec['training_priorities']['items'] == statement_ref
-    assert rec['reasoning'] == statement_ref
+    assert rec['overall_direction'] == {'type': 'null'}
+    recommendation_ref = {'$ref': '#/$defs/recommendation_statement'}
+    assert rec['training_priorities']['items'] == recommendation_ref
+    assert rec['reasoning'] == recommendation_ref
     items = schema['$defs']['statement']['properties']['knowledge_references']['items']
     assert items == {'$ref': '#/$defs/knowledge_reference'}
     assert len(evidence_item_schema(schema, items)['enum']) == 6
+    actionable = schema['$defs']['recommendation_statement']['properties']['knowledge_references']['items']
+    assert actionable == {'$ref': '#/$defs/actionable_reference'}
+    assert evidence_item_schema(schema, actionable)['enum'] == [item.reference for item in load_training_knowledge().actionable_items]
 
 
 @pytest.mark.parametrize('kind', ['bare_id', 'unsupported_revision', 'package_identity', 'source_identity', 'reconstructed_id'])
@@ -929,10 +943,10 @@ def test_prompt_explicitly_restricts_knowledge_pairs_and_authority(provider):
     assert 'cannot authorize training recommendations, even alongside actionable items' in prompt
 
 
-@pytest.mark.parametrize('width,allowed', [(119388, True), (119389, False)])
+@pytest.mark.parametrize('width,allowed', [(119228, True), (119229, False)])
 def test_combined_schema_text_limit_exact_boundary_includes_knowledge(provider, width, allowed):
-    # Current template + both reference definition names + six knowledge
-    # pairs + statuses occupy 612 counted characters, independent of evidence.
+    # Template + specialized definitions, properties, general/actionable knowledge
+    # enums and statuses occupy 772 characters, independent of evidence.
     context = registry_context(1, width)
     if allowed:
         valid = parse_coach_response(response_fixture(), context=context_fixture(), knowledge=load_training_knowledge())
@@ -945,3 +959,168 @@ def test_combined_schema_text_limit_exact_boundary_includes_knowledge(provider, 
             coach.generate_coach_response(context)
         provider[0].assert_not_called()
         provider[1].assert_not_called()
+
+
+def specialized_schema(context):
+    schema = json.loads(coach._SCHEMA_PATH.read_text())
+    coach._constrain_reference_schema(schema, context, load_training_knowledge())
+    return schema
+
+
+def matches_transport_subset(value, node, schema):
+    """Test only the small JSON Schema subset emitted here, not provider behavior."""
+    if '$ref' in node:
+        return matches_transport_subset(value, schema['$defs'][node['$ref'].split('/')[-1]], schema)
+    if 'anyOf' in node:
+        return any(matches_transport_subset(value, branch, schema) for branch in node['anyOf'])
+    if 'enum' in node and value not in node['enum']:
+        return False
+    kind = node['type']
+    if kind == 'object':
+        return (isinstance(value, dict) and set(value) == set(node['required'])
+                and all(matches_transport_subset(child, node['properties'][key], schema)
+                        for key, child in value.items()))
+    if kind == 'array':
+        return (isinstance(value, list) and len(value) >= node.get('minItems', 0)
+                and all(matches_transport_subset(item, node['items'], schema) for item in value))
+    if kind == 'null':
+        return value is None
+    if kind == 'string':
+        return isinstance(value, str)
+    raise AssertionError('Unexpected type in specialized transport schema.')
+
+
+@pytest.mark.parametrize('number', range(1, 9))
+def test_specialized_schema_preserves_authored_scenario_response_paths(number):
+    from tests.llm.increment5a import evaluate
+    dataset = evaluate.read_json(evaluate.DATASET_PATH)
+    scenario = next(item for item in dataset['scenarios'] if item['id'] == f'5A-{number:02d}')
+    context = evaluate.build_context(scenario['input'])
+    schema = specialized_schema(context)
+    for control in scenario['controls']:
+        assert matches_transport_subset(control['response'], schema, schema)
+        # Semantic defects in negative controls remain outside the schema gate.
+        parse_coach_response(control['response'], context=context, knowledge=load_training_knowledge())
+    if number == 1:
+        rec = schema['$defs']['recommendation']['properties']
+        assert rec['overall_direction'] == rec['recommended_running_days'] == {'type': 'null'}
+
+
+@pytest.mark.parametrize('location', ['training_priorities', 'reasoning', 'overall_direction'])
+@pytest.mark.parametrize('field,invalid', [
+    ('knowledge_references', []),
+    ('knowledge_references', [FREQUENCY_LIMIT]),
+    ('knowledge_references', ['TK_EASY_RUNNING_PRIORITY@1.0.0', FREQUENCY_LIMIT]),
+    ('evidence_references', []),
+])
+def test_specialized_schema_rejects_invalid_recommendation_support(location, field, invalid):
+    from copy import deepcopy
+    schema = specialized_schema(context_fixture(vacation=True, report='I stopped and resumed running.'))
+    response = response_fixture()
+    assert matches_transport_subset(response, schema, schema)
+    rec = response['next_week_recommendation']
+    if location == 'overall_direction':
+        rec[location] = deepcopy(rec['reasoning'])
+    statement = rec[location][0] if location == 'training_priorities' else rec[location]
+    statement[field] = invalid
+    assert not matches_transport_subset(response, schema, schema)
+
+
+@pytest.mark.parametrize('vacation', [False, True])
+@pytest.mark.parametrize('report', [None, 'I stopped and resumed running.'])
+def test_schema_direction_uses_only_necessary_return_prerequisites(vacation, report):
+    context = context_fixture(vacation=vacation, report=report)
+    schema = specialized_schema(context)
+    direction = schema['$defs']['recommendation']['properties']['overall_direction']
+    if vacation and report:
+        assert direction == {'anyOf': [{'$ref': '#/$defs/recommendation_statement'}, {'type': 'null'}]}
+    else:
+        assert direction == {'type': 'null'}
+
+
+def test_missing_report_registry_reference_disables_direction():
+    from dataclasses import replace
+    context = context_fixture(vacation=True, report='I resumed running.')
+    context = replace(context, evidence_references=tuple(
+        item for item in context.evidence_references if item.reference != 'request:runner_context'))
+    assert specialized_schema(context)['$defs']['recommendation']['properties']['overall_direction'] == {'type': 'null'}
+
+
+def test_specialization_does_not_interpret_report_or_authorize_direction():
+    confirmed = context_fixture(vacation=True, report='I stopped running and resumed.')
+    denied = context_fixture(vacation=True, report='I did not stop; my records are incomplete. I have discomfort.')
+    schema = specialized_schema(denied)
+    assert schema == specialized_schema(confirmed)
+    # Presence leaves direction optional and does not force a recommendation.
+    assert matches_transport_subset(None, schema['$defs']['recommendation']['properties']['overall_direction'], schema)
+    for status in ('insufficient_support', 'clarification_required'):
+        assert matches_transport_subset(response_fixture(status), schema, schema)
+
+
+@pytest.mark.parametrize('options', [{'availability': 0}, {'report': 'I have ongoing discomfort.'}])
+def test_specialized_schema_keeps_safety_abstention_available(provider, options):
+    context = context_fixture(**options)
+    response = response_fixture('insufficient_support')
+    provider[1].return_value = completion(json.dumps(response))
+    assert coach.generate_coach_response(context).status.value == 'insufficient_support'
+    schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
+    assert matches_transport_subset(response, schema, schema)
+    provider[1].assert_called_once()
+
+
+def test_recommendation_specialization_is_isolated_and_preserves_limitations():
+    from copy import deepcopy
+    context = context_fixture()
+    original = deepcopy(context)
+    template_before = coach._SCHEMA_PATH.read_bytes()
+    approved = load_training_knowledge()
+    schema = specialized_schema(context)
+    props = schema['$defs']['recommendation_statement']['properties']
+    assert props['evidence_references']['minItems'] == props['knowledge_references']['minItems'] == 1
+    assert schema['$defs']['actionable_reference']['enum'] == [item.reference for item in approved.actionable_items]
+    assert not set(schema['$defs']['actionable_reference']['enum']) & {
+        f'{item.id}@{item.revision}' for item in approved.application_limitations}
+    response = response_fixture()
+    response['limitations'] = [
+        {'text': item.statements[0], 'evidence_references': [],
+         'knowledge_references': [f'{item.id}@{item.revision}']}
+        for item in approved.application_limitations]
+    assert matches_transport_subset(response, schema, schema)
+    assert 'minItems' not in schema['$defs']['statement']['properties']['knowledge_references']
+    assert 'minItems' not in schema['$defs']['statement']['properties']['evidence_references']
+    props['evidence_references']['minItems'] = 9
+    schema['$defs']['recommendation']['properties']['overall_direction'] = {'type': 'string'}
+    assert specialized_schema(context)['$defs']['recommendation']['properties']['overall_direction'] == {'type': 'null'}
+    assert specialized_schema(context)['$defs']['recommendation_statement']['properties']['evidence_references']['minItems'] == 1
+    assert coach._SCHEMA_PATH.read_bytes() == template_before
+    assert context == original
+    assert load_training_knowledge() == approved
+
+
+def test_direction_specialization_does_not_leak_between_requests(provider):
+    from copy import deepcopy
+    contexts = [context_fixture(), context_fixture(vacation=True, report='I stopped and resumed.'), context_fixture()]
+    snapshots = []
+    for context in contexts:
+        coach.generate_coach_response(context)
+        snapshots.append(deepcopy(provider[1].call_args.kwargs['response_format']['json_schema']['schema']))
+    assert snapshots[0] == snapshots[2]
+    assert snapshots[0] != snapshots[1]
+    assert provider[1].call_count == 3
+    assert all(call.kwargs['max_retries'] == 0 for call in provider[0].call_args_list)
+
+
+def test_return_prerequisite_presence_does_not_bypass_direction_validator(provider):
+    from copy import deepcopy
+    context = context_fixture(vacation=True, report='I stopped and resumed running.')
+    response = response_fixture()
+    response['next_week_recommendation']['overall_direction'] = deepcopy(
+        response['next_week_recommendation']['reasoning'])
+    schema = specialized_schema(context)
+    # The necessary presence gate is not a full authority/applicability checker.
+    assert matches_transport_subset(response, schema, schema)
+    provider[1].return_value = completion(json.dumps(response))
+    with pytest.raises(coach.CoachInvalidResponseError) as caught:
+        coach.generate_coach_response(context)
+    assert caught.value.diagnostic_code == 'EASY_DIRECTION_UNSUPPORTED'
+    provider[1].assert_called_once()
