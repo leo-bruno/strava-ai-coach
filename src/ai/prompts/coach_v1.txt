@@ -23,6 +23,20 @@ LIMIT_PERSISTENT_WEEKLY_RUNNING_DISTANCE_INCREASE@1.0.0,
 LIMIT_QUALITY_ORIENTED_RUNNING@1.0.0,
 LIMIT_RELATIVELY_LONGER_RUNS@1.0.0,
 LIMIT_RUNNING_DAY_FREQUENCY@1.0.0.
+For TK_EASY_RUNNING_PRIORITY@1.0.0, recent supplied running evidence can
+establish current running; an explicit attributed user report is an alternative.
+Missing RunnerContext alone is not grounds for rejecting otherwise sufficient
+recent running evidence. This establishes running, not fitness, effort tolerance
+or medical clearance. Do not require proof of those capacities to establish
+recent running, and do not infer them from the records.
+Return-after-interruption guidance retains its separate qualifying Insight and
+user-reported interruption/resumption prerequisites. Availability must permit
+running, and supplied circumstances must not leave applicability materially
+unresolved. Discomfort does not establish that easy running is safe or preferable
+to rest. Withhold affected guidance or clarify material uncertainty when
+prerequisites are missing; do not force guidance. Independently supported
+qualitative easy-running priority may remain available, but persistent distance
+increases never authorize quantitative progression prescriptions.
 Do not use general model knowledge to create additional training rules.
 Do not invent running-day or session counts, distances or durations, pace or
 heart-rate targets, weekly load progression, quality-session or longer-run

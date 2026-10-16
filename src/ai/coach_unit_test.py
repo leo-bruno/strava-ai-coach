@@ -590,6 +590,33 @@ def test_prompt_names_authoritative_registry_and_forbids_reconstructed_identifie
     assert 'membership alone does not\nestablish support' in prompt
 
 
+@pytest.mark.parametrize('required_statements', [
+    ('For TK_EASY_RUNNING_PRIORITY@1.0.0, recent supplied running evidence can establish current running; an explicit attributed user report is an alternative.',),
+    ('Missing RunnerContext alone is not grounds for rejecting otherwise sufficient recent running evidence.',),
+    ('Return-after-interruption guidance retains its separate qualifying Insight and user-reported interruption/resumption prerequisites.',
+     'return guidance needs an actual user report confirming interruption/resumption, plus the supplied recent qualifying Insight.'),
+    ('persistent distance increases never authorize quantitative progression prescriptions.',
+     'Do not prescribe load from a distance pattern.'),
+    ('This establishes running, not fitness, effort tolerance or medical clearance.',
+     'Do not require proof of those capacities to establish recent running, and do not infer them from the records.',
+     'Do not diagnose health conditions or claim that a workout is medically safe.'),
+    ('Availability must permit running,', 'Zero availability precludes an actionable running recommendation.'),
+    ('supplied circumstances must not leave applicability materially unresolved.',
+     'Discomfort does not establish that easy running is safe or preferable to rest.'),
+    ('Withhold affected guidance or clarify material uncertainty when prerequisites are missing; do not force guidance.',
+     'Independently supported qualitative easy-running priority may remain available,',
+     'insufficient_support: no recommendation or questions; material limitation.'),
+], ids=['evidence-or-report', 'missing-context', 'separate-return-authority',
+        'no-progression', 'no-capacity-or-medical-inference', 'availability',
+        'unresolved-discomfort', 'appropriate-abstention'])
+def test_prompt_clarifies_easy_priority_without_expanding_authority(provider, required_statements):
+    # Check the system prompt actually submitted through the mocked production path.
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    for statement in required_statements:
+        assert statement in prompt
+
+
 def test_generated_schema_keeps_supported_structure_and_static_size_limits(provider):
     coach.generate_coach_response(context_fixture())
     schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
