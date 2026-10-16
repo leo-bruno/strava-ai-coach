@@ -66,6 +66,18 @@ Never use package identities (including AI_COACH_V1_KNOWLEDGE@1.0.0) or
 source-record identifiers as knowledge references. Do not mix evidence and
 knowledge references. Non-actionable limitations may explain boundaries but
 cannot authorize training recommendations, even alongside actionable items.
+Every recommendation training priority, every recommendation reasoning statement,
+and every non-null overall_direction MUST have a nonempty knowledge_references
+list containing exclusively applicable actionable approved knowledge, and MUST
+include supporting evidence_references. The only actionable knowledge references
+are TK_EASY_RUNNING_PRIORITY@1.0.0 and
+TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0; this does not mean both apply to
+every scenario. LIMIT_* references must NEVER appear in these recommendation
+knowledge_references lists, including reasoning even when explaining caution or
+restrictions. Explanations supported by LIMIT_* knowledge belong in the top-level
+limitations section, where those references remain valid. Actionable knowledge
+membership alone does not establish applicability: all prerequisites, available
+evidence, user constraints and safety restrictions remain mandatory.
 Every identifier in top-level relevant_evidence and every statement's
 evidence_references must be copied verbatim from
 coach_context.evidence_references[*].reference. This registry is the sole

@@ -617,6 +617,25 @@ def test_prompt_clarifies_easy_priority_without_expanding_authority(provider, re
         assert statement in prompt
 
 
+def test_prompt_explicitly_scopes_recommendation_authority_and_limitations(provider):
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    assert ('Every recommendation training priority, every recommendation reasoning statement, '
+            'and every non-null overall_direction MUST have a nonempty knowledge_references '
+            'list containing exclusively applicable actionable approved knowledge, and MUST '
+            'include supporting evidence_references.') in prompt
+    assert ('The only actionable knowledge references are TK_EASY_RUNNING_PRIORITY@1.0.0 '
+            'and TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0; this does not mean both apply '
+            'to every scenario.') in prompt
+    assert ('LIMIT_* references must NEVER appear in these recommendation knowledge_references '
+            'lists, including reasoning even when explaining caution or restrictions.') in prompt
+    assert ('Explanations supported by LIMIT_* knowledge belong in the top-level limitations '
+            'section, where those references remain valid.') in prompt
+    assert ('Actionable knowledge membership alone does not establish applicability: all '
+            'prerequisites, available evidence, user constraints and safety restrictions '
+            'remain mandatory.') in prompt
+
+
 def test_generated_schema_keeps_supported_structure_and_static_size_limits(provider):
     coach.generate_coach_response(context_fixture())
     schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
@@ -778,6 +797,46 @@ def test_valid_limitations_are_not_recommendation_authority(provider, mixed):
     assert caught.value.diagnostic_code == 'RECOMMENDATION_AUTHORITY_INVALID'
     provider[1].assert_called_once()
     provider[0].assert_called_once_with(api_key='unit-test-not-a-secret', max_retries=0)
+
+
+@pytest.mark.parametrize('location', ['training_priorities', 'reasoning', 'overall_direction'])
+@pytest.mark.parametrize('authority', ['missing', 'limitation_only', 'mixed'])
+def test_each_recommendation_field_rejects_invalid_authority(provider, location, authority):
+    from copy import deepcopy
+    response = response_fixture()
+    recommendation = response['next_week_recommendation']
+    if location == 'overall_direction':
+        recommendation[location] = deepcopy(recommendation['reasoning'])
+    statement = (recommendation[location][0] if location == 'training_priorities'
+                 else recommendation[location])
+    actionable = statement['knowledge_references'][:]
+    statement['knowledge_references'] = (
+        [] if authority == 'missing' else
+        [FREQUENCY_LIMIT] if authority == 'limitation_only' else
+        actionable + [FREQUENCY_LIMIT]
+    )
+    provider[1].return_value = completion(json.dumps(response))
+    with pytest.raises(coach.CoachInvalidResponseError) as caught:
+        coach.generate_coach_response(context_fixture())
+    assert caught.value.diagnostic_code == 'RECOMMENDATION_AUTHORITY_INVALID'
+    provider[1].assert_called_once()
+    provider[0].assert_called_once_with(api_key='unit-test-not-a-secret', max_retries=0)
+
+
+def test_approved_limitation_references_remain_valid_in_top_level_limitations(provider):
+    response = response_fixture()
+    limitations = load_training_knowledge().application_limitations
+    response['limitations'] = [
+        {'text': item.statements[0], 'evidence_references': [],
+         'knowledge_references': [f'{item.id}@{item.revision}']}
+        for item in limitations
+    ]
+    provider[1].return_value = completion(json.dumps(response))
+    validated = coach.generate_coach_response(context_fixture())
+    assert [item.knowledge_references for item in validated.limitations] == [
+        (f'{item.id}@{item.revision}',) for item in limitations
+    ]
+    provider[1].assert_called_once()
 
 
 @pytest.mark.parametrize('empty_group', ['actionable', 'limitations', 'both'])

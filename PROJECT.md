@@ -73,9 +73,19 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5B-03: primera captura real evaluada estructuralmente; clarificación mínima del prompt verificada offline, pendiente de nueva evaluación GPT autorizada.
+AI Coach V1 — Incremento 5B-03: dos intentos reales de 5A-01; clarificaciones de aplicabilidad y autoridad verificadas offline, pendientes de nueva evaluación GPT autorizada.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
+
+Incremento 5B-03 — clarificación de autoridad de recomendaciones (16 de octubre de 2026)
+
+El segundo intento real de 5A-01 en cohort-02 terminó FAILED / structural_validation FAIL con DOMAIN_VALIDATION_FAILURE y RECOMMENDATION_AUTHORITY_INVALID. La respuesta rechazada fue descartada intencionadamente; no se conoce el campo ni la referencia causante. El diagnóstico delimita una lista de autoridad vacía o no exclusivamente actionable, sin demostrar qué alternativa ocurrió. No hay evidencia que justifique debilitar el validator.
+
+Se aclara solo el prompt: cada prioridad, reasoning y overall_direction no nulo requiere knowledge_references no vacío, exclusivamente conocimiento actionable aplicable y evidencia de soporte. Se nombran los dos ítems aprobados sin implicar que ambos apliquen siempre. LIMIT_* no puede figurar en esas listas, tampoco para explicar cautela dentro de reasoning; tales explicaciones pertenecen a limitations de nivel superior. Pertenencia no sustituye prerequisites, evidencia, restricciones ni seguridad. Se conserva la clarificación previa de running reciente frente a RunnerContext ausente.
+
+Validación: 11 casos nuevos (contrato del prompt, nueve combinaciones de campo/autoridad inválida y referencias de las cuatro limitaciones válidas en limitations). 25 tests focalizados de prompt/autoridad PASS, 621 tests Coach/5A/5B PASS y suite completa 1.591 PASS, sin warnings. Cobertura combinada producción 99,10 % y producción/tooling 98,83 %, sin regresión. Conocimiento, lógica, validators, schema, dataset/rúbrica, runner y evaluador no cambian.
+
+cohort-01 y cohort-02 permanecen intactos, con sus intentos consumidos y resultados originales; no se regeneran artefactos ni se realizan llamadas. El nuevo fingerprint del prompt exige otro cohort y autorización explícita para futura validación live. Los tests offline no prueban que GPT produzca una recomendación válida ni resuelven la incertidumbre sobre la respuesta descartada. Incremento 5B sigue sin aceptación global del modelo.
 
 Incremento 5B-03 — clarificación de aplicabilidad y abstención (14 de octubre de 2026)
 
@@ -687,9 +697,9 @@ Insights V1 está COMPLETE con los tres contratos anteriores, tras la validació
 
 Automated Tests
 
-Actualmente (14 de octubre de 2026):
+Actualmente (16 de octubre de 2026):
 
-1.580 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,83 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
+1.591 tests passing; cobertura combinada de producción 99,10 %, producción más tooling 5A/5B 98,83 %. La validación por incremento de Coach y el cierre de 5A constan en Current Focus.
 
 Referencia histórica del cierre de Insights V1 (7 de octubre de 2026):
 
@@ -954,7 +964,7 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con primera captura real y corrección del prompt pendiente de validación live
+AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con dos intentos reales y clarificaciones del prompt pendientes de validación live
 
 Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
@@ -1029,7 +1039,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con una primera captura real de 5A-01 y una clarificación del prompt verificada offline; su efectividad en GPT sigue pendiente. El próximo paso es decidir explícitamente una nueva evaluación con cohort nuevo, preservando cohort-01 y su resultado original. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con dos intentos reales de 5A-01 y clarificaciones de aplicabilidad y autoridad verificadas offline; su efectividad en GPT sigue pendiente. El próximo paso es decidir explícitamente una nueva evaluación con cohort nuevo, preservando cohort-01, cohort-02 y sus resultados originales. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
@@ -1039,4 +1049,4 @@ El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persist
 
 ⸻
 
-Last updated: 14 October 2026
+Last updated: 16 October 2026
