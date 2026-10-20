@@ -1206,3 +1206,41 @@ def test_cohort04_report_and_authority_contract_with_mocked_outputs(provider, re
     else:
         assert validated.next_week_recommendation is None
     provider[1].assert_called_once()
+
+
+@pytest.mark.parametrize('instructions', [
+    ('Independently supported qualitative easy-running guidance belongs in training_priorities, with a supported rationale in reasoning.',
+     'TK_EASY_RUNNING_PRIORITY@1.0.0 alone cannot authorize overall_direction.'),
+    ('Set overall_direction to null when TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0 is inapplicable or its prerequisites are unestablished.',
+     'A null overall_direction does not prevent independently supported training_priorities.'),
+    ('Even when return prerequisites are confirmed, overall_direction remains optional.',),
+    ('Never add evidence or knowledge references merely to satisfy validation.',
+     'If a field or claim lacks support, omit it instead, using null for an unsupported nullable field.'),
+    ('Preserve clarification and abstention when material uncertainty prevents supported guidance.',),
+], ids=['easy-field-authority', 'unsupported-direction-null', 'return-optional',
+        'no-reference-padding', 'preserve-abstention'])
+def test_direction_authority_prompt_reaches_provider(provider, instructions):
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    for instruction in instructions:
+        assert instruction in prompt
+
+
+@pytest.mark.parametrize('with_direction', [False, True], ids=['optional-null', 'supported-return'])
+def test_confirmed_return_allows_optional_direction_with_easy_priority(provider, with_direction):
+    from src.ai.coach_response_fixtures_test import EASY, RETURN, statement
+    context = context_fixture(vacation=True, report='I stopped running during those three weeks and resumed last week.')
+    response = response_fixture()
+    if with_direction:
+        response['next_week_recommendation']['overall_direction'] = statement(
+            'Use a gradual, individualized resumption after the reported interruption.',
+            ['insight:observed_running:2026-09-07:2026-09-28', 'request:runner_context'], [RETURN])
+    provider[1].return_value = completion(json.dumps(response))
+    validated = coach.generate_coach_response(context)
+    recommendation = validated.next_week_recommendation
+    assert validated.status.value == 'guidance_available'
+    assert (recommendation.overall_direction is not None) == with_direction
+    assert recommendation.training_priorities[0].knowledge_references == (EASY,)
+    schema = provider[1].call_args.kwargs['response_format']['json_schema']['schema']
+    assert matches_transport_subset(response, schema, schema)
+    provider[1].assert_called_once()

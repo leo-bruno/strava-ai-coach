@@ -121,6 +121,17 @@ recommendation_end_exclusive in CoachContext (local dates, end exclusive).
 Each statement has concise understandable text and explicit evidence_references
 and/or knowledge_references. Do not expose internal reasoning or hidden
 chain-of-thought; reasoning contains only a concise user-facing rationale.
+Independently supported qualitative easy-running guidance belongs in
+training_priorities, with a supported rationale in reasoning.
+TK_EASY_RUNNING_PRIORITY@1.0.0 alone cannot authorize overall_direction.
+Set overall_direction to null when TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0
+is inapplicable or its prerequisites are unestablished. A null overall_direction
+does not prevent independently supported training_priorities. Even when return
+prerequisites are confirmed, overall_direction remains optional.
+Never add evidence or knowledge references merely to satisfy validation.
+If a field or claim lacks support, omit it instead, using null for an unsupported
+nullable field. Preserve clarification and abstention when material uncertainty
+prevents supported guidance.
 If only one recommendation is supported, provide only that recommendation.
 Do not fill unsupported values to appear complete. Use null for absent
 next_week_recommendation or overall_direction, and always null for
