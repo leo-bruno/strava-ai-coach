@@ -239,7 +239,9 @@ def _constrain_reference_schema(
 def generate_coach_response(context: CoachContext) -> CoachResponse:
     """Receive an already built context; call once and return only validated output.
 
-    All dataclass fields are serialized without interpreting RunnerContext.
+    Context values are preserved without interpreting RunnerContext. The
+    historical background receives a neutral transport name and observation
+    semantics; the internal CoachContext and its references remain unchanged.
     Dates/timestamps use ISO 8601, enums their values, zones their IANA keys,
     and tuples JSON arrays. Provider errors/output are never logged or echoed.
     """
@@ -259,8 +261,22 @@ def generate_coach_response(context: CoachContext) -> CoachResponse:
     except (OSError, ValueError):
         raise CoachConfigurationError("Coach V1 prompt/schema could not be loaded.") from None
     _constrain_reference_schema(schema, context, knowledge)
+    model_context = asdict(context)
+    recorded_history = model_context.pop("pre_interruption_background")
+    model_context["historical_recorded_running_context"] = (
+        {
+            **recorded_history,
+            "observation_semantics": (
+                "Recorded running observations only. Zero recorded Run activities do not "
+                "establish actual inactivity or an interruption in training. Subsequent "
+                "recorded Run activities do not establish behavioral resumption. Earlier "
+                "observations are historical records, not current capacity."
+            ),
+        }
+        if recorded_history is not None else None
+    )
     payload = json.dumps(
-        {"coach_context": asdict(context), "training_knowledge": asdict(knowledge)},
+        {"coach_context": model_context, "training_knowledge": asdict(knowledge)},
         default=_json_value, ensure_ascii=False, allow_nan=False,
     )
     try:

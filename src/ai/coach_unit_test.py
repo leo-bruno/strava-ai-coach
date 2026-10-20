@@ -64,6 +64,22 @@ def expected_json(value):
     return value
 
 
+def expected_model_context(context):
+    """Expected transport shape, independently of production serialization."""
+    expected = expected_json(asdict(context))
+    background = expected.pop('pre_interruption_background')
+    expected['historical_recorded_running_context'] = None if background is None else {
+        **background,
+        'observation_semantics': (
+            'Recorded running observations only. Zero recorded Run activities do not '
+            'establish actual inactivity or an interruption in training. Subsequent '
+            'recorded Run activities do not establish behavioral resumption. Earlier '
+            'observations are historical records, not current capacity.'
+        ),
+    }
+    return expected
+
+
 @pytest.mark.parametrize('options', [{}, {'report': 'I stopped and resumed.', 'vacation': True, 'open_week': True}, {'metadata': False}])
 def test_exact_context_complete_knowledge_and_prompt(provider, options):
     context = context_fixture(**options)
@@ -72,9 +88,65 @@ def test_exact_context_complete_knowledge_and_prompt(provider, options):
     assert messages[0] == {'role': 'system', 'content': coach._PROMPT_PATH.read_text(encoding='utf-8')}
     assert messages[1]['role'] == 'user'
     assert json.loads(messages[1]['content']) == {
-        'coach_context': expected_json(asdict(context)),
+        'coach_context': expected_model_context(context),
         'training_knowledge': expected_json(asdict(load_training_knowledge())),
     }
+
+
+@pytest.mark.parametrize('report,status', [
+    ('I did not stop running. Strava recordings were missing; I continued running and am currently running.', 'guidance_available'),
+    ('I stopped running during those three weeks and resumed last week.', 'guidance_available'),
+    ('There was a gap; I may be getting back into things.', 'clarification_required'),
+    (None, 'insufficient_support'),
+], ids=['denied-interruption', 'confirmed-interruption', 'ambiguous-report', 'missing-report'])
+def test_recorded_history_transport_preserves_evidence_without_interpreting_report(provider, report, status):
+    from copy import deepcopy
+
+    context = context_fixture(vacation=True, report=report, metadata=False)
+    before = deepcopy(context)
+    original_history = context.pre_interruption_background
+    provider[1].return_value = completion(json.dumps(response_fixture(status)))
+    validated = coach.generate_coach_response(context)
+    request = provider[1].call_args.kwargs
+    raw = request['messages'][1]['content']
+    payload = json.loads(raw)
+    transported = payload['coach_context']
+    assert 'pre_interruption_background' not in raw
+    history = transported['historical_recorded_running_context']
+    semantics = history.pop('observation_semantics')
+    assert 'Recorded running observations only.' in semantics
+    assert 'do not establish actual inactivity or an interruption in training' in semantics
+    assert 'do not establish behavioral resumption' in semantics
+    assert 'not current capacity' in semantics
+    assert history == expected_json(asdict(original_history))
+    assert [w['running_activity_count'] for w in history['zero_run_weeks']] == [0, 0, 0]
+    assert history['triggering_insight_reference'] == 'insight:observed_running:2026-09-07:2026-09-28'
+    # Reversing only the transport rename recovers every original context value.
+    transported['pre_interruption_background'] = transported.pop('historical_recorded_running_context')
+    assert transported == expected_json(asdict(context))
+    assert transported['runner_context'] == {'runner_context': report}
+    assert payload['training_knowledge'] == expected_json(asdict(load_training_knowledge()))
+    assert context == before
+    assert context.pre_interruption_background is original_history
+    assert validated.status.value == status
+    assert request['messages'][0]['content'] == coach._PROMPT_PATH.read_text(encoding='utf-8')
+    assert request['response_format']['json_schema']['schema'] == specialized_schema(context)
+    provider[1].assert_called_once()
+
+
+def test_absent_recorded_history_stays_null_without_cross_request_leakage(provider):
+    with_history = context_fixture(vacation=True, report='I continued running.')
+    without_history = context_fixture()
+    coach.generate_coach_response(with_history)
+    first_raw = provider[1].call_args.kwargs['messages'][1]['content']
+    coach.generate_coach_response(without_history)
+    second_raw = provider[1].call_args.kwargs['messages'][1]['content']
+    first_history = json.loads(first_raw)['coach_context']['historical_recorded_running_context']
+    assert first_history['observations']
+    assert json.loads(second_raw)['coach_context']['historical_recorded_running_context'] is None
+    assert 'pre_interruption_background' not in first_raw + second_raw
+    assert without_history.pre_interruption_background is None
+    assert provider[1].call_count == 2
 
 
 def test_injection_stays_in_user_data(provider):
@@ -212,7 +284,8 @@ def test_serializer_rejects_unknown_type():
         coach._json_value(object())
 
 
-def test_success_through_real_sdk_with_fake_http(monkeypatch):
+@pytest.mark.parametrize('vacation', [False, True], ids=['no-recorded-episode', 'recorded-episode'])
+def test_success_through_real_sdk_with_fake_http(monkeypatch, vacation):
     monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-not-a-secret')
     monkeypatch.setenv('OPENAI_COACH_MODEL', 'configured-test-model')
     requests = []
@@ -228,13 +301,13 @@ def test_success_through_real_sdk_with_fake_http(monkeypatch):
         })
     def factory(**kwargs):
         return OpenAI(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
-    context = context_fixture()
+    context = context_fixture(vacation=vacation)
     with patch.object(coach, 'OpenAI', side_effect=factory):
         actual = coach.generate_coach_response(context)
     assert actual == parse_coach_response(response_fixture(), context=context, knowledge=load_training_knowledge())
     assert len(requests) == 1
     assert requests[0]['response_format']['json_schema']['strict'] is True
-    assert json.loads(requests[0]['messages'][1]['content'])['coach_context'] == expected_json(asdict(context))
+    assert json.loads(requests[0]['messages'][1]['content'])['coach_context'] == expected_model_context(context)
 
 
 @pytest.mark.parametrize('violation,code', [
@@ -437,7 +510,7 @@ def test_evidence_enum_is_exact_and_shared_without_changing_payload_or_template(
     assert enum_schema['enum'] == [entry.reference for entry in context.evidence_references]
     assert request['response_format']['json_schema']['strict'] is True
     assert json.loads(request['messages'][1]['content']) == {
-        'coach_context': expected_json(asdict(context)),
+        'coach_context': expected_model_context(context),
         'training_knowledge': expected_json(asdict(load_training_knowledge())),
     }
     # Only reference definitions/users and recommendation restrictions may differ.
@@ -719,7 +792,7 @@ def test_exact_knowledge_enum_with_atomic_pairs_and_unchanged_data(provider, sta
         assert forbidden not in knowledge_schema['enum']
     assert evidence_item_schema(schema, schema['properties']['relevant_evidence']['items'])['enum'] == [entry.reference for entry in context.evidence_references]
     assert json.loads(request['messages'][1]['content']) == {
-        'coach_context': expected_json(asdict(context)),
+        'coach_context': expected_model_context(context),
         'training_knowledge': expected_json(asdict(approved)),
     }
     assert context == original_context
