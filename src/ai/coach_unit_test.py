@@ -748,6 +748,23 @@ def test_prompt_clarifies_easy_priority_without_expanding_authority(provider, re
         assert statement in prompt
 
 
+def test_5a03_operational_examples_reach_production_transport(provider):
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    assert ('For recent_evolution, state the recorded observation and user report as separate attributed facts.'
+            in prompt)
+    assert ('The supplied records show no Run activities recorded during [weeks] and recorded running in [week]. '
+            'You report that you continued running during that period.') in prompt
+    assert ('Do not turn the recorded zero-Run weeks into "you took a break," "you returned to running," or '
+            '"you resumed running" when the report says running continued or does not confirm an interruption.') in prompt
+    assert 'Replace placeholders only with periods supported by the corresponding references.' in prompt
+    assert ('training_priorities may say "Prioritize relaxed, conversational running," and reasoning may say '
+            '"Recent running is recorded, and the approved easy-running guidance supports this qualitative effort."') in prompt
+    assert ('Do not add that this choice "helps recovery," "reduces injury risk," or "is sustainable" unless a '
+            'separate approved conclusion and the available evidence support that specific benefit.') in prompt
+    provider[1].assert_called_once()
+
+
 def test_prompt_explicitly_scopes_recommendation_authority_and_limitations(provider):
     coach.generate_coach_response(context_fixture())
     prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())

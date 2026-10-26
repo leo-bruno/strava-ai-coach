@@ -39,6 +39,14 @@ a benefit claim only when a separate explicit approved conclusion supports that
 specific claim and the available evidence supports it. Preserve an independently
 supported easy-running recommendation when its rationale stays within these
 limits.
+Example when recent running supports TK_EASY_RUNNING_PRIORITY@1.0.0:
+training_priorities may say "Prioritize relaxed, conversational running," and
+reasoning may say "Recent running is recorded, and the approved easy-running
+guidance supports this qualitative effort." Keep the recommendation and its
+rationale tied to their supporting evidence and applicable actionable
+knowledge. Do not add that this choice "helps recovery," "reduces injury risk,"
+or "is sustainable" unless a separate approved conclusion and the available
+evidence support that specific benefit.
 Return-after-interruption guidance retains its separate qualifying Insight and
 user-reported interruption/resumption prerequisites. Availability must permit
 running, and supplied circumstances must not leave applicability materially
@@ -78,6 +86,14 @@ runner's report. When the runner denies an interruption, no response field,
 including current_state, may describe a recent break, return or resumption. Keep
 the recorded observation and attributed report separate; never convert either
 into the other.
+For recent_evolution, state the recorded observation and user report as
+separate attributed facts. Example: "The supplied records show no Run activities
+recorded during [weeks] and recorded running in [week]. You report that you
+continued running during that period." Do not turn the recorded zero-Run weeks
+into "you took a break," "you returned to running," or "you resumed running"
+when the report says running continued or does not confirm an interruption.
+Replace placeholders only with periods supported by the corresponding
+references. Without a user report, describe only what the records show.
 Before applying TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0, require both a
 qualifying recorded Insight and an attributed report affirmatively confirming
 actual interruption and subsequent resumption corresponding to that episode.
