@@ -101,3 +101,27 @@ def test_diagnostic_flag_preserves_provider_error_behavior(capsys):
     output = capsys.readouterr()
     assert output.out == ''
     assert output.err == 'CoachProviderError: Safe provider failure\n'
+
+
+def test_provider_diagnostic_cli_emits_only_allowlisted_code_and_status(capsys):
+    error = CoachProviderError('PRIVATE_MESSAGE_SENTINEL')
+    error.safe_diagnostic_code = 'PROVIDER_RATE_LIMIT'
+    error.safe_http_status = 429
+    with patch.object(coach_manual, 'generate_coach_response', side_effect=error):
+        assert coach_manual.main(['--allow-real-api-call', '--diagnose-provider']) == 1
+    output = capsys.readouterr()
+    assert output.out == ''
+    assert output.err == 'PROVIDER_RATE_LIMIT HTTP 429\n'
+    assert 'PRIVATE_' not in output.err
+
+
+@pytest.mark.parametrize(('code', 'status', 'expected'), [('PRIVATE', 429, 'PROVIDER_ERROR HTTP 429'),
+                                                          ('PROVIDER_HTTP_ERROR', True, 'PROVIDER_HTTP_ERROR'),
+                                                          ('PROVIDER_HTTP_ERROR', 600, 'PROVIDER_HTTP_ERROR')])
+def test_provider_diagnostic_cli_falls_back_to_safe_values(capsys, code, status, expected):
+    error = CoachProviderError('PRIVATE_MESSAGE_SENTINEL')
+    error.safe_diagnostic_code = code
+    error.safe_http_status = status
+    with patch.object(coach_manual, 'generate_coach_response', side_effect=error):
+        assert coach_manual.main(['--allow-real-api-call', '--diagnose-provider']) == 1
+    assert capsys.readouterr().err == f'{expected}\n'

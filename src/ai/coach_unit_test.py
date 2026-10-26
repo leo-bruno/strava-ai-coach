@@ -191,9 +191,62 @@ def test_bad_schema_resource(provider, monkeypatch, tmp_path):
 
 def test_provider_error_no_fallback_no_retry(provider):
     provider[1].side_effect = APIConnectionError(request=httpx.Request('POST', 'https://example.test'))
-    with pytest.raises(coach.CoachProviderError):
+    with pytest.raises(coach.CoachProviderError) as error:
         coach.generate_coach_response(context_fixture())
     provider[1].assert_called_once()
+    assert error.value.safe_diagnostic == ('PROVIDER_CONNECTION', None)
+    assert str(error.value) == 'OpenAI request failed; check configuration, access and connectivity.'
+
+
+def _sdk_provider_error(error_type, status=None):
+    request = httpx.Request('POST', 'https://example.test/PRIVATE_REQUEST_SENTINEL',
+                            headers={'Authorization': 'Bearer PRIVATE_KEY_SENTINEL',
+                                     'X-Sentinel': 'PRIVATE_HEADER_SENTINEL'})
+    if error_type is coach.APITimeoutError:
+        return error_type(request=request)
+    if error_type is coach.APIConnectionError:
+        return error_type(message='PRIVATE_REQUEST_SENTINEL', request=request)
+    response = httpx.Response(status, request=request,
+                              headers={'X-Response-Sentinel': 'PRIVATE_HEADER_SENTINEL'},
+                              json={'message': 'PRIVATE_BODY_SENTINEL'})
+    return error_type('PRIVATE_MESSAGE_SENTINEL', response=response, body={'detail': 'PRIVATE_BODY_SENTINEL'})
+
+
+@pytest.mark.parametrize(('error_type', 'status', 'code'), [
+    (coach.APITimeoutError, None, 'PROVIDER_TIMEOUT'),
+    (coach.APIConnectionError, None, 'PROVIDER_CONNECTION'),
+    (coach.AuthenticationError, 401, 'PROVIDER_AUTHENTICATION'),
+    (coach.PermissionDeniedError, 403, 'PROVIDER_PERMISSION'),
+    (coach.RateLimitError, 429, 'PROVIDER_RATE_LIMIT'),
+    (coach.BadRequestError, 400, 'PROVIDER_REQUEST_REJECTED'),
+    (coach.UnprocessableEntityError, 422, 'PROVIDER_REQUEST_REJECTED'),
+    (coach.InternalServerError, 503, 'PROVIDER_SERVER_ERROR'),
+    (coach.APIStatusError, 418, 'PROVIDER_HTTP_ERROR'),
+])
+def test_provider_diagnostic_maps_sdk_class_without_payload_leaks(provider, error_type, status, code, capsys, caplog):
+    provider[1].side_effect = _sdk_provider_error(error_type, status)
+    with pytest.raises(coach.CoachProviderError) as caught:
+        coach.generate_coach_response(context_fixture())
+    assert caught.value.safe_diagnostic == (code, status)
+    output = capsys.readouterr()
+    rendered = str(caught.value) + output.out + output.err + caplog.text
+    for sentinel in ('PRIVATE_REQUEST_SENTINEL', 'PRIVATE_KEY_SENTINEL', 'PRIVATE_HEADER_SENTINEL',
+                     'PRIVATE_BODY_SENTINEL', 'PRIVATE_MESSAGE_SENTINEL'):
+        assert sentinel not in rendered
+    assert provider[1].call_count == 1
+
+
+@pytest.mark.parametrize(('status', 'expected'), [
+    (None, None), (100, 100), (599, 599), (99, None), (600, None),
+    (True, None), (429.0, None), ('429', None),
+])
+def test_provider_diagnostic_accepts_only_valid_integer_status(status, expected):
+    class StatusError(coach.OpenAIError):
+        pass
+    error = StatusError('PRIVATE_STATUS_SENTINEL')
+    if status is not None:
+        error.status_code = status
+    assert coach._provider_error_diagnostic(error) == ('PROVIDER_ERROR', expected)
 
 
 @pytest.mark.parametrize('content', [None, 'private refusal text'])

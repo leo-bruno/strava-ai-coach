@@ -315,26 +315,44 @@ def test_model_status_gate_independent_of_human_pass(directory):
     assert report['model_acceptance']=='FAIL'
 
 
-@pytest.mark.parametrize('defect', ['orphan','partial_reservation','reservation_binding','bad_outcome','unsafe_diagnostic','invalid_failure','interruption_mismatch'])
+@pytest.mark.parametrize('defect', ['orphan','partial_reservation','reservation_binding','bad_outcome','unsafe_diagnostic','invalid_failure','interruption_mismatch','unsafe_provider_code','invalid_provider_status','missing_provider_code','unexpected_provider_code'])
 def test_bad_execution_files_remain_visible(directory, defect):
     if defect=='orphan':
         (directory/'5A-01.result.json').write_text('{}')
     elif defect=='partial_reservation':
         (directory/'5A-01.attempt.json').write_text('{')
     else:
-        capture(directory,'5A-01')
+        capture(directory,'5A-01',failure='PROVIDER_ERROR' if defect in ('unsafe_provider_code','invalid_provider_status','missing_provider_code') else None)
         path=directory/('5A-01.attempt.json' if defect=='reservation_binding' else '5A-01.result.json')
         artifact=run._read_sealed(path)
         if defect=='reservation_binding':artifact['scenario_id']='5A-02'
         elif defect=='bad_outcome':artifact['attempt_outcome']='WRONG'
         elif defect=='unsafe_diagnostic':artifact['safe_validation_diagnostic']='PRIVATE_SENTINEL'
         elif defect=='invalid_failure':artifact.update(attempt_outcome='FAILED',safe_failure_category='UNKNOWN',response=None)
-        else:artifact.update(attempt_outcome='INTERRUPTED',safe_failure_category='PROVIDER_ERROR',response=None)
+        elif defect=='interruption_mismatch':artifact.update(attempt_outcome='INTERRUPTED',safe_failure_category='PROVIDER_ERROR',response=None)
+        if defect=='unsafe_provider_code':artifact['safe_provider_diagnostic_code']='PRIVATE_SENTINEL'
+        elif defect=='invalid_provider_status':artifact.update(safe_provider_diagnostic_code='PROVIDER_HTTP_ERROR',safe_provider_http_status=600)
+        elif defect=='missing_provider_code':artifact.pop('safe_provider_diagnostic_code')
+        elif defect=='unexpected_provider_code':artifact['safe_provider_diagnostic_code']='PROVIDER_ERROR'
         path.write_bytes(run.canonical(run._sealed({k:v for k,v in artifact.items() if k!='artifact_sha256'})))
     report=ev.generate_report(ev.load_cohort(directory))
     assert len(report['scenarios'])==8
     assert report['framework_acceptance']=='FAIL'
     assert 'PRIVATE_SENTINEL' not in json.dumps(report)
+
+
+def test_provider_diagnostic_is_reported_without_provider_payload(directory):
+    capture(directory,'5A-01',failure='PROVIDER_ERROR')
+    path=directory/'5A-01.result.json'
+    artifact=run._read_sealed(path)
+    artifact.update(safe_provider_diagnostic_code='PROVIDER_RATE_LIMIT', safe_provider_http_status=429)
+    path.write_bytes(run.canonical(run._sealed({k:v for k,v in artifact.items() if k!='artifact_sha256'})))
+    cohort=ev.load_cohort(directory)
+    row=cohort['rows'][0]
+    assert row['safe_provider_diagnostic_code']=='PROVIDER_RATE_LIMIT'
+    assert row['safe_provider_http_status']==429
+    report=ev.generate_report(cohort)
+    assert 'PRIVATE_' not in json.dumps(report)
 
 
 def test_deterministic_report_without_response_bodies(directory):

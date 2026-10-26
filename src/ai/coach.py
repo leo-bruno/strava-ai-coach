@@ -9,7 +9,19 @@ import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from openai import OpenAI, OpenAIError
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AuthenticationError,
+    BadRequestError,
+    InternalServerError,
+    OpenAI,
+    OpenAIError,
+    PermissionDeniedError,
+    RateLimitError,
+    UnprocessableEntityError,
+)
 
 from src.ai.coach_response import parse_coach_response
 from src.ai.training_knowledge import TrainingKnowledgePackage, load_training_knowledge
@@ -51,6 +63,42 @@ _VALIDATION_DIAGNOSTICS = {
     "EMPTY_RECOMMENDATION": "A recommendation requires a direction or at least one training priority.",
     "EASY_DIRECTION_UNSUPPORTED": "Easy-running knowledge alone cannot authorize an overall direction.",
 }
+
+_PROVIDER_DIAGNOSTIC_CODES = frozenset({
+    "PROVIDER_TIMEOUT", "PROVIDER_CONNECTION", "PROVIDER_AUTHENTICATION",
+    "PROVIDER_PERMISSION", "PROVIDER_RATE_LIMIT", "PROVIDER_REQUEST_REJECTED",
+    "PROVIDER_SERVER_ERROR", "PROVIDER_HTTP_ERROR", "PROVIDER_ERROR",
+})
+
+_PROVIDER_EXCEPTION_DIAGNOSTICS = (
+    (APITimeoutError, "PROVIDER_TIMEOUT"),
+    (APIConnectionError, "PROVIDER_CONNECTION"),
+    (AuthenticationError, "PROVIDER_AUTHENTICATION"),
+    (PermissionDeniedError, "PROVIDER_PERMISSION"),
+    (RateLimitError, "PROVIDER_RATE_LIMIT"),
+    (BadRequestError, "PROVIDER_REQUEST_REJECTED"),
+    (UnprocessableEntityError, "PROVIDER_REQUEST_REJECTED"),
+    (InternalServerError, "PROVIDER_SERVER_ERROR"),
+    (APIStatusError, "PROVIDER_HTTP_ERROR"),
+)
+
+
+def _valid_provider_http_status(value: object) -> int | None:
+    """Return only a valid non-boolean HTTP status integer."""
+    if type(value) is int and 100 <= value <= 599:
+        return value
+    return None
+
+
+def _provider_error_diagnostic(error: OpenAIError) -> tuple[str, int | None]:
+    """Classify SDK failures without inspecting their messages or payloads."""
+    code = next((code for error_type, code in _PROVIDER_EXCEPTION_DIAGNOSTICS
+                 if isinstance(error, error_type)), "PROVIDER_ERROR")
+    try:
+        status = _valid_provider_http_status(error.status_code)
+    except (AttributeError, TypeError, ValueError):
+        status = None
+    return code, status
 
 _VALIDATION_FAILURES = {
     "Unsupported CoachResponse status.": "STATUS_INVALID",
@@ -121,6 +169,16 @@ class CoachConfigurationError(CoachError):
 
 class CoachProviderError(CoachError):
     """The OpenAI SDK/API failed."""
+
+    safe_diagnostic_code = "PROVIDER_ERROR"
+    safe_http_status: int | None = None
+
+    @property
+    def safe_diagnostic(self) -> tuple[str, int | None]:
+        code = self.safe_diagnostic_code
+        if not isinstance(code, str) or code not in _PROVIDER_DIAGNOSTIC_CODES:
+            code = "PROVIDER_ERROR"
+        return code, _valid_provider_http_status(self.safe_http_status)
 
 
 class CoachRefusalError(CoachError):
@@ -292,8 +350,10 @@ def generate_coach_response(context: CoachContext) -> CoachResponse:
                     "name": "coach_response_v1", "strict": True, "schema": schema,
                 }},
             )
-    except OpenAIError:
-        raise CoachProviderError("OpenAI request failed; check configuration, access and connectivity.") from None
+    except OpenAIError as error:
+        failure = CoachProviderError("OpenAI request failed; check configuration, access and connectivity.")
+        failure.safe_diagnostic_code, failure.safe_http_status = _provider_error_diagnostic(error)
+        raise failure from None
     if not completion.choices:
         raise CoachMalformedOutputError("OpenAI returned no response choice.")
     choice = completion.choices[0]

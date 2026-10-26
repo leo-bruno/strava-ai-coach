@@ -148,6 +148,20 @@ def test_safe_production_failures_once(prepared,monkeypatch,error_type):
         run.execute('5A-01',prepared[2],prepared[3],directory,allow_real_api_call=True)
 
 
+def test_provider_diagnostic_is_allowlisted_and_bound_in_artifact(prepared,monkeypatch):
+    error=run.coach.CoachProviderError('PRIVATE_MESSAGE_SENTINEL')
+    error.safe_diagnostic_code='PROVIDER_RATE_LIMIT'
+    error.safe_http_status=429
+    directory=cohort(prepared)
+    result=invoke(prepared,directory,monkeypatch,error=error)
+    assert result['safe_provider_diagnostic_code']=='PROVIDER_RATE_LIMIT'
+    assert result['safe_provider_http_status']==429
+    serialized=json.dumps(result)
+    assert 'PRIVATE_MESSAGE_SENTINEL' not in serialized
+    assert 'PRIVATE_BODY_SENTINEL' not in serialized
+    assert run.dry_run('5A-01',prepared[3],directory)['attempt_already_consumed']
+
+
 @pytest.mark.parametrize('error', [KeyboardInterrupt(),SystemExit(3),RuntimeError('SECRET')])
 def test_interruptions_and_unknown_errors_consumed(prepared,monkeypatch,error):
     directory=cohort(prepared)
@@ -310,9 +324,16 @@ def test_cli_missing_model_and_failed_execution(prepared,monkeypatch,capsys):
     assert run.main(['--scenario','5A-01'])==2
     monkeypatch.setenv('OPENAI_COACH_MODEL','offline-test-model')
     directory=cohort(prepared)
-    monkeypatch.setattr(run.coach,'generate_coach_response',Mock(side_effect=run.coach.CoachProviderError('PRIVATE_SENTINEL')))
+    error=run.coach.CoachProviderError('PRIVATE_SENTINEL')
+    error.safe_diagnostic_code='PROVIDER_HTTP_ERROR'
+    error.safe_http_status=503
+    monkeypatch.setattr(run.coach,'generate_coach_response',Mock(side_effect=error))
     assert run.main(['--scenario','5A-01','--output-dir',str(directory),'--allow-real-api-call'])==1
-    assert 'PRIVATE_SENTINEL' not in capsys.readouterr().out
+    output=capsys.readouterr().out
+    assert 'PRIVATE_SENTINEL' not in output
+    cli_result=json.loads(output)
+    assert cli_result['safe_provider_diagnostic_code']=='PROVIDER_HTTP_ERROR'
+    assert cli_result['safe_provider_http_status']==503
 
 
 def test_eight_selected_attempts_and_single_provider_call_each(prepared,monkeypatch):
@@ -348,7 +369,31 @@ def test_production_pipeline_with_mocked_sdk_preserves_options(prepared,monkeypa
     assert create.call_args.kwargs['response_format']['json_schema']['strict'] is True
 
 
-@pytest.mark.parametrize('defect', ['schema_version','plan','budget','reservation','result_status','result_diagnostic','result_failure','result_response','accounting'])
+def test_sdk_provider_error_persists_only_safe_diagnostic(prepared,monkeypatch):
+    import httpx
+    from src.ai import coach
+    directory=cohort(prepared)
+    request=httpx.Request('POST','https://example.test/PRIVATE_REQUEST_SENTINEL',
+                          headers={'Authorization':'Bearer PRIVATE_KEY_SENTINEL','X-Sentinel':'PRIVATE_HEADER_SENTINEL'})
+    response=httpx.Response(429,request=request,headers={'X-Response-Sentinel':'PRIVATE_HEADER_SENTINEL'},
+                            json={'message':'PRIVATE_BODY_SENTINEL'})
+    sdk_error=coach.RateLimitError('PRIVATE_MESSAGE_SENTINEL',response=response,body={'message':'PRIVATE_BODY_SENTINEL'})
+    monkeypatch.setattr(coach,'generate_coach_response',PRODUCTION_GENERATE)
+    factory=MagicMock()
+    factory.return_value.__enter__.return_value.chat.completions.create.side_effect=sdk_error
+    monkeypatch.setattr(coach,'OpenAI',factory)
+    result=run.execute('5A-01',prepared[2],prepared[3],directory,allow_real_api_call=True)
+    assert result['attempt_outcome']=='FAILED'
+    assert result['safe_provider_diagnostic_code']=='PROVIDER_RATE_LIMIT'
+    assert result['safe_provider_http_status']==429
+    captured=json.dumps(result)
+    for sentinel in ('PRIVATE_REQUEST_SENTINEL','PRIVATE_KEY_SENTINEL','PRIVATE_HEADER_SENTINEL',
+                     'PRIVATE_BODY_SENTINEL','PRIVATE_MESSAGE_SENTINEL'):
+        assert sentinel not in captured
+    assert run.dry_run('5A-01',prepared[3],directory)['attempt_already_consumed']
+
+
+@pytest.mark.parametrize('defect', ['schema_version','plan','budget','reservation','result_status','result_diagnostic','result_failure','result_response','accounting','provider_code','provider_status','provider_missing','provider_unexpected'])
 def test_resealed_inconsistent_artifacts_rejected(prepared,monkeypatch,defect):
     directory=cohort(prepared)
     invoke(prepared,directory,monkeypatch)
@@ -364,6 +409,10 @@ def test_resealed_inconsistent_artifacts_rejected(prepared,monkeypatch,defect):
     elif defect=='result_status':payload['attempt_outcome']='wrong'
     elif defect=='result_diagnostic':payload['safe_validation_diagnostic']='PRIVATE_ERROR'
     elif defect=='result_failure':payload.update(attempt_outcome='INTERRUPTED',safe_failure_category='PROVIDER_ERROR',response=None,response_sha256=None)
+    elif defect=='provider_code':payload['safe_provider_diagnostic_code']='PRIVATE_ERROR'
+    elif defect=='provider_status':payload.update(safe_provider_diagnostic_code='PROVIDER_HTTP_ERROR',safe_provider_http_status=True)
+    elif defect=='provider_missing':payload.update(attempt_outcome='FAILED',safe_failure_category='PROVIDER_ERROR',response=None,response_sha256=None)
+    elif defect=='provider_unexpected':payload['safe_provider_diagnostic_code']='PROVIDER_ERROR'
     else:payload['response']=None
     path.write_bytes(run.canonical(run._sealed(payload)))
     with pytest.raises(run.ExecutionGuardError):run.dry_run('5A-02',prepared[3],directory)

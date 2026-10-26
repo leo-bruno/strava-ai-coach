@@ -25,7 +25,7 @@ from tests.llm.increment5a import evaluate as adaptation
 
 ARTIFACT_ROOT = adaptation.ROOT / 'test-results' / 'increment5b'
 SCENARIO_IDS = tuple(f'5A-{number:02d}' for number in range(1, 9))
-FORMAT_VERSION = '5B-01-1.0.0'
+FORMAT_VERSION = '5B-01-1.1.0'
 PROVENANCE = 'synthetic_increment5a_inputs_generated_response'
 FAILURES = {
     coach.CoachConfigurationError: 'CONFIGURATION_ERROR',
@@ -38,6 +38,18 @@ FAILURES = {
 
 class ExecutionGuardError(ValueError):
     """Fixed local error codes; never include rejected content or exception text."""
+
+
+def _validate_provider_diagnostic(code, status, failure):
+    if code is not None and (not isinstance(code, str) or code not in coach._PROVIDER_DIAGNOSTIC_CODES):
+        raise ExecutionGuardError('PROVIDER_DIAGNOSTIC_INVALID')
+    if status is not None and not (type(status) is int and 100 <= status <= 599):
+        raise ExecutionGuardError('PROVIDER_STATUS_INVALID')
+    if failure == 'PROVIDER_ERROR':
+        if code is None:
+            raise ExecutionGuardError('PROVIDER_DIAGNOSTIC_MISSING')
+    elif code is not None or status is not None:
+        raise ExecutionGuardError('PROVIDER_DIAGNOSTIC_UNEXPECTED')
 
 
 def canonical(value) -> bytes:
@@ -189,7 +201,11 @@ def _manifest(directory, config):
     return manifest
 
 
-def _artifact(manifest, scenario_id, outcome, *, response=None, failure=None, diagnostic=None, timestamp=None):
+def _artifact(manifest, scenario_id, outcome, *, response=None, failure=None, diagnostic=None,
+              provider_diagnostic_code=None, provider_http_status=None, timestamp=None):
+    if failure == 'PROVIDER_ERROR' and provider_diagnostic_code is None:
+        provider_diagnostic_code = 'PROVIDER_ERROR'
+    _validate_provider_diagnostic(provider_diagnostic_code, provider_http_status, failure)
     config = manifest['configuration']
     return _sealed({
         'artifact_format_version': FORMAT_VERSION, 'cohort_id': manifest['cohort_id'],
@@ -205,6 +221,8 @@ def _artifact(manifest, scenario_id, outcome, *, response=None, failure=None, di
         'structural_validation': 'PASS' if response is not None else ('FAIL' if failure in ('DOMAIN_VALIDATION_FAILURE', 'MALFORMED_OUTPUT') else 'NOT_EVALUATED'),
         'response': response, 'response_sha256': sha(response) if response is not None else None,
         'safe_failure_category': failure, 'safe_validation_diagnostic': diagnostic,
+        'safe_provider_diagnostic_code': provider_diagnostic_code,
+        'safe_provider_http_status': provider_http_status,
         'token_usage': None, 'cost': None,
         'unavailable_metadata_reason': 'Not exposed by the production Coach return contract.',
     })
@@ -229,9 +247,12 @@ def _attempts(directory, manifest):
                 response = completed.get('response')
                 failure = completed.get('safe_failure_category')
                 diagnostic = completed.get('safe_validation_diagnostic')
+                provider_diagnostic_code = completed.get('safe_provider_diagnostic_code')
+                provider_http_status = completed.get('safe_provider_http_status')
                 allowed_diagnostics = {f'{code}: {explanation}' for code, explanation in coach._VALIDATION_DIAGNOSTICS.items()}
                 if diagnostic is not None and diagnostic not in allowed_diagnostics:
                     raise ExecutionGuardError('RESULT_INVALID')
+                _validate_provider_diagnostic(provider_diagnostic_code, provider_http_status, failure)
                 if outcome == 'INTERRUPTED' and failure != 'INTERRUPTED':
                     raise ExecutionGuardError('RESULT_INVALID')
                 if outcome not in ('SUCCESS', 'FAILED', 'INTERRUPTED'):
@@ -244,7 +265,9 @@ def _attempts(directory, manifest):
                 elif response is not None or failure not in (*FAILURES.values(), 'UNEXPECTED_ERROR', 'INTERRUPTED'):
                     raise ExecutionGuardError('RESULT_INVALID')
                 expected = _artifact(manifest, scenario_id, outcome, response=response, failure=failure,
-                                     diagnostic=diagnostic, timestamp=reserved['execution_timestamp_utc'])
+                                     diagnostic=diagnostic, provider_diagnostic_code=provider_diagnostic_code,
+                                     provider_http_status=provider_http_status,
+                                     timestamp=reserved['execution_timestamp_utc'])
                 if completed != expected:
                     raise ExecutionGuardError('RESULT_INVALID')
     if len(consumed) > manifest['approved_budget']:
@@ -300,7 +323,7 @@ def execute(scenario_id, context, config, directory, *, allow_real_api_call=Fals
             raise ExecutionGuardError('SCENARIO_CONTEXT_MISMATCH')
         reserved = _artifact(manifest, scenario_id, 'RESERVED_UNCERTAIN')
         _write_new(directory / f'{scenario_id}.attempt.json', reserved)
-        response, failure, diagnostic, outcome = None, None, None, 'SUCCESS'
+        response, failure, diagnostic, provider_diagnostic_code, provider_http_status, outcome = None, None, None, None, None, 'SUCCESS'
         try:
             validated = coach.generate_coach_response(context)
             if not isinstance(validated, CoachResponse):
@@ -323,8 +346,12 @@ def execute(scenario_id, context, config, directory, *, allow_real_api_call=Fals
             failure = next((code for kind, code in FAILURES.items() if isinstance(error, kind)), 'UNEXPECTED_ERROR')
             if isinstance(error, coach.CoachInvalidResponseError):
                 diagnostic = error.validation_diagnostic
+            elif isinstance(error, coach.CoachProviderError):
+                provider_diagnostic_code, provider_http_status = error.safe_diagnostic
         artifact = _artifact(manifest, scenario_id, outcome, response=response, failure=failure,
-                             diagnostic=diagnostic, timestamp=reserved['execution_timestamp_utc'])
+                             diagnostic=diagnostic, provider_diagnostic_code=provider_diagnostic_code,
+                             provider_http_status=provider_http_status,
+                             timestamp=reserved['execution_timestamp_utc'])
         _write_new(directory / f'{scenario_id}.result.json', artifact)
         return artifact
 
@@ -353,7 +380,9 @@ def main(argv=None):
             result = execute(args.scenario, context, config, args.output_dir, allow_real_api_call=True)
             print(json.dumps({'scenario_id': args.scenario, 'attempt_outcome': result['attempt_outcome'],
                               'structural_validation': result['structural_validation'],
-                              'safe_failure_category': result['safe_failure_category']}))
+                              'safe_failure_category': result['safe_failure_category'],
+                              'safe_provider_diagnostic_code': result['safe_provider_diagnostic_code'],
+                              'safe_provider_http_status': result['safe_provider_http_status']}))
             return 0 if result['attempt_outcome'] == 'SUCCESS' else 1
         print(json.dumps(dry_run(args.scenario, config, args.output_dir), indent=2))
         return 0

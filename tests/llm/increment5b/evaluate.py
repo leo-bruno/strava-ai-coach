@@ -39,7 +39,8 @@ def _ingest(directory, manifest, scenario, knowledge):
            'execution_outcome': 'MISSING', 'technical_validation': 'PASS', 'structural_validation': 'NOT_EVALUATED',
            'permitted_status_check': 'UNEVALUATED', 'unassessable_reason': 'NOT_ATTEMPTED',
            'execution_artifact_sha256': None, 'reservation_sha256': None, 'response_sha256': None,
-           'safe_error_code': None, 'response': None}
+           'safe_error_code': None, 'safe_provider_diagnostic_code': None,
+           'safe_provider_http_status': None, 'response': None}
     try:
         if not row['reserved']:
             if row['terminal_record']:
@@ -56,9 +57,12 @@ def _ingest(directory, manifest, scenario, knowledge):
         artifact = run._read_sealed(result_path)
         outcome, response, failure, diagnostic = (artifact.get(key) for key in
             ('attempt_outcome', 'response', 'safe_failure_category', 'safe_validation_diagnostic'))
+        provider_diagnostic_code = artifact.get('safe_provider_diagnostic_code')
+        provider_http_status = artifact.get('safe_provider_http_status')
         allowed = {f'{code}: {explanation}' for code, explanation in run.coach._VALIDATION_DIAGNOSTICS.items()}
         if diagnostic is not None and diagnostic not in allowed:
             raise ReviewInputError('DIAGNOSTIC_INVALID')
+        run._validate_provider_diagnostic(provider_diagnostic_code, provider_http_status, failure)
         if outcome not in ('SUCCESS', 'FAILED', 'INTERRUPTED'):
             raise ReviewInputError('EXECUTION_OUTCOME_INVALID')
         if outcome == 'SUCCESS':
@@ -69,12 +73,16 @@ def _ingest(directory, manifest, scenario, knowledge):
         if (outcome == 'INTERRUPTED') != (failure == 'INTERRUPTED'):
             raise ReviewInputError('INTERRUPTION_RECORD_INVALID')
         expected = run._artifact(manifest, sid, outcome, response=response, failure=failure,
-                                diagnostic=diagnostic, timestamp=reserved['execution_timestamp_utc'])
+                                diagnostic=diagnostic, provider_diagnostic_code=provider_diagnostic_code,
+                                provider_http_status=provider_http_status,
+                                timestamp=reserved['execution_timestamp_utc'])
         if artifact != expected:
             raise ReviewInputError('EXECUTION_BINDING_INVALID')
         row.update(execution_artifact_sha256=artifact['artifact_sha256'], execution_outcome=outcome,
                    structural_validation=artifact['structural_validation'],
-                   unassessable_reason=failure, safe_error_code=failure)
+                   unassessable_reason=failure, safe_error_code=failure,
+                   safe_provider_diagnostic_code=provider_diagnostic_code,
+                   safe_provider_http_status=provider_http_status)
         if outcome == 'SUCCESS':
             context = rubric.build_context(scenario['input'])
             try:

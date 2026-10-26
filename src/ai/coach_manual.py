@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from src.ai.coach import CoachError, CoachInvalidResponseError, generate_coach_response
+from src.ai.coach import CoachError, CoachInvalidResponseError, CoachProviderError, generate_coach_response
 from src.ai.training_knowledge import load_training_knowledge
 from src.ui.coach_response import render_coach_response
 
@@ -18,6 +18,10 @@ def main(argv: list[str] | None = None) -> int:
         "--diagnose-validation", action="store_true",
         help="Show only a safe code and fixed explanation if response validation fails.",
     )
+    parser.add_argument(
+        "--diagnose-provider", action="store_true",
+        help="Show only an allowlisted provider error code and validated HTTP status.",
+    )
     args = parser.parse_args(argv)
     if not args.allow_real_api_call:
         parser.error("A real call requires --allow-real-api-call.")
@@ -31,6 +35,10 @@ def main(argv: list[str] | None = None) -> int:
     except CoachError as error:
         if args.diagnose_validation and isinstance(error, CoachInvalidResponseError):
             print(error.validation_diagnostic, file=sys.stderr)
+        elif args.diagnose_provider and isinstance(error, CoachProviderError):
+            code, status = error.safe_diagnostic
+            suffix = f" HTTP {status}" if status is not None else ""
+            print(f"{code}{suffix}", file=sys.stderr)
         else:
             print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1
