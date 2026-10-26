@@ -356,6 +356,31 @@ Stop and ask the user when a decision materially affects:
 
 When asking for a decision, explain the alternatives and provide the Architect's recommendation when possible.
 
+### Human-decision notifications
+
+When a genuine human decision is required, the Orchestrator must persist a typed
+`HUMAN_DECISION_REQUIRED` event through the configured Codex notification adapter
+before presenting the decision question to the user. Follow the adapter's
+`~/.codex/notification_adapter/AGENTS.integration.md` protocol and schema. The
+event must describe the real decision, include at least two meaningful options
+with their advantages and risks, give the Architect's recommendation, and
+provide the required context and problem details. Use the actual project and a
+stable identifier for this run; do not invent details to satisfy the schema.
+
+Only present the decision question after enqueue reports success (including an
+idempotent existing event). If enqueue fails or the adapter is unavailable,
+report that the notification event could not be recorded and its safe error
+category, then present the decision question so work does not proceed without
+the user's input. Do not claim that an email was sent or delivered: SMTP
+dispatch occurs later and can fail independently.
+
+The `Stop` hook is a dispatcher for already-persisted events only. It must not
+infer decisions from conversation text, create events, or manufacture synthetic
+events. Never enqueue fictional events or use real event records as notification
+tests. This instruction is a coordinator workflow requirement; it does not make
+event creation a hard runtime guarantee, so the enqueue result must be checked
+each time.
+
 
 Git checkpoints
 
