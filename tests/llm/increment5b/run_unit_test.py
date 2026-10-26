@@ -22,7 +22,7 @@ PRODUCTION_GENERATE = run.coach.generate_coach_response
 def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(run, 'ARTIFACT_ROOT', tmp_path / 'artifacts')
     monkeypatch.setenv('OPENAI_COACH_MODEL', 'offline-test-model')
-    monkeypatch.setenv('OPENAI_API_KEY', 'TEST_KEY_MUST_NOT_LEAK')
+    monkeypatch.setenv('OPENAI_KEY', 'TEST_KEY_MUST_NOT_LEAK')
     def forbidden(*args, **kwargs):
         raise AssertionError('External execution forbidden in tests.')
     monkeypatch.setattr(socket, 'create_connection', forbidden)
@@ -80,7 +80,7 @@ def test_unknown_scenario_rejected():
 
 
 def test_dry_run_no_key_no_client_no_attempt(prepared, monkeypatch, capsys):
-    monkeypatch.delenv('OPENAI_API_KEY')
+    monkeypatch.delenv('OPENAI_KEY')
     assert run.main(['--scenario','5A-01']) == 0
     summary = json.loads(capsys.readouterr().out)
     assert summary['api_calls'] == 0
@@ -211,7 +211,7 @@ def test_budget_exhaustion_across_scenarios(prepared,monkeypatch):
 def test_live_guards_before_reservation(prepared,monkeypatch,defect):
     directory=cohort(prepared)
     context=prepared[2]
-    if defect=='key':monkeypatch.delenv('OPENAI_API_KEY')
+    if defect=='key':monkeypatch.delenv('OPENAI_KEY')
     if defect=='model':monkeypatch.setenv('OPENAI_COACH_MODEL','different')
     if defect=='context':context=replace(context,constraints=replace(context.constraints,available_training_days_per_week=0))
     with pytest.raises(run.ExecutionGuardError):

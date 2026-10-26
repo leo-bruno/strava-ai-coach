@@ -245,10 +245,10 @@ def generate_coach_response(context: CoachContext) -> CoachResponse:
     Dates/timestamps use ISO 8601, enums their values, zones their IANA keys,
     and tuples JSON arrays. Provider errors/output are never logged or echoed.
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENAI_KEY")
     model = os.environ.get("OPENAI_COACH_MODEL")
     if not api_key or not api_key.strip():
-        raise CoachConfigurationError("Set OPENAI_API_KEY before executing Coach.")
+        raise CoachConfigurationError("Set OPENAI_KEY before executing Coach.")
     if not model or not model.strip():
         raise CoachConfigurationError("Set OPENAI_COACH_MODEL to a structured-output capable model.")
     try:

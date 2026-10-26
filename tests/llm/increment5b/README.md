@@ -41,7 +41,7 @@ A later explicitly authorized execution requires all of:
 - Positive approved budget with a remaining attempt.
 - No prior reservation for the selected scenario, including failures.
 - Matching frozen implementation, dataset, context, prompt, schema and knowledge fingerprints.
-- Matching `OPENAI_COACH_MODEL` and nonblank `OPENAI_API_KEY` in the process environment.
+- Matching `OPENAI_COACH_MODEL` and nonblank `OPENAI_KEY` in the process environment.
 - Explicit `--allow-real-api-call`.
 
 This flag can incur provider cost. It was never used against a real provider during development. The function calls the unchanged production Coach once. Production retains `max_retries=0`, `store=False`, strict output specialization and existing parser/validator behavior. No environment or authorization header is persisted.

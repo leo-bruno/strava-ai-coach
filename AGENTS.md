@@ -443,6 +443,10 @@ Sensitive configuration must be stored outside the source code.
 
 The .env file must be excluded from Git.
 
+The OpenAI credential environment variable is `OPENAI_KEY`. Use this name in
+Coach configuration, tests, and operator commands. Offline tests must use dummy
+credentials with mocked provider calls; never use or print a real credential.
+
 Git
 
 All git commits and pushes are performed exclusively by the user.

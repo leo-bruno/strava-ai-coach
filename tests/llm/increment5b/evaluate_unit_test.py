@@ -21,7 +21,7 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(socket.socket, 'connect', forbidden)
     monkeypatch.setattr(run.coach, 'OpenAI', forbidden)
     monkeypatch.setattr(run.coach, 'generate_coach_response', forbidden)
-    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.delenv('OPENAI_KEY', raising=False)
     monkeypatch.delenv('OPENAI_COACH_MODEL', raising=False)
 
 

@@ -294,7 +294,7 @@ def execute(scenario_id, context, config, directory, *, allow_real_api_call=Fals
             raise ExecutionGuardError('APPROVED_BUDGET_EXHAUSTED')
         if os.environ.get('OPENAI_COACH_MODEL') != config['model']:
             raise ExecutionGuardError('PRODUCTION_MODEL_MISMATCH')
-        if not os.environ.get('OPENAI_API_KEY', '').strip():
+        if not os.environ.get('OPENAI_KEY', '').strip():
             raise ExecutionGuardError('LIVE_CREDENTIALS_MISSING')
         if sha(domain_json(context)) != config['scenario_bindings'][scenario_id]['context_sha256']:
             raise ExecutionGuardError('SCENARIO_CONTEXT_MISMATCH')
