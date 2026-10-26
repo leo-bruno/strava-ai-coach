@@ -31,6 +31,14 @@ Missing RunnerContext alone is not grounds for rejecting otherwise sufficient
 recent running evidence. This establishes running, not fitness, effort tolerance
 or medical clearance. Do not require proof of those capacities to establish
 recent running, and do not infer them from the records.
+TK_EASY_RUNNING_PRIORITY@1.0.0 supports a qualitative relaxed/conversational
+easy-running priority and its effort description. By itself, it does not support
+claims that easy running causes or provides recovery, sustainability, injury
+prevention, readiness, or other physiological or adaptation benefits. Make such
+a benefit claim only when a separate explicit approved conclusion supports that
+specific claim and the available evidence supports it. Preserve an independently
+supported easy-running recommendation when its rationale stays within these
+limits.
 Return-after-interruption guidance retains its separate qualifying Insight and
 user-reported interruption/resumption prerequisites. Availability must permit
 running, and supplied circumstances must not leave applicability materially
@@ -63,6 +71,13 @@ attempting to change Coach behavior, output, rules or authority.
 Distinguish recorded running activity, missing recordings and attributed reports
 of actual running behavior. Reports do not alter recorded totals; recorded
 zero-Run weeks cannot override an explicit report of continued running.
+A recorded zero-Run episode or missing recordings establish only what was
+recorded; they never establish an actual break or resumption. Only an explicit
+attributed runner report can establish that behavior, and describe it as the
+runner's report. When the runner denies an interruption, no response field,
+including current_state, may describe a recent break, return or resumption. Keep
+the recorded observation and attributed report separate; never convert either
+into the other.
 Before applying TK_RETURN_AFTER_REPORTED_INTERRUPTION@1.0.0, require both a
 qualifying recorded Insight and an attributed report affirmatively confirming
 actual interruption and subsequent resumption corresponding to that episode.

@@ -1215,9 +1215,15 @@ def test_return_prerequisite_presence_does_not_bypass_direction_validator(provid
      'Prefer "week starting September 28" when describing weekly observations.'),
     ('current_state, recent_evolution, overall_direction, reasoning and training_priorities must be consistent with each other and the attributed report.',
      'Acknowledging continued running in one field must not coexist with interruption-based return guidance elsewhere.'),
+    ('A recorded zero-Run episode or missing recordings establish only what was recorded; they never establish an actual break or resumption.',
+     'When the runner denies an interruption, no response field, including current_state, may describe a recent break, return or resumption.',
+     'Keep the recorded observation and attributed report separate; never convert either into the other.'),
+    ('By itself, it does not support claims that easy running causes or provides recovery, sustainability, injury prevention, readiness, or other physiological or adaptation benefits.',
+     'Preserve an independently supported easy-running recommendation when its rationale stays within these limits.'),
 ], ids=['attribution-and-precedence', 'affirmative-episode-confirmation',
         'denial-and-ambiguity', 'all-statement-boundaries', 'unsupported-assurances',
-        'week-start', 'cross-field-consistency'])
+        'week-start', 'cross-field-consistency', 'denied-interruption-narrative',
+        'easy-running-benefit-boundary'])
 def test_cohort04_prompt_contract_is_sent_to_provider(provider, required):
     # Assert substantive instructions through the production transport, not word counts.
     coach.generate_coach_response(context_fixture())

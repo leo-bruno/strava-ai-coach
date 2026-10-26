@@ -73,7 +73,7 @@ UI	⏳ Futuro
 
 📍 Current Focus
 
-AI Coach V1 — Incremento 5B: cohort-06 / 5A-03 con FAIL semántico humano confirmado; representación neutral del contexto histórico implementada, pendiente de validación semántica live autorizada.
+AI Coach V1 — Incremento 5B: cohort-07 / 5A-03 obtuvo FAIL semántico humano con dos hallazgos MAJOR. Se reforzó offline el contrato del prompt para separar observaciones de conducta reportada y limitar los beneficios atribuidos a easy running. El modelo sigue sin aceptación semántica; la validación live requiere autorización y un cohort/presupuesto nuevo.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, sin UI ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
 
@@ -88,6 +88,14 @@ CoachContext, builder, Analytics, Trends, detectores, conocimiento aprobado, pro
 Validación offline: seis casos adicionales, 313 tests focalizados Coach/validator/manual PASS y suite completa 1.717 PASS sin warnings en la repetición. Coach execution, parser/validator y wrapper manual conservan 100 % de statements y branches. La primera suite completa registró 1.716 PASS y un COHORT_BUSY intermitente en un test existente de ingestión; no se modifica el guard ni se debilitan tests. Los casos verifican negación, confirmación, ambigüedad y ausencia de RunnerContext, preservación exacta de observaciones/referencias, null sin historial, aislamiento entre solicitudes y transporte SDK con HTTP falso.
 
 La atribución causal del nombre anterior sigue siendo una hipótesis: los mocks verifican el payload y los contratos, no que el modelo deje de producir retorno falso o beneficios de seguridad inventados. El próximo paso requiere autorización explícita y un nuevo cohort/presupuesto congelado antes de evaluar la corrección con revisión humana v2. No se realiza ninguna llamada real ni se crea un cohort live en esta implementación.
+
+Incremento 5B — cohort-07: fallos semánticos y límite del prompt (26 de octubre de 2026)
+
+cohort-07 / 5A-03 conserva SUCCESS, validación estructural PASS e integridad técnica PASS. La revisión humana v2 confirmó FAIL semántico y dos hallazgos MAJOR no sustentados: `current_state.text` afirma que el corredor reanudó después de tres semanas sin registros pese a que negó una interrupción; `next_week_recommendation.reasoning.text` atribuye beneficios de recuperación a easy running sin evidencia suficiente. La recomendación cualitativa de easy running sí es aceptable. El informe registra un escenario semánticamente fallido y siete no evaluables; no asigna una puntuación de utilidad ni declara aceptación del modelo.
+
+La corrección offline se limita a `coach_v1.txt` y sus pruebas de contrato. El prompt establece que episodios cero-Run y registros ausentes describen observaciones, no una interrupción o reanudación real; cuando el corredor niega la interrupción, ningún campo puede narrar una vuelta reciente. También preserva la prioridad cualitativa fácil y su descripción conversacional, pero prohíbe atribuir recuperación, sostenibilidad, prevención de lesiones, readiness u otros beneficios fisiológicos/adaptativos sin una conclusión aprobada y evidencia explícita. No cambia conocimiento, contexto, schema, validator ni arquitectura.
+
+El review y el informe v2 de cohort-07 se sellaron contra el snapshot original antes de modificar el prompt; los artefactos anteriores del cohort permanecen intactos. Validación offline: 9 pruebas focalizadas del contrato de prompt PASS y suite configurada completa 1.719 PASS. Estas pruebas no demuestran aceptación semántica del modelo. No se ejecutó OpenAI ni se creó un cohort nuevo. La siguiente validación requiere autorización explícita para un nuevo cohort live con configuración y presupuesto congelados y revisión humana v2.
 
 Incremento 5B — Evaluation Design v2.0 (20 de octubre de 2026)
 
@@ -1018,7 +1026,7 @@ Analytics + Trends → tres aumentos o disminuciones estrictas entre cuatro obse
 
 ↓
 
-AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con fallos semánticos en cohort-04 y cohort-06, rechazo de dominio en cohort-05; representación neutral de entrada implementada, validación live pendiente
+AI Coach 🟡 Incrementos 1–4, 5A, 5B-01 y 5B-02 cerrados; 5B-03 con fallos semánticos en cohort-04, cohort-06 y cohort-07, y rechazo de dominio en cohort-05; transporte neutral y corrección del prompt implementados offline, aceptación semántica live pendiente
 
 Petición validada, conocimiento fijo, CoachContext determinista, frontera CoachResponse/renderer y ejecución OpenAI de una sola llamada implementados. Tras los rechazos iniciales, el usuario confirmó una primera ejecución real validada con status insufficient_support y fixture sintético; cualquier nueva ejecución requiere decisión manual. Incremento 5A está COMPLETE con dieciséis controles sintéticos offline revisados por el usuario y todos sus criterios de aceptación PASS. Evaluación de modelos y ampliaciones requieren autorización separada; no se inician automáticamente.
 
@@ -1093,7 +1101,7 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 
 ➡️ Próximo paso
 
-Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con tres fallos semánticos confirmados en cohort-04 y rechazo EASY_DIRECTION_UNSUPPORTED en cohort-05 / 5A-03 (1/1 intentos consumidos, semántica UNASSESSABLE). cohort-06 / 5A-03 obtuvo validación técnica PASS y revisión humana v2 FAIL, utilidad 1/2, F01 CRITICAL y F02 MAJOR, seis dimensiones FAIL. La corrección neutral de representación de entrada está implementada offline; el próximo paso es autorizar explícitamente una evaluación live de esta corrección con nuevo cohort congelado, presupuesto aprobado y revisión humana v2, preservando cohort-01 a cohort-06 y todos sus resultados y reviews originales. No se reanuda ningún cohort histórico. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
+Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con tres fallos semánticos confirmados en cohort-04; rechazo EASY_DIRECTION_UNSUPPORTED en cohort-05 / 5A-03 (1/1 intentos consumidos, semántica UNASSESSABLE); cohort-06 / 5A-03 con FAIL v2, utilidad 1/2, F01 CRITICAL y F02 MAJOR; y cohort-07 / 5A-03 con FAIL v2 y dos hallazgos MAJOR no sustentados. El transporte neutral de observaciones y el refuerzo offline del prompt están implementados, pero no acreditan aceptación del modelo. El próximo paso requiere autorización explícita para validar con un nuevo cohort live, configuración y presupuesto congelados y revisión humana v2, preservando cohort-01 a cohort-07 y todos sus resultados y reviews originales. No se reanuda ningún cohort histórico. No se ejecuta OpenAI, conecta Strava ni integra UI automáticamente. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
