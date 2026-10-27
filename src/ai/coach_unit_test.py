@@ -765,6 +765,36 @@ def test_5a03_operational_examples_reach_production_transport(provider):
     provider[1].assert_called_once()
 
 
+def test_5a05_questionable_measurements_cannot_support_activity_or_recommendation(provider):
+    # This is a prompt contract check through the production transport path;
+    # it does not claim that a generated model will follow the contract.
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    assert ('Do not treat an explicitly flagged or internally inconsistent measurement '
+            'combination as proof that an activity occurred or as support for a training '
+            'recommendation.') in prompt
+    assert ('when distance and moving time materially conflict, do not infer activity presence, '
+            'effort, fitness, readiness, training load or a next-week priority from that record.') in prompt
+    assert ('without deciding which value is wrong, correcting or replacing data, '
+            'or applying an invented threshold.') in prompt
+    assert 'Do not derive a pace or other conclusion from measurements whose reliability is in question.' in prompt
+    assert ('ask only a clarification that could establish an existing approved prerequisite, '
+            'and only when the status contract permits that question.') in prompt
+    provider[1].assert_called_once()
+
+
+def test_questionable_measurement_preserves_independently_supported_easy_guidance(provider):
+    # Independent evidence remains usable; the safeguard is scoped to the
+    # questionable record rather than forcing global abstention.
+    coach.generate_coach_response(context_fixture())
+    prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
+    assert ('A questionable record does not invalidate separate, reliable evidence: '
+            'preserve any independently supported guidance, including a qualitative '
+            'easy-running priority when its own prerequisites are satisfied.') in prompt
+    assert 'Missing RunnerContext alone is not grounds for rejecting otherwise sufficient recent running evidence.' in prompt
+    provider[1].assert_called_once()
+
+
 def test_prompt_explicitly_scopes_recommendation_authority_and_limitations(provider):
     coach.generate_coach_response(context_fixture())
     prompt = ' '.join(provider[1].call_args.kwargs['messages'][0]['content'].split())
