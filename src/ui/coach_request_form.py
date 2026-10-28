@@ -7,6 +7,19 @@ from src.models.coach_request import coach_request_from_input
 
 
 REQUEST_SESSION_KEY = "validated_coach_request"
+FORM_WIDGET_KEYS = (
+    "target_date",
+    "available_training_days",
+    "athlete_timezone",
+    "runner_context",
+)
+
+
+def _clear_request_form(session_state) -> None:
+    """Clear the validated request and form values before Streamlit reruns."""
+    session_state.pop(REQUEST_SESSION_KEY, None)
+    for key in FORM_WIDGET_KEYS:
+        session_state.pop(key, None)
 
 
 def render_request_page(ui=None) -> None:
@@ -44,6 +57,13 @@ def render_request_page(ui=None) -> None:
             key="runner_context",
         )
         submitted = ui.form_submit_button("Validate request")
+
+    ui.button(
+        "Clear form",
+        key="clear_request_form",
+        on_click=_clear_request_form,
+        args=(ui.session_state,),
+    )
 
     if submitted:
         ui.session_state.pop(REQUEST_SESSION_KEY, None)

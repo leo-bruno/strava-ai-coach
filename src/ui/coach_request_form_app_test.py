@@ -81,3 +81,46 @@ def test_invalid_resubmission_clears_previous_valid_request():
     assert REQUEST_SESSION_KEY not in app.session_state
     assert app.error
     assert "No time zone found" in visible_text(app)
+
+
+def assert_default_form_values(app: AppTest) -> None:
+    assert app.date_input(key="target_date").value == date.today() + timedelta(days=30)
+    assert app.number_input(key="available_training_days").value == 0
+    assert app.text_input(key="athlete_timezone").value == ""
+    assert app.text_area(key="runner_context").value == ""
+
+
+def test_clear_form_discards_unsubmitted_draft_and_restores_defaults():
+    app = run_app()
+    app.date_input(key="target_date").set_value(date.today() + timedelta(days=45))
+    app.number_input(key="available_training_days").set_value(4)
+    app.text_input(key="athlete_timezone").set_value("Not/A_Timezone")
+    app.text_area(key="runner_context").set_value("PRIVATE DRAFT CONTEXT")
+
+    app.button(key="clear_request_form").click().run()
+
+    assert not app.exception
+    assert REQUEST_SESSION_KEY not in app.session_state
+    assert_default_form_values(app)
+    assert "Request summary" not in visible_text(app)
+    assert "PRIVATE DRAFT CONTEXT" not in visible_text(app)
+    assert not app.success
+    assert not app.error
+    assert not app.session_state.get("runner_context")
+
+
+def test_clear_form_removes_validated_request_and_restores_defaults():
+    app = run_app()
+    private_context = "PRIVATE VALIDATED CONTEXT"
+    submit_valid_request(app, private_context)
+    assert REQUEST_SESSION_KEY in app.session_state
+
+    app.button(key="clear_request_form").click().run()
+
+    assert not app.exception
+    assert REQUEST_SESSION_KEY not in app.session_state
+    assert_default_form_values(app)
+    assert "Request summary" not in visible_text(app)
+    assert private_context not in visible_text(app)
+    assert not app.success
+    assert not app.error

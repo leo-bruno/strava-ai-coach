@@ -67,13 +67,13 @@ Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
 AI Coach	🟡 Incrementos 1–4 cerrados — primera ejecución real validada con fixture sintético; evaluación semántica pendiente
 Training Planning	⏳ Futuro
-UI	🟡 Formulario inicial de solicitud Coach; sin generación de consejos ni Strava
+UI	🟡 Formulario inicial Coach con acción de limpiar; sin generación de consejos ni acceso a Strava
 
 ⸻
 
 📍 Current Focus
 
-AI Coach V1 — Incremento UI inicial: página Streamlit para validar y conservar en sesión una solicitud Coach mediante el validador existente; no genera consejos ni accede a Strava. Las pruebas usan una interfaz Streamlit simulada; compatibilidad con Streamlit real/AppTest aún no verificada. La UI es solo captura de entrada, no integración completa del producto. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
+AI Coach V1 — UI inicial en Streamlit: permite validar una solicitud Coach con el validador existente, conservarla solo en sesión y borrar un borrador o solicitud validada para restablecer los campos. El flujo se verifica con AppTest real y tests de unidad; no genera consejos ni accede a Strava. La UI sigue siendo captura de entrada, no integración completa del producto. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
 
 Insights V1 está COMPLETE con Persistent Weekly Running Distance Increase, Persistent Weekly Running Distance Decrease y ObservedRunningAfterZeroRunWeeks, sin cambios. El diseño de AI Coach V1 y su orden incremental están aprobados. Los Incrementos 1–4 permanecen cerrados y sin cambios; existe ejecución Coach explícita para desarrolladores, mientras la UI inicial solo valida solicitudes. No hay UI de resultados ni nuevos Insights. Incremento 5A añade exclusivamente evaluación offline de controles sintéticos authored. La validación humana de los dieciséis controles authored está completa; la evaluación de respuestas generadas permanece pendiente y fuera del alcance 5A.
 
@@ -1128,4 +1128,4 @@ El gap de detailed Strava activity → TrainingAnalysis y la ausencia de persist
 
 ⸻
 
-Last updated: 27 October 2026
+Last updated: 28 October 2026

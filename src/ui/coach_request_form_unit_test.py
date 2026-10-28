@@ -8,15 +8,16 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from src.models.coach_request import CoachRequest, coach_request_from_input
-from src.ui.coach_request_form import REQUEST_SESSION_KEY, render_request_page
+from src.ui.coach_request_form import FORM_WIDGET_KEYS, REQUEST_SESSION_KEY, render_request_page
 
 
 class MockStreamlit:
     """Widget values and output capture only; request behavior stays in the page."""
 
-    def __init__(self, *, values=None, submitted=True, session_state=None):
+    def __init__(self, *, values=None, submitted=True, clear_clicked=False, session_state=None):
         self.values = values or {}
         self.submitted = submitted
+        self.clear_clicked = clear_clicked
         self.session_state = session_state if session_state is not None else {}
         self.output = []
         self.errors = []
@@ -59,6 +60,11 @@ class MockStreamlit:
 
     def form_submit_button(self, _label):
         return self.submitted
+
+    def button(self, _label, *, on_click=None, args=(), **_kwargs):
+        if self.clear_clicked and on_click is not None:
+            on_click(*args)
+        return self.clear_clicked
 
 
 def form_values(**overrides):
@@ -169,3 +175,40 @@ def test_unsubmitted_form_keeps_only_existing_session_request():
     assert ui.session_state == {REQUEST_SESSION_KEY: previous_request}
     assert "Request summary" in ui.output
     assert not ui.errors
+
+
+def test_clear_form_removes_draft_values_and_suppresses_request_output():
+    draft_values = form_values(runner_context="private draft")
+    state = {key: draft_values[key] for key in FORM_WIDGET_KEYS}
+    ui = MockStreamlit(
+        values=form_values(runner_context="private draft"),
+        submitted=False,
+        clear_clicked=True,
+        session_state=state,
+    )
+
+    render_request_page(ui)
+
+    assert ui.session_state == {}
+    assert not ui.errors
+    assert "Request summary" not in ui.output
+    assert "Request validated and kept in this session." not in ui.output
+    assert "private draft" not in " ".join(map(str, ui.output))
+
+
+def test_clear_form_removes_a_previously_validated_request():
+    state = {REQUEST_SESSION_KEY: valid_request()}
+    validated_values = form_values(runner_context="private validated context")
+    state.update({key: validated_values[key] for key in FORM_WIDGET_KEYS})
+    ui = MockStreamlit(
+        values=form_values(runner_context="private validated context"),
+        submitted=False,
+        clear_clicked=True,
+        session_state=state,
+    )
+
+    render_request_page(ui)
+
+    assert ui.session_state == {}
+    assert "Request summary" not in ui.output
+    assert "private validated context" not in " ".join(map(str, ui.output))
