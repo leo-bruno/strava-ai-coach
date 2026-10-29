@@ -3,10 +3,13 @@
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from src.ai.coach_demo import build_offline_demo
 from src.models.coach_request import coach_request_from_input
+from src.ui.coach_response import render_coach_response
 
 
 REQUEST_SESSION_KEY = "validated_coach_request"
+DEMO_SESSION_KEY = "offline_coach_demo_output"
 FORM_WIDGET_KEYS = (
     "target_date",
     "available_training_days",
@@ -16,10 +19,17 @@ FORM_WIDGET_KEYS = (
 
 
 def _clear_request_form(session_state) -> None:
-    """Clear the validated request and form values before Streamlit reruns."""
+    """Clear the request, demo result and form values before rerunning."""
     session_state.pop(REQUEST_SESSION_KEY, None)
+    session_state.pop(DEMO_SESSION_KEY, None)
     for key in FORM_WIDGET_KEYS:
         session_state.pop(key, None)
+
+
+def _offline_demo_output() -> str:
+    """Return a fully parsed, domain-validated and rendered demo result."""
+    context, response, knowledge = build_offline_demo()
+    return render_coach_response(response, context=context, knowledge=knowledge)
 
 
 def render_request_page(ui=None) -> None:
@@ -28,7 +38,10 @@ def render_request_page(ui=None) -> None:
         import streamlit as ui
 
     ui.title("Strava AI Coach")
-    ui.write("This page collects a training request. It does not generate advice or access Strava.")
+    ui.write(
+        "Validating a request does not call the Coach or access Strava. "
+        "The separate offline demo displays a pre-recorded synthetic response."
+    )
 
     with ui.form("coach_request_form"):
         ui.text_input("Goal", value="Half marathon", disabled=True)
@@ -59,11 +72,20 @@ def render_request_page(ui=None) -> None:
         submitted = ui.form_submit_button("Validate request")
 
     ui.button(
-        "Clear form",
+        "Clear form and demo",
         key="clear_request_form",
         on_click=_clear_request_form,
         args=(ui.session_state,),
     )
+
+    if ui.button("Show offline demo", key="show_offline_demo"):
+        ui.session_state.pop(DEMO_SESSION_KEY, None)
+        try:
+            rendered_demo = _offline_demo_output()
+        except ValueError:
+            ui.error("The offline demo response could not be validated. No response was displayed.")
+        else:
+            ui.session_state[DEMO_SESSION_KEY] = rendered_demo
 
     if submitted:
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
@@ -100,4 +122,16 @@ def render_request_page(ui=None) -> None:
             "Available training days per week: "
             f"{request.constraints.available_training_days_per_week}"
         )
-        ui.info("No training advice has been generated, and no Strava data has been accessed.")
+        ui.info(
+            "No training advice has been generated for this validated request, and no Strava data has been "
+            "accessed. It remains separate from the offline demo."
+        )
+
+    demo_output = ui.session_state.get(DEMO_SESSION_KEY)
+    if demo_output is not None:
+        ui.subheader("Offline Coach demo")
+        ui.info(
+            "Demonstration with synthetic data; the response is pre-recorded, does not represent an athlete, "
+            "and does not evaluate the model."
+        )
+        ui.text(demo_output)

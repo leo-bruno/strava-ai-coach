@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from streamlit.testing.v1 import AppTest
 
 from src.models.coach_request import CoachRequest
-from src.ui.coach_request_form import REQUEST_SESSION_KEY
+from src.ui.coach_request_form import DEMO_SESSION_KEY, REQUEST_SESSION_KEY
 
 
 APP_ENTRYPOINT = "../../src/main.py"
@@ -20,6 +20,7 @@ def visible_text(app: AppTest) -> str:
         app.title,
         app.subheader,
         app.markdown,
+        app.text,
         app.success,
         app.info,
         app.warning,
@@ -47,7 +48,7 @@ def test_entrypoint_initial_render_has_no_streamlit_exception():
 
     assert not app.exception
     assert "Strava AI Coach" in visible_text(app)
-    assert "It does not generate advice or access Strava." in visible_text(app)
+    assert "Validating a request does not call the Coach or access Strava." in visible_text(app)
     assert not app.session_state.get(REQUEST_SESSION_KEY)
 
 
@@ -124,3 +125,52 @@ def test_clear_form_removes_validated_request_and_restores_defaults():
     assert private_context not in visible_text(app)
     assert not app.success
     assert not app.error
+
+
+def test_offline_demo_is_separate_and_uses_its_fixed_synthetic_context():
+    app = run_app()
+    target_date = submit_valid_request(app, "This request must not be used by the demo.")
+    assert app.session_state[REQUEST_SESSION_KEY].goal.target_date == target_date
+
+    app.button(key="show_offline_demo").click().run()
+
+    text = visible_text(app)
+    assert not app.exception
+    assert DEMO_SESSION_KEY in app.session_state
+    assert "Demonstration with synthetic data" in text
+    assert "pre-recorded" in text
+    assert "does not represent an athlete" in text
+    assert "does not evaluate the model" in text
+    assert "2026-10-12 → 2026-10-19" in app.session_state[DEMO_SESSION_KEY]
+    assert "2026-10-08" in app.session_state[DEMO_SESSION_KEY]
+    assert "This request must not be used by the demo." not in text
+    assert app.session_state[REQUEST_SESSION_KEY].goal.target_date == target_date
+
+
+def test_clear_form_also_discards_the_offline_demo():
+    app = run_app()
+    app.button(key="show_offline_demo").click().run()
+    assert DEMO_SESSION_KEY in app.session_state
+
+    app.button(key="clear_request_form").click().run()
+
+    assert not app.exception
+    assert DEMO_SESSION_KEY not in app.session_state
+    assert "Offline Coach demo" not in visible_text(app)
+
+
+def test_invalid_demo_response_is_not_partially_displayed(monkeypatch):
+    import src.ui.coach_request_form as form
+
+    def invalid_demo():
+        raise ValueError("invalid fixture")
+
+    monkeypatch.setattr(form, "_offline_demo_output", invalid_demo)
+    app = run_app()
+    app.button(key="show_offline_demo").click().run()
+
+    assert not app.exception
+    assert DEMO_SESSION_KEY not in app.session_state
+    assert app.error
+    assert "No response was displayed" in visible_text(app)
+    assert "Offline Coach demo" not in visible_text(app)

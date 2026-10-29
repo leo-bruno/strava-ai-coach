@@ -61,10 +61,10 @@ class MockStreamlit:
     def form_submit_button(self, _label):
         return self.submitted
 
-    def button(self, _label, *, on_click=None, args=(), **_kwargs):
-        if self.clear_clicked and on_click is not None:
+    def button(self, _label, *, key=None, on_click=None, args=(), **_kwargs):
+        if self.clear_clicked and key == "clear_request_form" and on_click is not None:
             on_click(*args)
-        return self.clear_clicked
+        return self.clear_clicked and key == "clear_request_form"
 
 
 def form_values(**overrides):

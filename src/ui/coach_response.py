@@ -8,9 +8,19 @@ from src.models.coach_response import CoachResponse, GroundedStatement
 
 
 def _evidence_labels(context: CoachContext) -> dict[str, str]:
+    source_name = context.source_metadata.source_name or "Strava"
+    synthetic_source = source_name.casefold().startswith("synthetic")
     labels = {
-        "request:goal": f"Runner goal (user-reported): {context.goal.goal_type.value}; target {context.goal.target_date}",
-        "request:constraints": f"Runner availability (user-reported maximum): {context.constraints.available_training_days_per_week} days; not a recommended count",
+        "request:goal": (
+            f"Synthetic demo goal: {context.goal.goal_type.value}; target {context.goal.target_date}"
+            if synthetic_source
+            else f"Runner goal (user-reported): {context.goal.goal_type.value}; target {context.goal.target_date}"
+        ),
+        "request:constraints": (
+            f"Synthetic demo availability: {context.constraints.available_training_days_per_week} days; not a recommended count"
+            if synthetic_source
+            else f"Runner availability (user-reported maximum): {context.constraints.available_training_days_per_week} days; not a recommended count"
+        ),
         "temporal:context": f"Local calendar ({context.athlete_timezone.key}): reference {context.reference_local_date}; recent window {context.recent_window_start} to {context.recent_window_end_exclusive} exclusive; {context.days_until_target_date} days until target, without a training-phase inference",
     }
     if context.runner_context.runner_context is not None:
@@ -24,7 +34,9 @@ def _evidence_labels(context: CoachContext) -> dict[str, str]:
     if background is not None:
         weeks += background.observations + background.zero_run_weeks
     for week in weeks:
-        if week.calendar_status == "open":
+        if synthetic_source:
+            role = "Synthetic fixture observation"
+        elif week.calendar_status == "open":
             role = "Open-week Strava-derived observation (partial)"
         elif week.week_start_date in historical_dates:
             role = "Historical pre-interruption Strava observation (not current capacity or a target)"

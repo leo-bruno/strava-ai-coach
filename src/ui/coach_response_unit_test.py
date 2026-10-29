@@ -52,6 +52,8 @@ def test_historical_evidence_and_user_report_are_explicitly_attributed():
     output = render(data, context)
     assert "Historical pre-interruption Strava observation (not current capacity or a target)" in output
     assert "32000 m" in output
+    assert "Runner goal (user-reported): HALF_MARATHON" in output
+    assert "Runner availability (user-reported maximum): 4 days" in output
     assert "RunnerContext (user-reported, unverified): " + report in output
     assert "not proof of an actual training interruption" in output
     assert "Next-week direction: Resume gradually and individually." in output
