@@ -38,6 +38,9 @@ class MockStreamlit:
     def info(self, value):
         self.output.append(value)
 
+    def warning(self, value):
+        self.output.append(value)
+
     def success(self, value):
         self.output.append(value)
 

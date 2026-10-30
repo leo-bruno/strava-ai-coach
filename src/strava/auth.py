@@ -10,6 +10,7 @@ import requests
 
 
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
+STRAVA_REVOKE_URL = "https://www.strava.com/oauth/revoke"
 REQUIRED_ENVIRONMENT_VARIABLES = (
     "STRAVA_CLIENT_ID",
     "STRAVA_CLIENT_SECRET",
@@ -67,16 +68,19 @@ def refresh_access_token() -> tuple[str, str]:
     return access_token, refresh_token
 
 
-def build_authorization_url(redirect_uri: str) -> str:
+def build_authorization_url(redirect_uri: str, *, state: str | None = None) -> str:
     """Build a Strava authorization URL for the scopes required by this project."""
     configuration = _get_required_configuration(("STRAVA_CLIENT_ID",))
-    return f"{AUTHORIZATION_URL}?{urlencode({
+    parameters = {
         'client_id': configuration['STRAVA_CLIENT_ID'],
         'redirect_uri': redirect_uri,
         'response_type': 'code',
         'approval_prompt': 'force',
         'scope': ','.join(REQUESTED_AUTHORIZATION_SCOPES),
-    })}"
+    }
+    if state is not None:
+        parameters['state'] = state
+    return f"{AUTHORIZATION_URL}?{urlencode(parameters)}"
 
 
 def exchange_authorization_code(authorization_code: str) -> dict[str, Any]:
@@ -109,6 +113,23 @@ def exchange_authorization_code(authorization_code: str) -> dict[str, Any]:
         raise RuntimeError("Strava returned an invalid authorization response.")
 
     return token_data
+
+
+def revoke_access_token(access_token: str) -> None:
+    """Ask Strava to revoke one access token using the OAuth revoke endpoint."""
+    configuration = _get_required_configuration(CLIENT_CONFIGURATION_VARIABLES)
+    if not isinstance(access_token, str) or not access_token.strip():
+        raise ValueError("An access token is required for revocation.")
+    try:
+        response = requests.post(
+            STRAVA_REVOKE_URL,
+            data={"token": access_token, "token_type_hint": "access_token"},
+            auth=(configuration["STRAVA_CLIENT_ID"], configuration["STRAVA_CLIENT_SECRET"]),
+            timeout=TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except requests.RequestException as error:
+        raise RuntimeError("Could not request Strava access revocation.") from error
 
 
 def persist_refresh_token(refresh_token: str) -> None:

@@ -10,6 +10,20 @@ from src.models.activity import Activity
 from src.strava.client import ACTIVITIES_URL, ATHLETE_URL, TIMEOUT_SECONDS, StravaClient
 
 
+def test_client_uses_supplied_access_token_without_refreshing_or_persisting():
+    with patch("src.strava.client.refresh_access_token") as mock_refresh:
+        client = StravaClient(access_token="session-access-token")
+
+    assert client._access_token == "session-access-token"
+    assert client._refresh_token is None
+    mock_refresh.assert_not_called()
+
+
+def test_client_rejects_blank_supplied_access_token():
+    with pytest.raises(ValueError, match="Access token must be nonblank text"):
+        StravaClient(access_token=" ")
+
+
 def test_get_athlete_returns_athlete_from_valid_response() -> None:
     """Returns the athlete dictionary from Strava's response."""
     athlete = {"id": 123, "firstname": "Test", "lastname": "Athlete"}

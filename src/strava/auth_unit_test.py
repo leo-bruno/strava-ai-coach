@@ -7,11 +7,13 @@ from unittest.mock import Mock, patch
 import pytest, requests
 from src.strava import auth
 from src.strava.auth import (
+    STRAVA_REVOKE_URL,
     STRAVA_TOKEN_URL,
     TIMEOUT_SECONDS,
     build_authorization_url,
     exchange_authorization_code,
     refresh_access_token,
+    revoke_access_token,
 )
 
 
@@ -98,6 +100,33 @@ def test_build_authorization_url_requests_required_activity_scopes(monkeypatch) 
     assert "response_type=code" in authorization_url
     assert "approval_prompt=force" in authorization_url
     assert "scope=read%2Cactivity%3Aread_all" in authorization_url
+
+
+def test_build_authorization_url_carries_supplied_oauth_state(monkeypatch) -> None:
+    monkeypatch.setenv("STRAVA_CLIENT_ID", "test-client-id")
+
+    authorization_url = build_authorization_url(
+        "http://localhost:8501", state="unpredictable-state-value"
+    )
+
+    assert "state=unpredictable-state-value" in authorization_url
+
+
+def test_revoke_access_token_uses_oauth_revoke_with_client_auth(monkeypatch) -> None:
+    monkeypatch.setenv("STRAVA_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("STRAVA_CLIENT_SECRET", "test-client-secret")
+    response = Mock()
+    response.raise_for_status.return_value = None
+
+    with patch("src.strava.auth.requests.post", return_value=response) as mock_post:
+        revoke_access_token("session-access-token")
+
+    mock_post.assert_called_once_with(
+        STRAVA_REVOKE_URL,
+        data={"token": "session-access-token", "token_type_hint": "access_token"},
+        auth=("test-client-id", "test-client-secret"),
+        timeout=TIMEOUT_SECONDS,
+    )
 
 def test_refresh_access_token_raises_when_client_secret_is_missing(monkeypatch) -> None:
     """Raises a RuntimeError if STRAVA_CLIENT_SECRET is missing."""

@@ -60,18 +60,21 @@ Analytics calcula → Trends compara → Insights detecta → Coach interpreta y
 🗺️ Estado del producto
 
 Área	Estado
-Strava Integration	🟡 Parcial
+Strava Integration	🟡 Primera slice local: OAuth callback y vista previa manual de perfil + primera página; confirmación documental de autorización personal pendiente
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
 AI Coach	🟡 Incrementos 1–4 cerrados — primera ejecución real validada con fixture sintético; evaluación semántica pendiente
 Training Planning	⏳ Futuro
-UI	🟡 Captura de solicitudes y demo offline con datos sintéticos y respuesta pregrabada; sin generación LLM, datos personales ni acceso a Strava
+UI	🟡 Captura Coach, demo offline y vista previa Strava local/manual; sin generación LLM ni sincronización de datos
 
 ⸻
 
 📍 Current Focus
+
+AI Coach V1 — UI Streamlit: valida solicitudes y ofrece una demo aparte con contexto sintético fijo y respuesta pregrabada validada. Ambas viven solo en sesión; limpiar restablece el formulario y borra la demo. La demo se identifica como sintética, no corresponde a la solicitud ingresada, no usa OpenAI ni Strava y no demuestra la calidad semántica ni aceptación del modelo. El flujo se verifica con AppTest y tests de unidad. No existe integración Coach end-to-end. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
+Incremento de Strava — la UI permite preparar autorización local con `STRAVA_REDIRECT_URI`, validar callback en una sesión Streamlit distinta con state aleatorio de un solo uso, aceptar únicamente grants `read` y `activity:read_all`, y mantener `access_token`, expiración y scopes solo en la sesión. La consulta de perfil y exactamente la primera página de hasta 30 resúmenes ocurre solo tras acción manual; los previews son parciales/no sincronizados y no se entregan a Analytics, Coach ni OpenAI. Disconnect borra primero el estado local e intenta revocación best-effort con `oauth/revoke` si hay credenciales configuradas; cuando no se confirma, la UI indica retirada manual en Strava. La implementación responde a autorización personal comunicada verbalmente por el usuario y queda pendiente de confirmación documental. Esta nota no afirma que Strava haya publicado o verificado una excepción. No se declara completa la integración Strava.
 
 AI Coach V1 — UI Streamlit: valida solicitudes y ofrece una demo aparte con contexto sintético fijo y respuesta pregrabada validada. Ambas viven solo en sesión; limpiar restablece el formulario y borra la demo. La demo se identifica como sintética, no corresponde a la solicitud ingresada, no usa OpenAI ni Strava y no demuestra la calidad semántica ni aceptación del modelo. El flujo se verifica con AppTest y tests de unidad. No existe integración Coach end-to-end. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
 
@@ -395,13 +398,18 @@ Existe una integración funcional con la API de Strava.
 Implementado
 
 * Generación de URL de autorización.
+* Callback OAuth local con state aleatorio, expiración breve, consumo único y validación de grants.
+* Uso de `STRAVA_REDIRECT_URI` explícita, sin derivar callback de cabeceras de host.
 * Scopes read y activity:read_all.
 * Intercambio del authorization code.
+* Conservación de access token, expiración y scopes únicamente en sesión para el flujo local; no guarda refresh token.
 * Refresh de access tokens.
 * Persistencia local del refresh token.
 * Protección del fichero de token con permisos del propietario.
 * Obtención del atleta autenticado.
 * Obtención de una página de actividades.
+* Vista previa manual de campos explícitos de perfil y una página parcial de resúmenes de actividad.
+* Desconexión que limpia previews/tokens de sesión y solicita revocación best-effort por `oauth/revoke` si está configurado.
 * Parámetros before, after, page y per_page.
 * Validación y mapeo de actividades.
 
@@ -411,7 +419,7 @@ Todavía no existe una experiencia completa de conexión con Strava.
 
 Entre otras cosas faltan:
 
-* Callback integrado en la aplicación.
+* Confirmación documental de la autorización personal comunicada verbalmente; no se afirma que Strava publicase o verificase una excepción.
 * Paginación automática.
 * Gestión de rate limits.
 * Retries.
@@ -1103,9 +1111,9 @@ Actualmente conocemos al menos:
 * No existe paginación automática de actividades.
 * No existe persistencia/sincronización de actividades.
 * No existe deduplicación.
-* El entry point Streamlit valida solicitudes en sesión y ofrece una demo offline pregrabada con datos sintéticos; no genera respuestas con LLM ni consulta Strava. La solicitud ingresada no se asocia a la demo.
+* El entry point Streamlit valida solicitudes Coach, ofrece una demo offline pregrabada con datos sintéticos y una vista previa Strava local/manual de perfil y primera página. No genera respuestas con LLM ni entrega datos Strava a Analytics/Coach; la solicitud ingresada no se asocia a la demo.
 * src/ai contiene conocimiento local, builder CoachContext, frontera CoachResponse, prompt versionado y ejecución OpenAI explícita. Cohorts-08/09 terminaron PROVIDER_ERROR / PROVIDER_CONNECTION sin respuesta evaluable; cohort-10 terminó SUCCESS / structural PASS y su review v2 local registró FAIL (utilidad 1, dos hallazgos MAJOR, siete escenarios UNASSESSABLE); cohort-11 terminó SUCCESS / structural PASS con revisión humana PASS para 5A-03, pero aceptación global UNEVALUATED. Cohort-13 con gpt-6-luna y 5A-1.0.0: seis escenarios PASS (01/02/03/06/07/08), 5A-05 FAIL con un hallazgo MAJOR y utilidad 1, y 5A-04 PROVIDER_TIMEOUT sin respuesta evaluable; informe técnico PASS, semantic outcome/model acceptance FAIL. Los ocho intentos autorizados se consumieron, sin reintentos; no hay nuevas llamadas live autorizadas. El prompt y sus pruebas offline aíslan mediciones cuestionables del soporte a actividad/recomendaciones, pero no demuestran corrección del modelo generado. La identidad de reviewer-01 no está autenticada. La calidad con datos reales y la aceptación global del Coach siguen pendientes.
-* Existe renderer de texto plano, formulario Streamlit y demo sintética pregrabada; no existe generación de respuestas en UI ni una experiencia Coach end-to-end.
+* Existe renderer de texto plano, formulario Streamlit, demo sintética pregrabada y una vista previa local/manual de Strava; no existe generación de respuestas en UI, sincronización de actividades ni una experiencia Coach end-to-end.
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
@@ -1119,6 +1127,8 @@ Estos elementos deben priorizarse según las necesidades del roadmap, no necesar
 ➡️ Próximo paso
 
 Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y dieciséis controles authored revisados, todos los criterios de aceptación PASS y regresión automatizada verificada. No queda revisión humana pendiente en el dataset 5A. 5B-01 y 5B-02 están COMPLETE como tooling de captura, review y reporting. 5B-03 cuenta con tres fallos semánticos confirmados en cohort-04; rechazo EASY_DIRECTION_UNSUPPORTED en cohort-05 / 5A-03 (1/1 intentos consumidos, semántica UNASSESSABLE); cohort-06 / 5A-03 con FAIL v2, utilidad 1/2, F01 CRITICAL y F02 MAJOR; cohort-07 / 5A-03 con FAIL v2 y dos hallazgos MAJOR no sustentados; cohort-08 / 5A-03 fallido con PROVIDER_ERROR y cohort-09 / 5A-03 con PROVIDER_CONNECTION, ambos sin respuesta evaluable y con su intento único consumido; cohort-10 / 5A-03 con SUCCESS, structural PASS e integridad técnica aceptada, seguido por un review v2 local que registra un caso FAIL con utilidad 1, dos hallazgos MAJOR y siete casos UNASSESSABLE. El modelo no queda aceptado; la identidad del reviewer no está autenticada independientemente. Cohort-08/09 corrieron en sandbox y cohort-10 con permiso de red elevado aprobado; esto no demuestra la causa de fallos anteriores ni dispatch/coste de cohort-09. Cohort-11 / 5A-03 consumió un intento, terminó SUCCESS / structural PASS y recibió review humano PASS, con aceptación global UNEVALUATED. Cohort-13 se ejecutó con gpt-6-luna, rubric/dataset 5A-1.0.0 y ocho intentos: 5A-01/02/03/06/07/08 PASS; 5A-05 FAIL con un hallazgo MAJOR y utilidad 1; 5A-04 FAILED / PROVIDER_ERROR / PROVIDER_TIMEOUT, sin status HTTP ni respuesta evaluable. Su informe v2 confirma integridad técnica PASS, resultado semántico FAIL y aceptación del modelo FAIL. Los reviews humanos de seis PASS son del seudónimo declarado reviewer-01, no autenticado independientemente. Cohorts-01 a -13 y sus artefactos se preservan; cohorte-13 agotó el presupuesto y no se reintenta. Las evaluaciones live permanecen pausadas, sin nuevas llamadas autorizadas. El refuerzo offline del prompt aísla mediciones cuestionables y conserva orientación parcial con evidencia independiente; sus tests contractuales no demuestran corrección del modelo generado. La UI valida solicitudes en sesión y ofrece una demo separada con datos sintéticos y respuesta pregrabada; no genera respuestas mediante LLM ni consulta Strava, y el resultado de demo no representa al atleta ni acredita calidad o aceptación semántica del modelo. No hay todavía una experiencia Coach end-to-end. Weekly Analytics V1, Trends V1 e Insights V1 siguen COMPLETE y sin cambios; no se adoptan nuevos ítems de conocimiento.
+
+La primera slice Strava local añade callback OAuth con state de un solo uso, preview manual del perfil y la primera página de actividades, estado temporal por sesión y desconexión con revocación best-effort. La autorización personal fue comunicada verbalmente por el usuario y está pendiente de confirmación documental; esto no significa que Strava publicara o verificara una excepción. No se efectuaron llamadas reales OAuth/Strava durante implementación o validación, no se integra Analytics/Coach y la integración Strava sigue parcial.
 
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 

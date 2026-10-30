@@ -1,11 +1,23 @@
 """Minimal Streamlit intake page for a validated, session-only CoachRequest."""
 
 from datetime import date, datetime, timedelta, timezone
+import os
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ai.coach_demo import build_offline_demo
 from src.models.coach_request import coach_request_from_input
 from src.ui.coach_response import render_coach_response
+from src.ui.strava_connection import (
+    ACCESS_TOKEN_KEY,
+    ACTIVITY_PREVIEW_KEY,
+    ATHLETE_PREVIEW_KEY,
+    EXPIRES_AT_KEY,
+    SCOPES_KEY,
+    consume_oauth_callback,
+    disconnect_from_strava,
+    load_first_page_preview,
+    start_authorization,
+)
 
 
 REQUEST_SESSION_KEY = "validated_coach_request"
@@ -37,6 +49,12 @@ def render_request_page(ui=None) -> None:
     if ui is None:
         import streamlit as ui
 
+    query_params = getattr(ui, "query_params", None)
+    callback_status = (
+        consume_oauth_callback(ui.session_state, query_params)
+        if query_params is not None
+        else None
+    )
     ui.title("Strava AI Coach")
     ui.write(
         "Validating a request does not call the Coach or access Strava. "
@@ -135,3 +153,107 @@ def render_request_page(ui=None) -> None:
             "and does not evaluate the model."
         )
         ui.text(demo_output)
+
+    ui.subheader("Local Strava preview")
+    ui.write(
+        "Scopes requested: read (public profile access) and activity:read_all (all activity summaries, including "
+        "private activities). The preview displays profile fields id, first name, last name and username, "
+        "plus activity fields id, name, sport type, start date, distance in meters and moving time in seconds."
+    )
+    ui.info(
+        "The preview is loaded only after you click the button below. It requests the profile and exactly the first "
+        "page of up to 30 activity summaries. It is partial, is not synchronized, and is not sent to Analytics, Coach "
+        "or OpenAI. The access token, profile preview and page remain in this browser session only; refresh tokens "
+        "and durable activity storage are not used."
+    )
+    ui.warning(
+        "This implementation follows personal-data authorization verbally communicated by the user; documentary "
+        "confirmation is pending. This does not state that Strava published or verified an exception."
+    )
+
+    if callback_status is not None:
+        callback_messages = {
+            "connected": (ui.success, "Strava authorization was accepted with the required read scopes."),
+            "access_denied": (ui.info, "Strava authorization was declined."),
+            "missing_state": (ui.error, "The Strava callback did not include a valid state value. Start again."),
+            "state_mismatch": (ui.error, "The Strava callback state did not match a pending authorization. Start again."),
+            "expired": (ui.error, "The Strava authorization expired. Start again."),
+            "replay": (ui.error, "This Strava callback was already used. Start again."),
+            "multiple_state": (ui.error, "The Strava callback had multiple state values and was rejected."),
+            "missing_code": (ui.error, "The Strava callback did not include an authorization code."),
+            "insufficient_scope": (ui.error, "The granted Strava scopes are insufficient; approve both requested read scopes."),
+            "invalid_callback": (ui.error, "The Strava callback parameters were invalid. Start again."),
+            "exchange_failed": (ui.error, "Could not exchange the Strava authorization code. Start again."),
+            "invalid_token_response": (ui.error, "Strava did not return a valid token with the required scopes."),
+            "authorization_failed": (ui.error, "Strava authorization could not be completed. Start again."),
+        }
+        display, message = callback_messages.get(
+            callback_status,
+            (ui.error, "The Strava callback could not be validated. Start again."),
+        )
+        display(message)
+
+    authorization_url = None
+    if ui.button("Prepare Strava authorization", key="prepare_strava_authorization"):
+        try:
+            authorization_url = start_authorization(environ=os.environ)
+        except RuntimeError:
+            ui.error(
+                "Configure STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REDIRECT_URI before starting. "
+                "The redirect URI must be the local callback URL registered with Strava."
+            )
+        else:
+            ui.caption("Open the link in the new tab, approve the requested scopes, then return to this app.")
+    if authorization_url is not None:
+        ui.link_button(
+            "Open Strava authorization",
+            authorization_url,
+            key="open_strava_authorization",
+        )
+
+    if ui.session_state.get(ACCESS_TOKEN_KEY):
+        ui.success("Strava is connected for this browser session.")
+        scopes = ui.session_state.get(SCOPES_KEY, ())
+        ui.caption(
+            "Granted scopes: " + ", ".join(scopes)
+            + ". Access token expires at Unix time "
+            + str(ui.session_state.get(EXPIRES_AT_KEY, "unknown")) + "."
+        )
+        if ui.button("Load Strava preview", key="load_strava_preview"):
+            ui.session_state.pop(ATHLETE_PREVIEW_KEY, None)
+            ui.session_state.pop(ACTIVITY_PREVIEW_KEY, None)
+            try:
+                load_first_page_preview(ui.session_state)
+            except ValueError as error:
+                ui.error(str(error))
+            except RuntimeError:
+                ui.error("Could not load the Strava preview. Reconnect if the access token has expired.")
+
+        athlete_preview = ui.session_state.get(ATHLETE_PREVIEW_KEY)
+        if athlete_preview is not None:
+            ui.write("Profile fields: id, firstname, lastname, username.")
+            ui.json(athlete_preview)
+            activity_preview = ui.session_state.get(ACTIVITY_PREVIEW_KEY, [])
+            ui.write(
+                "First activity page fields: id, name, sport_type, start_date, "
+                "distance_meters, moving_time_seconds."
+            )
+            if activity_preview:
+                ui.table(activity_preview)
+            else:
+                ui.info("No activities were returned on the first page.")
+
+        if ui.button("Disconnect Strava", key="disconnect_strava"):
+            disconnect_status = disconnect_from_strava(ui.session_state, environ=os.environ)
+            if disconnect_status == "revocation_requested":
+                ui.info(
+                    "The remote revoke request was accepted, but token revocation cannot be independently verified. "
+                    "Check Strava settings to confirm access is removed."
+                )
+            elif disconnect_status in ("manual_revocation", "revocation_failed"):
+                ui.warning(
+                    "This browser session was cleared, but remote revocation was not confirmed. "
+                    "Remove this app's access in Strava settings to ensure access is withdrawn."
+                )
+            else:
+                ui.info("The local Strava session is clear.")

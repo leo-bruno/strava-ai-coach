@@ -17,8 +17,17 @@ TIMEOUT_SECONDS = 10
 class StravaClient:
     """Provide authenticated access to Strava resources."""
 
-    def __init__(self) -> None:
-        self._access_token, self._refresh_token = refresh_access_token()
+    _access_token: str
+    _refresh_token: str | None
+
+    def __init__(self, access_token: str | None = None) -> None:
+        if access_token is None:
+            self._access_token, self._refresh_token = refresh_access_token()
+            return
+        if not isinstance(access_token, str) or not access_token.strip():
+            raise ValueError("Access token must be nonblank text.")
+        self._access_token = access_token
+        self._refresh_token = None
 
     def get_athlete(self) -> dict[str, Any]:
         """Return the authenticated athlete's Strava profile."""
