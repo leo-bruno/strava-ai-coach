@@ -9,6 +9,7 @@ from src.models.coach_request import coach_request_from_input
 from src.ui.coach_response import render_coach_response
 from src.ui.timezone_preference import (
     ATHLETE_TIMEZONE_KEY,
+    ATHLETE_TIMEZONE_LAST_APPLIED_KEY,
     IANA_TIMEZONE_OPTIONS,
     detect_local_iana_timezone,
     is_valid_iana_timezone_name,
@@ -70,8 +71,8 @@ def _clear_request_form(session_state) -> None:
         session_state.pop(key, None)
 
 
-def _timezone_changed(session_state) -> None:
-    """Clear outputs tied to the previous timezone, preserving the preference."""
+def _invalidate_timezone_bound_state(session_state) -> None:
+    """Clear Coach and weekly results after a committed preference change."""
     session_state.pop(REQUEST_SESSION_KEY, None)
     clear_weekly_overview(session_state)
 
@@ -97,23 +98,34 @@ def render_request_page(ui=None) -> None:
     clear_expired_weekly_overview(ui.session_state)
     if ATHLETE_TIMEZONE_KEY not in ui.session_state:
         ui.session_state[ATHLETE_TIMEZONE_KEY] = detect_local_iana_timezone()
+    if ATHLETE_TIMEZONE_LAST_APPLIED_KEY not in ui.session_state:
+        ui.session_state[ATHLETE_TIMEZONE_LAST_APPLIED_KEY] = ui.session_state.get(
+            ATHLETE_TIMEZONE_KEY
+        )
+    elif ui.session_state.get(ATHLETE_TIMEZONE_KEY) != ui.session_state.get(
+        ATHLETE_TIMEZONE_LAST_APPLIED_KEY
+    ):
+        _invalidate_timezone_bound_state(ui.session_state)
+        ui.session_state[ATHLETE_TIMEZONE_LAST_APPLIED_KEY] = ui.session_state.get(
+            ATHLETE_TIMEZONE_KEY
+        )
     ui.title("Strava AI Coach")
     ui.write(
         "Validating a request does not call the Coach or access Strava. "
         "The separate offline demo displays a pre-recorded synthetic response."
     )
-    timezone_name = ui.selectbox(
-        "Your time zone (IANA name)",
-        options=IANA_TIMEZONE_OPTIONS,
-        index=None,
-        placeholder="Select an IANA time zone",
-        key=ATHLETE_TIMEZONE_KEY,
-        on_change=_timezone_changed,
-        args=(ui.session_state,),
-    )
-
+    authorization_url = None
+    authorization_error = False
+    weekly_load_error = False
     with ui.form("coach_request_form"):
         ui.text_input("Goal", value="Half marathon", disabled=True)
+        timezone_name = ui.selectbox(
+            "Your time zone",
+            options=IANA_TIMEZONE_OPTIONS,
+            index=None,
+            placeholder="Select an IANA time zone",
+            key=ATHLETE_TIMEZONE_KEY,
+        )
         target_date = ui.date_input(
             "Target date",
             value=date.today() + timedelta(days=30),
@@ -133,7 +145,19 @@ def render_request_page(ui=None) -> None:
             help="Up to 2,000 characters. This text is not shown in the confirmation.",
             key="runner_context",
         )
-        submitted = ui.form_submit_button("Validate request")
+        coach_submitted = ui.form_submit_button("Validate request", key="validate_coach_request")
+        authorization_submitted = ui.form_submit_button(
+            "Prepare Strava authorization",
+            key="prepare_strava_authorization",
+        )
+        weekly_submitted = (
+            ui.form_submit_button(
+                "Load seven completed weeks and Insights",
+                key="load_weekly_strava_overview",
+            )
+            if ui.session_state.get(ACCESS_TOKEN_KEY)
+            else False
+        )
 
     ui.button(
         "Clear form and demo",
@@ -151,7 +175,7 @@ def render_request_page(ui=None) -> None:
         else:
             ui.session_state[DEMO_SESSION_KEY] = rendered_demo
 
-    if submitted:
+    if coach_submitted:
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
         try:
             athlete_timezone = _resolve_coach_timezone(timezone_name)
@@ -174,6 +198,31 @@ def render_request_page(ui=None) -> None:
         else:
             ui.session_state[REQUEST_SESSION_KEY] = request
             ui.success("Request validated and kept in this session.")
+
+    elif authorization_submitted:
+        try:
+            authorization_url = start_authorization(
+                environ=os.environ,
+                timezone_preference=ui.session_state.get(ATHLETE_TIMEZONE_KEY),
+            )
+        except RuntimeError:
+            authorization_error = True
+
+    elif weekly_submitted:
+        selected_timezone = ui.session_state.get(ATHLETE_TIMEZONE_KEY)
+        if selected_timezone is None:
+            clear_weekly_overview(ui.session_state)
+            ui.error("Select an IANA time zone before loading weekly Strava data.")
+        else:
+            try:
+                load_recent_weekly_overview(
+                    ui.session_state,
+                    selected_timezone,
+                )
+            except ValueError as error:
+                ui.error(str(error))
+            except RuntimeError:
+                weekly_load_error = True
 
     request = ui.session_state.get(REQUEST_SESSION_KEY)
     if request is not None:
@@ -237,20 +286,13 @@ def render_request_page(ui=None) -> None:
         )
         display(message)
 
-    authorization_url = None
-    if ui.button("Prepare Strava authorization", key="prepare_strava_authorization"):
-        try:
-            authorization_url = start_authorization(
-                environ=os.environ,
-                timezone_preference=ui.session_state.get(ATHLETE_TIMEZONE_KEY),
-            )
-        except RuntimeError:
-            ui.error(
-                "Configure STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REDIRECT_URI before starting. "
-                "The redirect URI must be the local callback URL registered with Strava."
-            )
-        else:
-            ui.caption("Open the link in the new tab, approve the requested scopes, then return to this app.")
+    if authorization_error:
+        ui.error(
+            "Configure STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REDIRECT_URI before starting. "
+            "The redirect URI must be the local callback URL registered with Strava."
+        )
+    elif authorization_url is not None:
+        ui.caption("Open the link in the new tab, approve the requested scopes, then return to this app.")
     if authorization_url is not None:
         ui.link_button(
             "Open Strava authorization",
@@ -384,21 +426,8 @@ def render_request_page(ui=None) -> None:
             "Load the seven most recent completed local calendar weeks. This requests activity summaries only; "
             "it does not request activity details or laps."
         )
-        if ui.button("Load seven completed weeks and Insights", key="load_weekly_strava_overview"):
-            selected_timezone = ui.session_state.get(ATHLETE_TIMEZONE_KEY)
-            if selected_timezone is None:
-                clear_weekly_overview(ui.session_state)
-                ui.error("Select an IANA time zone before loading weekly Strava data.")
-            else:
-                try:
-                    load_recent_weekly_overview(
-                        ui.session_state,
-                        selected_timezone,
-                    )
-                except ValueError as error:
-                    ui.error(str(error))
-                except RuntimeError:
-                    ui.error("Could not load all weekly Strava activity pages. No partial result was kept.")
+        if weekly_load_error:
+            ui.error("Could not load all weekly Strava activity pages. No partial result was kept.")
 
         weekly_analyses = ui.session_state.get(WEEKLY_ANALYSES_KEY)
         if weekly_analyses is not None:

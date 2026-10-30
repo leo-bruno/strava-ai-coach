@@ -9,6 +9,7 @@ import pytest
 
 from src.models.coach_request import CoachRequest, coach_request_from_input
 from src.ui.coach_request_form import FORM_WIDGET_KEYS, REQUEST_SESSION_KEY, render_request_page
+from src.ui.timezone_preference import ATHLETE_TIMEZONE_LAST_APPLIED_KEY, ATHLETE_TIMEZONE_KEY
 
 
 class MockStreamlit:
@@ -17,6 +18,8 @@ class MockStreamlit:
     def __init__(self, *, values=None, submitted=True, clear_clicked=False, session_state=None):
         self.values = values or {}
         self.submitted = submitted
+        self.authorization_submitted = False
+        self.weekly_submitted = False
         self.clear_clicked = clear_clicked
         self.session_state = session_state if session_state is not None else {}
         self.output = []
@@ -70,13 +73,20 @@ class MockStreamlit:
     def text_area(self, _label, *, key, **_kwargs):
         return self.values.get(key, "")
 
-    def form_submit_button(self, _label):
-        return self.submitted
+    def form_submit_button(self, _label, *, key=None):
+        return {
+            "validate_coach_request": self.submitted,
+            "prepare_strava_authorization": self.authorization_submitted,
+            "load_weekly_strava_overview": self.weekly_submitted,
+        }.get(key, False)
 
     def button(self, _label, *, key=None, on_click=None, args=(), **_kwargs):
         if self.clear_clicked and key == "clear_request_form" and on_click is not None:
             on_click(*args)
         return self.clear_clicked and key == "clear_request_form"
+
+    def link_button(self, _label, _url, **_kwargs):
+        return None
 
 
 def form_values(**overrides):
@@ -134,7 +144,11 @@ def test_valid_submission_stores_request_and_hides_runner_context(forbid_coach_a
     assert "Request validated and kept in this session." in visible_output
     assert "No training advice has been generated" in visible_output
     assert "no Strava data has been accessed" in visible_output
-    assert set(ui.session_state) == {REQUEST_SESSION_KEY, "athlete_timezone"}
+    assert set(ui.session_state) == {
+        REQUEST_SESSION_KEY,
+        ATHLETE_TIMEZONE_KEY,
+        ATHLETE_TIMEZONE_LAST_APPLIED_KEY,
+    }
 
 
 def test_target_picker_does_not_block_date_valid_in_selected_timezone():
@@ -194,7 +208,8 @@ def test_unsubmitted_form_keeps_only_existing_session_request():
 
     assert ui.session_state == {
         REQUEST_SESSION_KEY: previous_request,
-        "athlete_timezone": "Europe/Madrid",
+        ATHLETE_TIMEZONE_KEY: "Europe/Madrid",
+        ATHLETE_TIMEZONE_LAST_APPLIED_KEY: "Europe/Madrid",
     }
     assert "Request summary" in ui.output
     assert not ui.errors
@@ -213,7 +228,10 @@ def test_clear_form_removes_draft_values_and_suppresses_request_output():
 
     render_request_page(ui)
 
-    assert ui.session_state == {"athlete_timezone": "Europe/Madrid"}
+    assert ui.session_state == {
+        ATHLETE_TIMEZONE_KEY: "Europe/Madrid",
+        ATHLETE_TIMEZONE_LAST_APPLIED_KEY: "Europe/Madrid",
+    }
     assert not ui.errors
     assert "Request summary" not in ui.output
     assert "Request validated and kept in this session." not in ui.output
@@ -234,6 +252,9 @@ def test_clear_form_removes_a_previously_validated_request():
 
     render_request_page(ui)
 
-    assert ui.session_state == {"athlete_timezone": "Europe/Madrid"}
+    assert ui.session_state == {
+        ATHLETE_TIMEZONE_KEY: "Europe/Madrid",
+        ATHLETE_TIMEZONE_LAST_APPLIED_KEY: "Europe/Madrid",
+    }
     assert "Request summary" not in ui.output
     assert "private validated context" not in " ".join(map(str, ui.output))

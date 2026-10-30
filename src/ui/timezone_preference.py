@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 
 ATHLETE_TIMEZONE_KEY = "athlete_timezone"
+ATHLETE_TIMEZONE_LAST_APPLIED_KEY = "athlete_timezone_last_applied"
 IANA_TIMEZONE_OPTIONS = tuple(
     sorted(name for name in available_timezones() if "/" in name or name == "UTC")
 )
