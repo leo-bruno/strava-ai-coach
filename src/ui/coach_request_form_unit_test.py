@@ -33,7 +33,13 @@ class MockStreamlit:
     def title(self, value):
         self.output.append(value)
 
+    def header(self, value):
+        self.output.append(value)
+
     def subheader(self, value):
+        self.output.append(value)
+
+    def caption(self, value):
         self.output.append(value)
 
     def write(self, value):
@@ -74,7 +80,7 @@ class MockStreamlit:
     def text_area(self, _label, *, key, **_kwargs):
         return self.values.get(key, "")
 
-    def form_submit_button(self, _label, *, key=None):
+    def form_submit_button(self, _label, *, key=None, **_kwargs):
         return {
             "validate_coach_request": self.submitted,
             "prepare_strava_authorization": self.authorization_submitted,

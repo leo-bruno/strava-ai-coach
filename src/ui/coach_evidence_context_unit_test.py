@@ -7,7 +7,12 @@ import pytest
 
 from src.analytics.weekly_analysis import weekly_analysis_from_activities
 from src.models.activity import Activity
-from src.ui.coach_evidence_context import prepare_coach_evidence_context, render_coach_evidence_context
+from src.ui.coach_evidence_context import (
+    coach_evidence_context_is_available,
+    coach_evidence_context_guidance,
+    prepare_coach_evidence_context,
+    render_coach_evidence_context,
+)
 from src.ui.strava_connection import ACCESS_TOKEN_KEY, EXPIRES_AT_KEY
 from src.ui.strava_weekly_overview import (
     WEEKLY_ANALYSES_KEY,
@@ -97,6 +102,40 @@ def test_preconditions_reject_stale_or_missing_evidence(mutate, timezone_name, e
         prepare_coach_evidence_context(
             session, _request_data(reference, ZoneInfo("Europe/Madrid")), timezone_name, reference
         )
+
+
+def test_evidence_action_availability_requires_current_matching_weekly_data_and_token():
+    reference = datetime(2026, 10, 30, 10, tzinfo=timezone.utc)
+    session = _session(reference)
+
+    assert coach_evidence_context_is_available(session, "Europe/Madrid", reference)
+    assert not coach_evidence_context_is_available(session, "UTC", reference)
+    session[EXPIRES_AT_KEY] = int(reference.timestamp())
+    assert not coach_evidence_context_is_available(session, "Europe/Madrid", reference)
+
+
+def test_evidence_guidance_distinguishes_disconnected_expired_missing_and_stale_overview():
+    reference = datetime(2026, 10, 30, 10, tzinfo=timezone.utc)
+    assert "Connect Strava" in coach_evidence_context_guidance({}, "Europe/Madrid", reference)
+
+    session = _session(reference)
+    assert "Load the seven completed-week overview" in coach_evidence_context_guidance(
+        {ACCESS_TOKEN_KEY: "token", EXPIRES_AT_KEY: int((reference + timedelta(hours=1)).timestamp())},
+        "Europe/Madrid",
+        reference,
+    )
+    session[EXPIRES_AT_KEY] = int(reference.timestamp())
+    assert "Reconnect Strava" in coach_evidence_context_guidance(session, "Europe/Madrid", reference)
+    session[EXPIRES_AT_KEY] = int((reference + timedelta(hours=1)).timestamp())
+    session[WEEKLY_QUERY_TIMEZONE_KEY] = "UTC"
+    assert "Reload the weekly overview for the selected time zone" in coach_evidence_context_guidance(
+        session, "Europe/Madrid", reference
+    )
+    session[EXPIRES_AT_KEY] = int((reference + timedelta(hours=1)).timestamp())
+    session[WEEKLY_AS_OF_KEY] = reference + timedelta(seconds=1)
+    assert "Reload the weekly overview for the selected time zone" in coach_evidence_context_guidance(
+        session, "Europe/Madrid", reference
+    )
 
 
 class _FakeUI:

@@ -127,7 +127,7 @@ def test_entrypoint_initial_render_has_no_streamlit_exception(monkeypatch):
 
     assert not app.exception
     assert "Strava AI Coach" in visible_text(app)
-    assert "Validating a request does not call the Coach or access Strava." in visible_text(app)
+    assert "Validate a Coach request without generating advice or accessing Strava." in visible_text(app)
     assert not app.session_state.get(REQUEST_SESSION_KEY)
     coach_timezone = app.selectbox(key="athlete_timezone")
     assert coach_timezone.value is None
@@ -136,7 +136,20 @@ def test_entrypoint_initial_render_has_no_streamlit_exception(monkeypatch):
     assert len(app.selectbox) == 1
     assert len(app.form[0].selectbox) == 1
     assert app.form[0].selectbox[0].label == "Your time zone"
-    assert len(app.form[0].form_submit_button) == 3
+    assert len(app.form[0].form_submit_button) == 2
+    assert app.form[0].form_submit_button[0].proto.type == "primary"
+    assert all(button.proto.type == "secondary" for button in app.form[0].form_submit_button[1:])
+    assert not any(
+        button.label == "Prepare Coach evidence context"
+        for button in app.form[0].form_submit_button
+    )
+    assert "Connect Strava" in visible_text(app)
+    assert "Synthetic fixture and pre-recorded response only" in visible_text(app)
+    assert "Clear Coach request, evidence and demo" == app.button(key="clear_request_form").label
+    assert {element.value for element in app.header} >= {
+        "Coach request", "Strava data", "Synthetic offline demo",
+    }
+    assert "Optional activity detail" in visible_text(app)
 
 
 def test_valid_submission_stores_request_and_keeps_runner_context_private(monkeypatch):
@@ -189,7 +202,7 @@ def test_prepare_coach_evidence_context_uses_loaded_weekly_data_and_renders_only
     app.date_input(key="target_date").set_value(date.today() + timedelta(days=45))
     app.number_input(key="available_training_days").set_value(4)
     app.text_area(key="runner_context").set_value(canary)
-    app.form_submit_button[2].click().run(timeout=10)
+    app.form_submit_button[3].click().run(timeout=10)
 
     assert not app.exception
     context = app.session_state[COACH_EVIDENCE_CONTEXT_KEY]
@@ -198,6 +211,12 @@ def test_prepare_coach_evidence_context_uses_loaded_weekly_data_and_renders_only
     assert context.source_metadata.data_as_of == app.session_state[WEEKLY_AS_OF_KEY]
     assert context.reference_datetime.tzinfo is not None
     assert len(context.recent_weeks) <= 4
+    assert len(app.form[0].form_submit_button) == 4
+    assert app.form[0].form_submit_button[2].label == "Load seven completed local weeks"
+    assert app.form[0].form_submit_button[3].label == "Prepare Coach evidence context"
+    assert app.form[0].form_submit_button[0].proto.type == "primary"
+    assert all(button.proto.type == "secondary" for button in app.form[0].form_submit_button[1:])
+    assert "a separate Validate request click is not required" in visible_text(app)
     text = visible_text(app)
     rendered_tables = " ".join(str(element.value) for element in app.table)
     assert "Deterministic evidence for Coach; no advice was generated." in text
@@ -205,25 +224,82 @@ def test_prepare_coach_evidence_context_uses_loaded_weekly_data_and_renders_only
     assert canary not in text
     assert canary not in rendered_tables
     assert "no advice was generated" in text
+    assert "Request validated and kept in this session." not in text
+    subheaders = [element.value for element in app.subheader]
+    weekly_output_index = max(
+        index for index, label in enumerate(subheaders) if label == "Weekly overview"
+    )
+    assert weekly_output_index < subheaders.index("Local Strava preview")
+    assert subheaders.index("Local Strava preview") < subheaders.index("Optional activity detail")
     client.assert_not_called()
 
 
-def test_evidence_attempt_without_current_overview_clears_old_context_without_api(monkeypatch):
+def test_connected_session_without_weekly_overview_hides_evidence_action(monkeypatch):
     client = Mock()
     monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
-    zone = ZoneInfo("Europe/Madrid")
     app = AppTest.from_file(APP_ENTRYPOINT)
     app.session_state[ACCESS_TOKEN_KEY] = "session-token"
     app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
     app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
-    app.session_state[WEEKLY_TIMEZONE_KEY] = zone.key
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
     app.run(timeout=10)
-    app.session_state[COACH_EVIDENCE_CONTEXT_KEY] = object()
-    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
-    assert COACH_EVIDENCE_CONTEXT_KEY not in app.session_state
-    assert "Load the seven-week Strava overview before preparing Coach evidence context." in visible_text(app)
+    assert len(app.form[0].form_submit_button) == 3
+    assert not any(
+        button.label == "Prepare Coach evidence context"
+        for button in app.form[0].form_submit_button
+    )
+    assert app.form[0].form_submit_button[0].proto.type == "primary"
+    assert all(button.proto.type == "secondary" for button in app.form[0].form_submit_button[1:])
+    assert "Load the seven completed-week overview for the selected time zone" in visible_text(app)
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    client.assert_not_called()
+
+
+def test_expired_token_hides_evidence_action_and_clears_loaded_overview(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "expired-session-token"
+    app.session_state[EXPIRES_AT_KEY] = 1
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    seed_valid_weekly_overview(app.session_state)
+
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert len(app.form[0].form_submit_button) == 3
+    assert not any(
+        button.label == "Prepare Coach evidence context"
+        for button in app.form[0].form_submit_button
+    )
+    assert "Reconnect Strava before preparing Coach evidence context" in visible_text(app)
+    client.assert_not_called()
+
+
+def test_stale_timezone_overview_guides_reload_before_context_preparation(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "UTC"
+    seed_valid_weekly_overview(app.session_state)
+
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert len(app.session_state[WEEKLY_ANALYSES_KEY]) == 7
+    assert len(app.form[0].form_submit_button) == 3
+    assert not any(
+        button.label == "Prepare Coach evidence context"
+        for button in app.form[0].form_submit_button
+    )
+    assert "Reload the weekly overview for the selected time zone" in visible_text(app)
     client.assert_not_called()
 
 
@@ -324,10 +400,12 @@ def test_offline_demo_is_separate_and_uses_its_fixed_synthetic_context():
     text = visible_text(app)
     assert not app.exception
     assert DEMO_SESSION_KEY in app.session_state
-    assert "Demonstration with synthetic data" in text
+    assert "Synthetic fixture and pre-recorded response only" in text
     assert "pre-recorded" in text
-    assert "does not represent an athlete" in text
-    assert "does not evaluate the model" in text
+    assert "no athlete data" in text
+    assert "or advice" in text
+    assert "does not evaluate model quality" in text
+    assert app.button(key="show_offline_demo").proto.type == "secondary"
     assert "2026-10-12 → 2026-10-19" in app.session_state[DEMO_SESSION_KEY]
     assert "2026-10-08" in app.session_state[DEMO_SESSION_KEY]
     assert "This request must not be used by the demo." not in text
@@ -343,7 +421,8 @@ def test_clear_form_also_discards_the_offline_demo():
 
     assert not app.exception
     assert DEMO_SESSION_KEY not in app.session_state
-    assert "Offline Coach demo" not in visible_text(app)
+    assert "Synthetic offline demo" in {element.value for element in app.header}
+    assert "Pre-recorded result" not in visible_text(app)
 
 
 def test_invalid_demo_response_is_not_partially_displayed(monkeypatch):
@@ -360,7 +439,8 @@ def test_invalid_demo_response_is_not_partially_displayed(monkeypatch):
     assert DEMO_SESSION_KEY not in app.session_state
     assert app.error
     assert "No response was displayed" in visible_text(app)
-    assert "Offline Coach demo" not in visible_text(app)
+    assert "Synthetic offline demo" in {element.value for element in app.header}
+    assert "Pre-recorded result" not in visible_text(app)
 
 
 def test_initial_render_makes_no_strava_requests(monkeypatch):
@@ -651,7 +731,7 @@ def test_weekly_overview_loads_only_after_click_and_renders_seven_weeks_and_thre
 
     assert not app.exception
     assert not requests
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     assert len(requests) == 1
@@ -699,7 +779,7 @@ def test_weekly_timezone_selectbox_is_unique_searchable_and_has_no_default(monke
     assert len(selector.options) == len(set(selector.options))
     assert len(app.selectbox) == 1
     assert len(app.form[0].selectbox) == 1
-    assert len(app.form[0].form_submit_button) == 4
+    assert len(app.form[0].form_submit_button) == 3
 
 
 def test_weekly_timezone_choice_is_passed_unchanged_to_loader(monkeypatch):
@@ -720,7 +800,7 @@ def test_weekly_timezone_choice_is_passed_unchanged_to_loader(monkeypatch):
     app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
     app.run(timeout=10)
     app.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("Asia/Kathmandu")
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     assert calls == ["Asia/Kathmandu"]
@@ -782,7 +862,7 @@ def test_weekly_overview_renders_each_existing_insight_shape(
     app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
     app.run(timeout=10)
 
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     insights = app.session_state[WEEKLY_INSIGHTS_KEY]
@@ -813,7 +893,7 @@ def test_shared_timezone_change_clears_coach_request_and_weekly_output_before_lo
     app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
     app.session_state[COACH_EVIDENCE_CONTEXT_KEY] = object()
     app.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("UTC")
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     assert app.selectbox(key=WEEKLY_TIMEZONE_KEY).value == "UTC"
@@ -839,7 +919,7 @@ def test_empty_weekly_timezone_click_clears_old_output_without_strava_call(monke
 
     app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
     app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     assert WEEKLY_ANALYSES_KEY not in app.session_state
@@ -903,7 +983,7 @@ def test_mid_pagination_ui_failure_discards_stale_and_partial_results(monkeypatc
     app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
     app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
     app.session_state[COACH_EVIDENCE_CONTEXT_KEY] = object()
-    app.form_submit_button[3].click().run(timeout=10)
+    app.form_submit_button[2].click().run(timeout=10)
 
     assert not app.exception
     assert WEEKLY_ANALYSES_KEY not in app.session_state

@@ -20,6 +20,59 @@ def clear_coach_evidence_context(session_state: MutableMapping[str, object]) -> 
     session_state.pop(COACH_EVIDENCE_CONTEXT_KEY, None)
 
 
+def coach_evidence_context_is_available(
+    session_state: MutableMapping[str, object],
+    timezone_name: object,
+    reference_datetime: datetime,
+) -> bool:
+    """Whether a current, session-only weekly overview can seed evidence."""
+    return coach_evidence_context_guidance(
+        session_state, timezone_name, reference_datetime
+    ) is None
+
+
+def coach_evidence_context_guidance(
+    session_state: MutableMapping[str, object],
+    timezone_name: object,
+    reference_datetime: datetime,
+) -> str | None:
+    """Return concise, state-specific guidance when evidence cannot be prepared."""
+    if (
+        not isinstance(reference_datetime, datetime)
+        or reference_datetime.tzinfo is None
+        or reference_datetime.utcoffset() is None
+    ):
+        return "Select the shared time zone before preparing Coach evidence context."
+    token = session_state.get(ACCESS_TOKEN_KEY)
+    expires_at = session_state.get(EXPIRES_AT_KEY)
+    if not isinstance(token, str) or not token.strip():
+        return "Connect Strava to prepare Coach evidence context, then load the weekly overview."
+    if type(expires_at) is not int or expires_at <= reference_datetime.timestamp():
+        return "Reconnect Strava before preparing Coach evidence context; the access token has expired."
+    if not isinstance(timezone_name, str) or not timezone_name:
+        return "Select the shared time zone, then load its weekly overview before preparing Coach evidence context."
+    try:
+        ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return "Select the shared time zone, then load its weekly overview before preparing Coach evidence context."
+    weeks = session_state.get(WEEKLY_ANALYSES_KEY)
+    as_of = session_state.get(WEEKLY_AS_OF_KEY)
+    if (
+        not isinstance(weeks, (tuple, list))
+        or len(weeks) != 7
+        or any(not isinstance(week, WeeklyAnalysis) for week in weeks)
+        or not isinstance(as_of, datetime)
+        or as_of.tzinfo is None
+        or as_of.utcoffset() is None
+    ):
+        return "Load the seven completed-week overview for the selected time zone before preparing Coach evidence context."
+    if session_state.get(WEEKLY_QUERY_TIMEZONE_KEY) != timezone_name:
+        return "Reload the weekly overview for the selected time zone before preparing Coach evidence context."
+    if as_of > reference_datetime:
+        return "Reload the weekly overview for the selected time zone before preparing Coach evidence context."
+    return None
+
+
 def prepare_coach_evidence_context(
     session_state: MutableMapping[str, object],
     request_data: dict[str, object],
