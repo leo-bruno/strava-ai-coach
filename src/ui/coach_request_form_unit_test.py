@@ -197,6 +197,7 @@ def test_unsubmitted_form_keeps_only_existing_session_request():
 def test_clear_form_removes_draft_values_and_suppresses_request_output():
     draft_values = form_values(runner_context="private draft")
     state = {key: draft_values[key] for key in FORM_WIDGET_KEYS}
+    state["athlete_timezone"] = draft_values["athlete_timezone"]
     ui = MockStreamlit(
         values=form_values(runner_context="private draft"),
         submitted=False,
@@ -206,7 +207,7 @@ def test_clear_form_removes_draft_values_and_suppresses_request_output():
 
     render_request_page(ui)
 
-    assert ui.session_state == {}
+    assert ui.session_state == {"athlete_timezone": "Europe/Madrid"}
     assert not ui.errors
     assert "Request summary" not in ui.output
     assert "Request validated and kept in this session." not in ui.output
@@ -217,6 +218,7 @@ def test_clear_form_removes_a_previously_validated_request():
     state = {REQUEST_SESSION_KEY: valid_request()}
     validated_values = form_values(runner_context="private validated context")
     state.update({key: validated_values[key] for key in FORM_WIDGET_KEYS})
+    state["athlete_timezone"] = validated_values["athlete_timezone"]
     ui = MockStreamlit(
         values=form_values(runner_context="private validated context"),
         submitted=False,
@@ -226,6 +228,6 @@ def test_clear_form_removes_a_previously_validated_request():
 
     render_request_page(ui)
 
-    assert ui.session_state == {}
+    assert ui.session_state == {"athlete_timezone": "Europe/Madrid"}
     assert "Request summary" not in ui.output
     assert "private validated context" not in " ".join(map(str, ui.output))

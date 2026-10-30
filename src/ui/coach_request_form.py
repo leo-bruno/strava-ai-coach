@@ -42,7 +42,6 @@ DEMO_SESSION_KEY = "offline_coach_demo_output"
 FORM_WIDGET_KEYS = (
     "target_date",
     "available_training_days",
-    "athlete_timezone",
     "runner_context",
 )
 
@@ -62,6 +61,12 @@ def _clear_request_form(session_state) -> None:
     session_state.pop(DEMO_SESSION_KEY, None)
     for key in FORM_WIDGET_KEYS:
         session_state.pop(key, None)
+
+
+def _timezone_changed(session_state) -> None:
+    """Clear outputs tied to the previous timezone, preserving the preference."""
+    session_state.pop(REQUEST_SESSION_KEY, None)
+    clear_weekly_overview(session_state)
 
 
 def _offline_demo_output() -> str:
@@ -88,6 +93,15 @@ def render_request_page(ui=None) -> None:
         "Validating a request does not call the Coach or access Strava. "
         "The separate offline demo displays a pre-recorded synthetic response."
     )
+    timezone_name = ui.selectbox(
+        "Your time zone (IANA name)",
+        options=sorted(available_timezones()),
+        index=None,
+        placeholder="Select an IANA time zone",
+        key=WEEKLY_TIMEZONE_KEY,
+        on_change=_timezone_changed,
+        args=(ui.session_state,),
+    )
 
     with ui.form("coach_request_form"):
         ui.text_input("Goal", value="Half marathon", disabled=True)
@@ -103,13 +117,6 @@ def render_request_page(ui=None) -> None:
             value=0,
             step=1,
             key="available_training_days",
-        )
-        timezone_name = ui.selectbox(
-            "Your time zone (IANA name)",
-            options=sorted(available_timezones()),
-            index=None,
-            placeholder="Select an IANA time zone",
-            key="athlete_timezone",
         )
         runner_context = ui.text_area(
             "Optional context for the Coach",
@@ -364,15 +371,6 @@ def render_request_page(ui=None) -> None:
         ui.write(
             "Load the seven most recent completed local calendar weeks. This requests activity summaries only; "
             "it does not request activity details or laps."
-        )
-        ui.selectbox(
-            "IANA time zone for week boundaries",
-            options=sorted(available_timezones()),
-            index=None,
-            placeholder="Select an IANA time zone",
-            key=WEEKLY_TIMEZONE_KEY,
-            on_change=clear_weekly_overview,
-            args=(ui.session_state,),
         )
         if ui.button("Load seven completed weeks and Insights", key="load_weekly_strava_overview"):
             selected_timezone = ui.session_state.get(WEEKLY_TIMEZONE_KEY)
