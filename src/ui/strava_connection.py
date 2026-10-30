@@ -18,6 +18,8 @@ from src.strava.auth import (
     revoke_access_token,
 )
 from src.strava.client import StravaClient
+from src.strava.activity_mapper import activity_from_strava
+from src.strava.training_analysis import training_analysis_from_strava
 
 
 ACCESS_TOKEN_KEY = "strava_access_token"
@@ -25,6 +27,8 @@ EXPIRES_AT_KEY = "strava_access_token_expires_at"
 SCOPES_KEY = "strava_granted_scopes"
 ATHLETE_PREVIEW_KEY = "strava_athlete_preview"
 ACTIVITY_PREVIEW_KEY = "strava_activity_preview"
+TRAINING_ANALYSIS_KEY = "strava_training_analysis"
+SELECTED_ACTIVITY_ID_KEY = "selected_strava_activity_id"
 CALLBACK_KEYS = ("code", "state", "scope", "error")
 OAUTH_STATE_TTL_SECONDS = 600
 OAUTH_STATE_MAX_ENTRIES = 1024
@@ -220,9 +224,71 @@ def clear_connection_state(session_state: MutableMapping[str, Any]) -> str | Non
         SCOPES_KEY,
         ATHLETE_PREVIEW_KEY,
         ACTIVITY_PREVIEW_KEY,
+        TRAINING_ANALYSIS_KEY,
     ):
         session_state.pop(key, None)
     return access_token if isinstance(access_token, str) and access_token else None
+
+
+def clear_activity_analysis(session_state: MutableMapping[str, Any]) -> None:
+    """Discard a prior individual result when the selection changes."""
+    session_state.pop(TRAINING_ANALYSIS_KEY, None)
+
+
+def clear_expired_activity_analysis(
+    session_state: MutableMapping[str, Any], *, now: float | None = None
+) -> None:
+    """Hide detailed analysis when its session token is absent or expired."""
+    expires_at = session_state.get(EXPIRES_AT_KEY)
+    current_time = time.time() if now is None else now
+    if type(expires_at) is not int or expires_at <= current_time:
+        clear_activity_analysis(session_state)
+
+
+def load_selected_activity_analysis(
+    session_state: MutableMapping[str, Any],
+    activity_id: int | None,
+    *,
+    client_factory=None,
+    now: float | None = None,
+) -> None:
+    """Fetch and analyze one selected Run detail, retaining it only in session."""
+    clear_activity_analysis(session_state)
+    token = session_state.get(ACCESS_TOKEN_KEY)
+    expires_at = session_state.get(EXPIRES_AT_KEY)
+    current_time = time.time() if now is None else now
+    if not isinstance(token, str) or not token.strip() or type(expires_at) is not int:
+        raise ValueError("Connect Strava again before analyzing an activity.")
+    if expires_at <= current_time:
+        raise ValueError("The Strava session has expired. Connect again to analyze an activity.")
+    if not isinstance(activity_id, int) or isinstance(activity_id, bool):
+        raise ValueError("Select a valid activity from the preview.")
+
+    preview = session_state.get(ACTIVITY_PREVIEW_KEY)
+    if not isinstance(preview, list):
+        raise ValueError("Load the Strava preview before selecting an activity.")
+    selected_activity = next(
+        (
+            activity
+            for activity in preview
+            if isinstance(activity, dict)
+            and activity.get("id") == activity_id
+            and activity.get("sport_type") == "Run"
+        ),
+        None,
+    )
+    if selected_activity is None:
+        raise ValueError("Select a Run from the loaded Strava preview.")
+
+    client = (StravaClient if client_factory is None else client_factory)(access_token=token)
+    detail = client.get_activity(activity_id)
+    if not isinstance(detail, dict):
+        raise ValueError("Strava returned an invalid activity detail.")
+    activity = activity_from_strava(detail)
+    if activity.id != activity_id:
+        raise ValueError("Strava returned a different activity than the selected Run.")
+    analysis = training_analysis_from_strava(activity, detail)
+    session_state[TRAINING_ANALYSIS_KEY] = analysis
 
 
 def disconnect_from_strava(
@@ -251,6 +317,7 @@ def load_first_page_preview(
     now: float | None = None,
 ) -> None:
     """Load only a whitelisted athlete summary and the first 30 activity summaries."""
+    clear_activity_analysis(session_state)
     token = session_state.get(ACCESS_TOKEN_KEY)
     expires_at = session_state.get(EXPIRES_AT_KEY)
     current_time = time.time() if now is None else now

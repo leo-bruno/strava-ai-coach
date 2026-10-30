@@ -2,6 +2,7 @@
 
 from datetime import date, timedelta
 from datetime import datetime, timezone
+import json
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import Mock
 
@@ -15,6 +16,8 @@ from src.ui.strava_connection import (
     ATHLETE_PREVIEW_KEY,
     EXPIRES_AT_KEY,
     SCOPES_KEY,
+    SELECTED_ACTIVITY_ID_KEY,
+    TRAINING_ANALYSIS_KEY,
     get_oauth_state_store,
 )
 
@@ -263,7 +266,22 @@ def test_strava_preview_loads_only_after_click_and_requests_first_page(monkeypat
 
         def get_activities(self, *, page, per_page):
             calls.append(("activities", page, per_page))
-            return [Activity(1, "Morning run", "Run", datetime(2026, 10, 20, tzinfo=timezone.utc), 5000, 1500)]
+            return [
+                Activity(1, "Morning run", "Run", datetime(2026, 10, 20, tzinfo=timezone.utc), 5000, 1500),
+                Activity(2, "Commute", "Ride", datetime(2026, 10, 19, tzinfo=timezone.utc), 8000, 1200),
+            ]
+
+        def get_activity(self, activity_id):
+            calls.append(("detail", activity_id))
+            return {
+                "id": activity_id,
+                "name": "Morning run",
+                "sport_type": "Run",
+                "start_date": "2026-10-20T08:00:00Z",
+                "distance": 5000,
+                "moving_time": 1500,
+                "laps": [{"distance": 5000, "moving_time": 1500}],
+            }
 
     monkeypatch.setattr("src.ui.strava_connection.StravaClient", FakeClient)
     app = AppTest.from_file(APP_ENTRYPOINT)
@@ -281,12 +299,135 @@ def test_strava_preview_loads_only_after_click_and_requests_first_page(monkeypat
     assert app.session_state[ATHLETE_PREVIEW_KEY] == {
         "id": 42, "firstname": "Runner", "lastname": "Example", "username": "runner",
     }
-    assert len(app.session_state[ACTIVITY_PREVIEW_KEY]) == 1
+    assert len(app.session_state[ACTIVITY_PREVIEW_KEY]) == 2
     text = visible_text(app)
     assert "First activity page fields" in text
     assert "partial" in text
     assert "not synchronized" in text
     assert "weight" not in text
+    assert not any(call[0] == "detail" for call in calls)
+    assert list(app.selectbox(key=SELECTED_ACTIVITY_ID_KEY).options) == [
+        "2026-10-20T00:00:00+00:00: Morning run (id 1)"
+    ]
+
+    app.selectbox(key=SELECTED_ACTIVITY_ID_KEY).select(1).run(timeout=10)
+    assert not app.exception
+    assert not any(call[0] == "detail" for call in calls)
+
+    app.button(key="analyze_selected_run").click().run(timeout=10)
+    assert not app.exception
+    assert calls.count(("detail", 1)) == 1
+    analysis = app.session_state[TRAINING_ANALYSIS_KEY]
+    assert analysis.activity.id == 1
+    assert analysis.average_heart_rate_bpm is None
+    assert analysis.laps[0].average_heart_rate_bpm is None
+    rendered_analysis = json.loads(app.json[-1].value)
+    assert rendered_analysis["average_heart_rate_bpm"] is None
+    assert rendered_analysis["laps"][0]["average_heart_rate_bpm"] is None
+
+
+def test_selecting_another_run_hides_old_result_and_preview_refresh_clears_analysis(monkeypatch):
+    from src.models.activity import Activity
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            pass
+
+        def get_athlete(self):
+            return {"id": 42}
+
+        def get_activities(self, *, page, per_page):
+            return [
+                Activity(1, "First Run", "Run", datetime(2026, 10, 20, tzinfo=timezone.utc), 5000, 1500),
+                Activity(2, "Second Run", "Run", datetime(2026, 10, 21, tzinfo=timezone.utc), 7000, 2100),
+            ]
+
+        def get_activity(self, activity_id):
+            return {
+                "id": activity_id,
+                "name": f"Run {activity_id}",
+                "sport_type": "Run",
+                "start_date": "2026-10-20T08:00:00Z",
+                "distance": 5000,
+                "moving_time": 1500,
+            }
+
+    monkeypatch.setattr("src.ui.strava_connection.StravaClient", FakeClient)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "access-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.run(timeout=10)
+    app.button(key="load_strava_preview").click().run(timeout=10)
+    app.selectbox(key=SELECTED_ACTIVITY_ID_KEY).select(1).run(timeout=10)
+    app.button(key="analyze_selected_run").click().run(timeout=10)
+    assert TRAINING_ANALYSIS_KEY in app.session_state
+
+    app.selectbox(key=SELECTED_ACTIVITY_ID_KEY).select(2).run(timeout=10)
+    assert not app.exception
+    assert TRAINING_ANALYSIS_KEY not in app.session_state
+    assert "Selected Run analysis" not in visible_text(app)
+
+    app.button(key="analyze_selected_run").click().run(timeout=10)
+    assert TRAINING_ANALYSIS_KEY in app.session_state
+    app.button(key="load_strava_preview").click().run(timeout=10)
+    assert TRAINING_ANALYSIS_KEY not in app.session_state
+    assert app.session_state[SELECTED_ACTIVITY_ID_KEY] is None
+
+
+def test_failed_detail_request_does_not_leave_previous_analysis(monkeypatch):
+    from src.models.activity import Activity
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            pass
+
+        def get_athlete(self):
+            return {"id": 42}
+
+        def get_activities(self, *, page, per_page):
+            return [Activity(1, "Run", "Run", datetime(2026, 10, 20, tzinfo=timezone.utc), 5000, 1500)]
+
+        def get_activity(self, _activity_id):
+            raise RuntimeError("private provider diagnostic")
+
+    monkeypatch.setattr("src.ui.strava_connection.StravaClient", FakeClient)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "access-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.run(timeout=10)
+    app.button(key="load_strava_preview").click().run(timeout=10)
+    app.selectbox(key=SELECTED_ACTIVITY_ID_KEY).select(1).run(timeout=10)
+    app.session_state[TRAINING_ANALYSIS_KEY] = "stale-result"
+    app.button(key="analyze_selected_run").click().run(timeout=10)
+
+    assert not app.exception
+    assert TRAINING_ANALYSIS_KEY not in app.session_state
+    assert "private provider diagnostic" not in visible_text(app)
+    assert "Selected Run analysis" not in visible_text(app)
+
+
+def test_expired_session_hides_stored_activity_analysis_on_render():
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "expired-access-token"
+    app.session_state[EXPIRES_AT_KEY] = 1
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[ACTIVITY_PREVIEW_KEY] = [{
+        "id": 1,
+        "name": "Morning Run",
+        "sport_type": "Run",
+        "start_date": "2026-10-20T08:00:00+00:00",
+        "distance_meters": 5000,
+        "moving_time_seconds": 1500,
+    }]
+    app.session_state[TRAINING_ANALYSIS_KEY] = "stale-result"
+
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert TRAINING_ANALYSIS_KEY not in app.session_state
+    assert "Selected Run analysis" not in visible_text(app)
 
 
 def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypatch):
@@ -300,6 +441,7 @@ def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypa
     app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
     app.session_state[ATHLETE_PREVIEW_KEY] = {"id": 42}
     app.session_state[ACTIVITY_PREVIEW_KEY] = [{"id": 1}]
+    app.session_state[TRAINING_ANALYSIS_KEY] = "stored-analysis"
     app.run()
 
     app.button(key="disconnect_strava").click().run(timeout=10)
@@ -310,5 +452,6 @@ def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypa
     assert SCOPES_KEY not in app.session_state
     assert ATHLETE_PREVIEW_KEY not in app.session_state
     assert ACTIVITY_PREVIEW_KEY not in app.session_state
+    assert TRAINING_ANALYSIS_KEY not in app.session_state
     assert revoke.call_args.args == ("access-token",)
     assert "cannot be independently verified" in visible_text(app)

@@ -8,8 +8,10 @@ from src.ui.strava_connection import (
     ATHLETE_PREVIEW_KEY,
     EXPIRES_AT_KEY,
     SCOPES_KEY,
+    TRAINING_ANALYSIS_KEY,
     disconnect_from_strava,
     load_first_page_preview,
+    load_selected_activity_analysis,
     OAuthStateStore,
     clear_connection_state,
     consume_oauth_callback,
@@ -393,6 +395,201 @@ def test_preview_rejects_expired_session_without_creating_client():
     assert not calls
     assert ATHLETE_PREVIEW_KEY not in session
     assert ACTIVITY_PREVIEW_KEY not in session
+
+
+def test_selected_run_detail_is_mapped_to_training_analysis_and_keeps_missing_values_none():
+    from datetime import datetime, timezone
+
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{
+            "id": 123,
+            "name": "Morning Run",
+            "sport_type": "Run",
+            "start_date": "2026-09-22T08:00:00+00:00",
+        }],
+    }
+    calls = []
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            calls.append(("client", access_token))
+
+        def get_activity(self, activity_id):
+            calls.append(("detail", activity_id))
+            return {
+                "id": 123,
+                "name": "Morning Run",
+                "sport_type": "Run",
+                "start_date": "2026-09-22T08:00:00Z",
+                "distance": 5000,
+                "moving_time": 1500,
+                "laps": [{"distance": 5000, "moving_time": 1500}],
+            }
+
+    load_selected_activity_analysis(
+        session, 123, client_factory=FakeClient, now=2_000_000_000
+    )
+
+    analysis = session[TRAINING_ANALYSIS_KEY]
+    assert calls == [("client", "session-token"), ("detail", 123)]
+    assert analysis.activity.id == 123
+    assert analysis.activity.start_date == datetime(2026, 9, 22, 8, tzinfo=timezone.utc)
+    assert analysis.average_heart_rate_bpm is None
+    assert analysis.maximum_heart_rate_bpm is None
+    assert analysis.cadence_steps_per_minute is None
+    assert analysis.elevation_gain_meters is None
+    assert analysis.laps[0].average_heart_rate_bpm is None
+
+
+def test_selected_activity_rejects_non_run_without_fetching_detail():
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{"id": 123, "sport_type": "Ride"}],
+    }
+    calls = []
+
+    try:
+        load_selected_activity_analysis(
+            session, 123, client_factory=lambda **_kwargs: calls.append("client"),
+            now=2_000_000_000,
+        )
+    except ValueError as error:
+        assert "Select a Run" in str(error)
+    else:
+        raise AssertionError("Non-Run activity should be rejected.")
+
+    assert not calls
+    assert TRAINING_ANALYSIS_KEY not in session
+
+
+def test_missing_selected_id_clears_stale_analysis_without_constructing_client():
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{"id": 123, "sport_type": "Run"}],
+        TRAINING_ANALYSIS_KEY: "stale-analysis",
+    }
+    client_constructions = []
+
+    try:
+        load_selected_activity_analysis(
+            session,
+            None,
+            client_factory=lambda **kwargs: client_constructions.append(kwargs),
+            now=2_000_000_000,
+        )
+    except ValueError as error:
+        assert "valid activity" in str(error)
+    else:
+        raise AssertionError("A missing selection should be rejected.")
+
+    assert client_constructions == []
+    assert TRAINING_ANALYSIS_KEY not in session
+
+
+def test_run_id_absent_from_preview_clears_stale_analysis_without_client_request():
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{"id": 123, "sport_type": "Run"}],
+        TRAINING_ANALYSIS_KEY: "stale-analysis",
+    }
+    client_constructions = []
+
+    try:
+        load_selected_activity_analysis(
+            session,
+            456,
+            client_factory=lambda **kwargs: client_constructions.append(kwargs),
+            now=2_000_000_000,
+        )
+    except ValueError as error:
+        assert "Run from the loaded Strava preview" in str(error)
+    else:
+        raise AssertionError("An ID outside the loaded preview should be rejected.")
+
+    assert client_constructions == []
+    assert TRAINING_ANALYSIS_KEY not in session
+
+
+def test_mismatched_detail_id_clears_prior_analysis_and_is_rejected():
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{"id": 123, "sport_type": "Run"}],
+        TRAINING_ANALYSIS_KEY: "stale-analysis",
+    }
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            pass
+
+        def get_activity(self, _activity_id):
+            return {
+                "id": 456,
+                "name": "Other Run",
+                "sport_type": "Run",
+                "start_date": "2026-09-22T08:00:00Z",
+                "distance": 5000,
+                "moving_time": 1500,
+            }
+
+    try:
+        load_selected_activity_analysis(
+            session, 123, client_factory=FakeClient, now=2_000_000_000
+        )
+    except ValueError as error:
+        assert "different activity" in str(error)
+    else:
+        raise AssertionError("Mismatched detail ID should be rejected.")
+
+    assert TRAINING_ANALYSIS_KEY not in session
+
+
+def test_detail_failure_and_expired_token_remove_prior_analysis():
+    session = {
+        ACCESS_TOKEN_KEY: "session-token",
+        EXPIRES_AT_KEY: 2_100_000_000,
+        ACTIVITY_PREVIEW_KEY: [{"id": 123, "sport_type": "Run"}],
+        TRAINING_ANALYSIS_KEY: "stale-analysis",
+    }
+
+    class FailingClient:
+        def __init__(self, *, access_token):
+            pass
+
+        def get_activity(self, _activity_id):
+            raise RuntimeError("service detail")
+
+    try:
+        load_selected_activity_analysis(
+            session, 123, client_factory=FailingClient, now=2_000_000_000
+        )
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("Detail failure should propagate.")
+    assert TRAINING_ANALYSIS_KEY not in session
+
+    session[TRAINING_ANALYSIS_KEY] = "stale-analysis"
+    try:
+        load_selected_activity_analysis(
+            session, 123, client_factory=FailingClient, now=2_200_000_000
+        )
+    except ValueError as error:
+        assert "expired" in str(error)
+    else:
+        raise AssertionError("Expired token should be rejected.")
+    assert TRAINING_ANALYSIS_KEY not in session
+
+
+def test_disconnect_removes_individual_analysis():
+    session = {TRAINING_ANALYSIS_KEY: "analysis"}
+    clear_connection_state(session)
+    assert TRAINING_ANALYSIS_KEY not in session
 
 
 def test_disconnect_clears_session_and_attempts_revoke_only_when_configured():

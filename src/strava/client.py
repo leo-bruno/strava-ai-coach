@@ -11,6 +11,7 @@ from src.strava.auth import refresh_access_token
 
 ATHLETE_URL = "https://www.strava.com/api/v3/athlete"
 ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities"
+ACTIVITY_DETAIL_URL = "https://www.strava.com/api/v3/activities/{activity_id}"
 TIMEOUT_SECONDS = 10
 
 
@@ -96,3 +97,27 @@ class StravaClient:
                 ) from error
 
         return result
+
+    def get_activity(self, activity_id: int) -> dict[str, Any]:
+        """Return one detailed activity response from Strava."""
+        if not isinstance(activity_id, int) or isinstance(activity_id, bool):
+            raise ValueError("Activity id must be an integer.")
+
+        try:
+            response = requests.get(
+                ACTIVITY_DETAIL_URL.format(activity_id=activity_id),
+                headers={"Authorization": f"Bearer {self._access_token}"},
+                timeout=TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+        except requests.RequestException as error:
+            raise RuntimeError("Could not retrieve the Strava activity detail.") from error
+
+        try:
+            activity = response.json()
+        except ValueError as error:
+            raise RuntimeError("Strava returned an invalid activity detail response.") from error
+
+        if not isinstance(activity, dict):
+            raise RuntimeError("Strava returned an invalid activity detail response.")
+        return activity

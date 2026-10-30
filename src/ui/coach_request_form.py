@@ -13,9 +13,14 @@ from src.ui.strava_connection import (
     ATHLETE_PREVIEW_KEY,
     EXPIRES_AT_KEY,
     SCOPES_KEY,
+    SELECTED_ACTIVITY_ID_KEY,
+    TRAINING_ANALYSIS_KEY,
+    clear_activity_analysis,
+    clear_expired_activity_analysis,
     consume_oauth_callback,
     disconnect_from_strava,
     load_first_page_preview,
+    load_selected_activity_analysis,
     start_authorization,
 )
 
@@ -55,6 +60,7 @@ def render_request_page(ui=None) -> None:
         if query_params is not None
         else None
     )
+    clear_expired_activity_analysis(ui.session_state)
     ui.title("Strava AI Coach")
     ui.write(
         "Validating a request does not call the Coach or access Strava. "
@@ -220,6 +226,8 @@ def render_request_page(ui=None) -> None:
             + str(ui.session_state.get(EXPIRES_AT_KEY, "unknown")) + "."
         )
         if ui.button("Load Strava preview", key="load_strava_preview"):
+            clear_activity_analysis(ui.session_state)
+            ui.session_state.pop(SELECTED_ACTIVITY_ID_KEY, None)
             ui.session_state.pop(ATHLETE_PREVIEW_KEY, None)
             ui.session_state.pop(ACTIVITY_PREVIEW_KEY, None)
             try:
@@ -242,6 +250,77 @@ def render_request_page(ui=None) -> None:
                 ui.table(activity_preview)
             else:
                 ui.info("No activities were returned on the first page.")
+
+            run_activities = [
+                activity
+                for activity in activity_preview
+                if activity.get("sport_type") == "Run"
+            ]
+            if run_activities:
+                ui.info(
+                    "Selecting a Run makes one detailed activity request and builds a single TrainingAnalysis with "
+                    "the existing local Analytics logic. The result stays in this session and is not sent to Coach "
+                    "or OpenAI."
+                )
+                run_ids = [activity["id"] for activity in run_activities]
+                labels = {
+                    activity["id"]: f"{activity['start_date']}: {activity['name']} (id {activity['id']})"
+                    for activity in run_activities
+                }
+                ui.selectbox(
+                    "Select a Run from this preview",
+                    options=run_ids,
+                    index=None,
+                    placeholder="Choose a Run",
+                    format_func=lambda activity_id: labels[activity_id],
+                    key=SELECTED_ACTIVITY_ID_KEY,
+                    on_change=clear_activity_analysis,
+                    args=(ui.session_state,),
+                )
+                if ui.button("Analyze selected Run", key="analyze_selected_run"):
+                    selected_id = ui.session_state.get(SELECTED_ACTIVITY_ID_KEY)
+                    try:
+                        load_selected_activity_analysis(ui.session_state, selected_id)
+                    except ValueError as error:
+                        ui.error(str(error))
+                    except RuntimeError:
+                        ui.error("Could not retrieve or analyze the selected Strava activity.")
+
+                analysis = ui.session_state.get(TRAINING_ANALYSIS_KEY)
+                if analysis is not None and analysis.activity.id == ui.session_state.get(
+                    SELECTED_ACTIVITY_ID_KEY
+                ):
+                    ui.subheader("Selected Run analysis")
+                    ui.json(
+                        {
+                            "activity": {
+                                "id": analysis.activity.id,
+                                "name": analysis.activity.name,
+                                "start_date": analysis.activity.start_date.isoformat(),
+                                "distance_meters": analysis.activity.distance_meters,
+                                "moving_time_seconds": analysis.activity.moving_time_seconds,
+                            },
+                            "training_type": analysis.training_type.value,
+                            "average_pace_seconds_per_km": analysis.average_pace_seconds_per_km,
+                            "average_heart_rate_bpm": analysis.average_heart_rate_bpm,
+                            "maximum_heart_rate_bpm": analysis.maximum_heart_rate_bpm,
+                            "cadence_steps_per_minute": analysis.cadence_steps_per_minute,
+                            "elevation_gain_meters": analysis.elevation_gain_meters,
+                            "laps": [
+                                {
+                                    "distance_meters": lap.distance_meters,
+                                    "moving_time_seconds": lap.moving_time_seconds,
+                                    "pace_seconds_per_km": lap.pace_seconds_per_km,
+                                    "average_heart_rate_bpm": lap.average_heart_rate_bpm,
+                                    "maximum_heart_rate_bpm": lap.maximum_heart_rate_bpm,
+                                    "cadence_steps_per_minute": lap.cadence_steps_per_minute,
+                                }
+                                for lap in analysis.laps
+                            ],
+                        }
+                    )
+            else:
+                ui.info("The loaded first page contains no Run activities to analyze.")
 
         if ui.button("Disconnect Strava", key="disconnect_strava"):
             disconnect_status = disconnect_from_strava(ui.session_state, environ=os.environ)

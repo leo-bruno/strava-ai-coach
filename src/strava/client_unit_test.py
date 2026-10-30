@@ -7,7 +7,13 @@ import pytest
 import requests
 
 from src.models.activity import Activity
-from src.strava.client import ACTIVITIES_URL, ATHLETE_URL, TIMEOUT_SECONDS, StravaClient
+from src.strava.client import (
+    ACTIVITIES_URL,
+    ACTIVITY_DETAIL_URL,
+    ATHLETE_URL,
+    TIMEOUT_SECONDS,
+    StravaClient,
+)
 
 
 def test_client_uses_supplied_access_token_without_refreshing_or_persisting():
@@ -218,6 +224,60 @@ def test_get_activities_raises_when_strava_returns_an_http_error() -> None:
 
             with pytest.raises(RuntimeError, match=r"^Could not retrieve Strava activities\.$"):
                 client.get_activities()
+
+
+def test_get_activity_returns_detail_using_the_supplied_session_token():
+    detail = {
+        "id": 123,
+        "name": "Morning Run",
+        "sport_type": "Run",
+        "start_date": "2026-09-22T08:00:00Z",
+        "distance": 5000,
+        "moving_time": 1500,
+    }
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = detail
+
+    with patch("src.strava.client.refresh_access_token") as mock_refresh:
+        with patch("src.strava.client.requests.get", return_value=response) as mock_get:
+            client = StravaClient(access_token="session-access-token")
+            result = client.get_activity(123)
+
+    assert result == detail
+    mock_refresh.assert_not_called()
+    mock_get.assert_called_once_with(
+        ACTIVITY_DETAIL_URL.format(activity_id=123),
+        headers={"Authorization": "Bearer session-access-token"},
+        timeout=TIMEOUT_SECONDS,
+    )
+
+
+@pytest.mark.parametrize("activity_id", [None, "123", 123.0, True])
+def test_get_activity_rejects_non_integer_ids_without_request(activity_id):
+    with patch("src.strava.client.requests.get") as mock_get:
+        with pytest.raises(ValueError, match="Activity id must be an integer"):
+            StravaClient(access_token="session-access-token").get_activity(activity_id)
+    mock_get.assert_not_called()
+
+
+def test_get_activity_rejects_invalid_response():
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = []
+
+    with patch("src.strava.client.requests.get", return_value=response):
+        with pytest.raises(RuntimeError, match="invalid activity detail response"):
+            StravaClient(access_token="session-access-token").get_activity(123)
+
+
+def test_get_activity_wraps_http_errors():
+    response = Mock()
+    response.raise_for_status.side_effect = requests.RequestException("private diagnostic")
+
+    with patch("src.strava.client.requests.get", return_value=response):
+        with pytest.raises(RuntimeError, match="Could not retrieve the Strava activity detail"):
+            StravaClient(access_token="session-access-token").get_activity(123)
 
 
 @pytest.mark.parametrize("invalid_activity", [None, [], "invalid", {"id": 456}])
