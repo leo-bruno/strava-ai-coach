@@ -14,6 +14,8 @@ from src.ui.strava_weekly_overview import (
     WEEKLY_PAGE_COUNT_KEY,
     WEEKLY_PERIOD_END_KEY,
     WEEKLY_PERIOD_START_KEY,
+    WEEKLY_QUERY_TIMEZONE_KEY,
+    COACH_EVIDENCE_CONTEXT_KEY,
     clear_expired_weekly_overview,
     clear_weekly_overview,
     load_recent_weekly_overview,
@@ -54,6 +56,8 @@ def session_with_stale_overview():
         WEEKLY_PERIOD_END_KEY: "stale-end",
         WEEKLY_PAGE_COUNT_KEY: 99,
         WEEKLY_AS_OF_KEY: "stale-as-of",
+        WEEKLY_QUERY_TIMEZONE_KEY: "stale-timezone",
+        COACH_EVIDENCE_CONTEXT_KEY: "stale-context",
     }
 
 
@@ -277,3 +281,5 @@ def test_expiry_clear_helper_removes_every_loaded_result():
     session[WEEKLY_ANALYSES_KEY] = "stale"
     clear_weekly_overview(session)
     assert WEEKLY_ANALYSES_KEY not in session
+    assert WEEKLY_QUERY_TIMEZONE_KEY not in session
+    assert COACH_EVIDENCE_CONTEXT_KEY not in session

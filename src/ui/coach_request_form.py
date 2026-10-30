@@ -6,6 +6,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ai.coach_demo import build_offline_demo
 from src.models.coach_request import coach_request_from_input
+from src.ui.coach_evidence_context import (
+    COACH_EVIDENCE_CONTEXT_KEY,
+    clear_coach_evidence_context,
+    prepare_coach_evidence_context,
+    render_coach_evidence_context,
+)
 from src.ui.coach_response import render_coach_response
 from src.ui.timezone_preference import (
     ATHLETE_TIMEZONE_KEY,
@@ -67,6 +73,7 @@ def _clear_request_form(session_state) -> None:
     """Clear the request, demo result and form values before rerunning."""
     session_state.pop(REQUEST_SESSION_KEY, None)
     session_state.pop(DEMO_SESSION_KEY, None)
+    clear_coach_evidence_context(session_state)
     for key in FORM_WIDGET_KEYS:
         session_state.pop(key, None)
 
@@ -75,6 +82,17 @@ def _invalidate_timezone_bound_state(session_state) -> None:
     """Clear Coach and weekly results after a committed preference change."""
     session_state.pop(REQUEST_SESSION_KEY, None)
     clear_weekly_overview(session_state)
+
+
+def _request_matches_form(request, target_date, available_days, runner_context) -> bool:
+    if request is None:
+        return False
+    normalized_context = runner_context if isinstance(runner_context, str) and runner_context.strip() else None
+    return (
+        request.goal.target_date == target_date
+        and request.constraints.available_training_days_per_week == available_days
+        and request.context.runner_context == normalized_context
+    )
 
 
 def _offline_demo_output() -> str:
@@ -117,6 +135,7 @@ def render_request_page(ui=None) -> None:
     authorization_url = None
     authorization_error = False
     weekly_load_error = False
+    evidence_error = None
     with ui.form("coach_request_form"):
         ui.text_input("Goal", value="Half marathon", disabled=True)
         timezone_name = ui.selectbox(
@@ -150,6 +169,10 @@ def render_request_page(ui=None) -> None:
             "Prepare Strava authorization",
             key="prepare_strava_authorization",
         )
+        evidence_submitted = ui.form_submit_button(
+            "Prepare Coach evidence context",
+            key="prepare_coach_evidence_context",
+        )
         weekly_submitted = (
             ui.form_submit_button(
                 "Load seven completed weeks and Insights",
@@ -176,9 +199,11 @@ def render_request_page(ui=None) -> None:
             ui.session_state[DEMO_SESSION_KEY] = rendered_demo
 
     if coach_submitted:
+        clear_coach_evidence_context(ui.session_state)
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
         try:
             athlete_timezone = _resolve_coach_timezone(timezone_name)
+            reference_datetime = datetime.now(timezone.utc)
             request = coach_request_from_input(
                 {
                     "goal": {
@@ -190,7 +215,7 @@ def render_request_page(ui=None) -> None:
                     },
                     "runner_context": runner_context,
                 },
-                reference_datetime=datetime.now(timezone.utc),
+                reference_datetime=reference_datetime,
                 athlete_timezone=athlete_timezone,
             )
         except (ValueError, ZoneInfoNotFoundError) as error:
@@ -200,6 +225,10 @@ def render_request_page(ui=None) -> None:
             ui.success("Request validated and kept in this session.")
 
     elif authorization_submitted:
+        if not _request_matches_form(
+            ui.session_state.get(REQUEST_SESSION_KEY), target_date, available_days, runner_context
+        ):
+            clear_coach_evidence_context(ui.session_state)
         try:
             authorization_url = start_authorization(
                 environ=os.environ,
@@ -208,7 +237,35 @@ def render_request_page(ui=None) -> None:
         except RuntimeError:
             authorization_error = True
 
+    elif evidence_submitted:
+        clear_coach_evidence_context(ui.session_state)
+        ui.session_state.pop(REQUEST_SESSION_KEY, None)
+        try:
+            reference_datetime = datetime.now(timezone.utc)
+            request, context = prepare_coach_evidence_context(
+                ui.session_state,
+                {
+                    "goal": {
+                        "goal_type": "HALF_MARATHON",
+                        "target_date": target_date.isoformat(),
+                    },
+                    "constraints": {
+                        "available_training_days_per_week": available_days,
+                    },
+                    "runner_context": runner_context,
+                },
+                timezone_name,
+                reference_datetime,
+            )
+        except ValueError as error:
+            evidence_error = str(error)
+        except Exception:
+            evidence_error = "Could not prepare the Coach evidence context from the current request and weekly data."
+        else:
+            ui.session_state[REQUEST_SESSION_KEY] = request
+            ui.session_state[COACH_EVIDENCE_CONTEXT_KEY] = context
     elif weekly_submitted:
+        clear_coach_evidence_context(ui.session_state)
         selected_timezone = ui.session_state.get(ATHLETE_TIMEZONE_KEY)
         if selected_timezone is None:
             clear_weekly_overview(ui.session_state)
@@ -233,10 +290,26 @@ def render_request_page(ui=None) -> None:
             "Available training days per week: "
             f"{request.constraints.available_training_days_per_week}"
         )
-        ui.info(
-            "No training advice has been generated for this validated request, and no Strava data has been "
-            "accessed. It remains separate from the offline demo."
-        )
+        if ui.session_state.get(COACH_EVIDENCE_CONTEXT_KEY) is not None:
+            ui.info(
+                "This deterministic evidence context uses only the already-loaded weekly Strava summary. "
+                "No advice has been generated. It remains separate from the offline demo."
+            )
+        else:
+            ui.info(
+                "No training advice has been generated for this validated request. Request validation itself "
+                "does not access Strava. It remains separate from the offline demo."
+            )
+
+    evidence_context = ui.session_state.get(COACH_EVIDENCE_CONTEXT_KEY)
+    if evidence_context is not None:
+        loaded_weeks = ui.session_state.get(WEEKLY_ANALYSES_KEY)
+        if isinstance(loaded_weeks, (tuple, list)) and len(loaded_weeks) == 7:
+            render_coach_evidence_context(ui, evidence_context, tuple(loaded_weeks))
+        else:
+            clear_coach_evidence_context(ui.session_state)
+    if evidence_error is not None:
+        ui.error(evidence_error)
 
     demo_output = ui.session_state.get(DEMO_SESSION_KEY)
     if demo_output is not None:

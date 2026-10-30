@@ -26,6 +26,8 @@ WEEKLY_PERIOD_START_KEY = "strava_weekly_period_start"
 WEEKLY_PERIOD_END_KEY = "strava_weekly_period_end"
 WEEKLY_PAGE_COUNT_KEY = "strava_weekly_page_count"
 WEEKLY_AS_OF_KEY = "strava_weekly_as_of"
+WEEKLY_QUERY_TIMEZONE_KEY = "strava_weekly_query_timezone"
+COACH_EVIDENCE_CONTEXT_KEY = "coach_evidence_context"
 ACTIVITY_BOUNDARY_MARGIN_SECONDS = 1
 COMPLETED_WEEK_COUNT = 7
 
@@ -40,6 +42,8 @@ def clear_weekly_overview(session_state: MutableMapping[str, Any]) -> None:
         WEEKLY_PERIOD_END_KEY,
         WEEKLY_PAGE_COUNT_KEY,
         WEEKLY_AS_OF_KEY,
+        WEEKLY_QUERY_TIMEZONE_KEY,
+        COACH_EVIDENCE_CONTEXT_KEY,
     ):
         session_state.pop(key, None)
 
@@ -190,3 +194,4 @@ def load_recent_weekly_overview(
     session_state[WEEKLY_PERIOD_END_KEY] = end_local
     session_state[WEEKLY_PAGE_COUNT_KEY] = page_count
     session_state[WEEKLY_AS_OF_KEY] = as_of_utc.astimezone(athlete_timezone)
+    session_state[WEEKLY_QUERY_TIMEZONE_KEY] = athlete_timezone.key

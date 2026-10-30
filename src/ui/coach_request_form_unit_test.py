@@ -20,6 +20,7 @@ class MockStreamlit:
         self.submitted = submitted
         self.authorization_submitted = False
         self.weekly_submitted = False
+        self.evidence_submitted = False
         self.clear_clicked = clear_clicked
         self.session_state = session_state if session_state is not None else {}
         self.output = []
@@ -78,6 +79,7 @@ class MockStreamlit:
             "validate_coach_request": self.submitted,
             "prepare_strava_authorization": self.authorization_submitted,
             "load_weekly_strava_overview": self.weekly_submitted,
+            "prepare_coach_evidence_context": self.evidence_submitted,
         }.get(key, False)
 
     def button(self, _label, *, key=None, on_click=None, args=(), **_kwargs):
@@ -143,7 +145,7 @@ def test_valid_submission_stores_request_and_hides_runner_context(forbid_coach_a
     assert private_context not in visible_output
     assert "Request validated and kept in this session." in visible_output
     assert "No training advice has been generated" in visible_output
-    assert "no Strava data has been accessed" in visible_output
+    assert "Request validation itself does not access Strava" in visible_output
     assert set(ui.session_state) == {
         REQUEST_SESSION_KEY,
         ATHLETE_TIMEZONE_KEY,
