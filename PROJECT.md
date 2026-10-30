@@ -60,14 +60,14 @@ Analytics calcula → Trends compara → Insights detecta → Coach interpreta y
 🗺️ Estado del producto
 
 Área	Estado
-Strava Integration	🟡 Slice local: OAuth callback, preview manual de primera página y análisis individual bajo demanda; confirmación documental de autorización personal pendiente
+Strava Integration	🟡 Slice local: OAuth, preview, análisis individual y resumen manual paginado de siete semanas con Insights existentes; confirmación documental de autorización personal pendiente
 Individual Analytics	🟡 Parcial
 Weekly Analytics V1	✅ COMPLETE
 Trends V1	✅ COMPLETE
 Insights V1	✅ COMPLETE — tres Insights implementados y validados conjuntamente offline
 AI Coach	🟡 Incrementos 1–4 cerrados — primera ejecución real validada con fixture sintético; evaluación semántica pendiente
 Training Planning	⏳ Futuro
-UI	🟡 Captura Coach, demo offline, preview Strava y análisis individual manual; sin generación LLM ni sincronización de datos
+UI	🟡 Captura Coach, demo offline, preview/análisis individual y resumen Strava semanal bajo demanda; sin generación LLM ni sincronización
 
 ⸻
 
@@ -75,6 +75,10 @@ UI	🟡 Captura Coach, demo offline, preview Strava y análisis individual manua
 
 AI Coach V1 — UI Streamlit: valida solicitudes y ofrece una demo aparte con contexto sintético fijo y respuesta pregrabada validada. Ambas viven solo en sesión; limpiar restablece el formulario y borra la demo. La demo se identifica como sintética, no corresponde a la solicitud ingresada, no usa OpenAI ni Strava y no demuestra la calidad semántica ni aceptación del modelo. El flujo se verifica con AppTest y tests de unidad. No existe integración Coach end-to-end. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
 Incremento de Strava — la UI permite preparar autorización local con `STRAVA_REDIRECT_URI`, validar callback en una sesión Streamlit distinta con state aleatorio de un solo uso, aceptar únicamente grants `read` y `activity:read_all`, y mantener `access_token`, expiración y scopes solo en la sesión. La consulta de perfil y exactamente la primera página de hasta 30 resúmenes ocurre solo tras acción manual; los previews son parciales/no sincronizados y no se envían a Analytics, Coach ni OpenAI. Desde ese preview se puede seleccionar manualmente una carrera y pedir su detalle; el resultado `TrainingAnalysis`, con mediciones o vueltas ausentes conservadas como desconocidas, vive solo en sesión y se descarta si cambia la selección, falla la carga, expira el token, se actualiza el preview o se desconecta. No se recuperan streams ni se crea sincronización o persistencia. Disconnect borra primero el estado local e intenta revocación best-effort con `oauth/revoke` si hay credenciales configuradas; cuando no se confirma, la UI indica retirada manual en Strava. La implementación responde a autorización personal comunicada verbalmente por el usuario y queda pendiente de confirmación documental. Esta nota no afirma que Strava haya publicado o verificado una excepción. No se declara completa la integración Strava.
+
+Incremento de Strava — se añade una consulta manual paginada de siete semanas calendario completas, limitada por una timezone IANA explícita. La aplicación calcula límites locales Monday-to-Monday, solicita páginas secuenciales por `after`/`before` epoch y filtra exactamente el intervalo local antes de construir siete `WeeklyAnalysis`, incluidas semanas sin Run registrado. Solo tras el clic se cargan datos; las actividades, análisis, Insights, número de páginas e instante as-of permanecen en sesión y se limpian ante nuevo fetch, cambio de timezone, expiración, error o desconexión. Se muestran neutralmente los tres detectores existentes, sin inferir descanso, inactividad, retorno ni completitud del historial. No se recupera el historial completo, se sincronizan datos, consultan detalles/laps/streams ni se modifica Analytics, Insights o Coach. La slice local previa permite además analizar bajo demanda una carrera de la primera página mediante `TrainingAnalysis`; sus valores ausentes siguen como desconocidos.
+
+La integración mantiene los límites aprobados: callback con `STRAVA_REDIRECT_URI`, state de un solo uso, grants `read`/`activity:read_all` y estado temporal por sesión. Disconnect limpia datos locales e intenta revocación best-effort por `oauth/revoke`; si no puede confirmarse, la UI indica retirada manual. La autorización personal comunicada verbalmente sigue pendiente de confirmación documental. Esta nota no afirma que Strava haya publicado o verificado una excepción. Strava sigue parcial.
 
 AI Coach V1 — UI Streamlit: valida solicitudes y ofrece una demo aparte con contexto sintético fijo y respuesta pregrabada validada. Ambas viven solo en sesión; limpiar restablece el formulario y borra la demo. La demo se identifica como sintética, no corresponde a la solicitud ingresada, no usa OpenAI ni Strava y no demuestra la calidad semántica ni aceptación del modelo. El flujo se verifica con AppTest y tests de unidad. No existe integración Coach end-to-end. Cohort-13 usó modelo `gpt-6-luna`, dataset/rúbrica `5A-1.0.0` y presupuesto completo de ocho intentos. Reviews v2: 5A-01/02/03/06/07/08 `PASS`; 5A-05 `FAIL`, un hallazgo `MAJOR`, utilidad 1; 5A-04 `PROVIDER_ERROR / PROVIDER_TIMEOUT`, sin status HTTP ni respuesta evaluable. El informe final confirma integridad técnica `PASS`, resultado semántico `FAIL` y aceptación del modelo `FAIL`. `reviewer-01` es un seudónimo declarado, no autenticado independientemente. El prompt ahora explicita el aislamiento de mediciones cuestionables; sus contratos offline no demuestran que el modelo generado corrija su respuesta. Cohort-13 agotó sus ocho intentos y sus artefactos se preservan; las evaluaciones live permanecen pausadas, sin llamadas ni reintentos autorizados.
 
@@ -410,6 +414,7 @@ Implementado
 * Obtención de una página de actividades.
 * Vista previa manual de campos explícitos de perfil y una página parcial de resúmenes de actividad.
 * Selección manual de una carrera de esa página, obtención bajo demanda de un único detalle y construcción/renderizado de `TrainingAnalysis` individual con los mappers existentes; el resultado es temporal y por sesión.
+* Consulta manual paginada de Run summaries para siete semanas completas elegidas por timezone IANA; post-filtro exacto de límites locales, siete resúmenes semanales (incluidos ceros), tres detectores existentes y metadatos de páginas/as-of, todo temporal y por sesión.
 * Desconexión que limpia previews/tokens de sesión y solicita revocación best-effort por `oauth/revoke` si está configurado.
 * Parámetros before, after, page y per_page.
 * Validación y mapeo de actividades.
@@ -421,7 +426,7 @@ Todavía no existe una experiencia completa de conexión con Strava.
 Entre otras cosas faltan:
 
 * Confirmación documental de la autorización personal comunicada verbalmente; no se afirma que Strava publicase o verificase una excepción.
-* Paginación automática.
+* Paginación fuera de las consultas manuales acotadas; no hay sincronización ni recuperación automática en segundo plano.
 * Gestión de rate limits.
 * Retries.
 * Recuperación automática ante expiración durante una operación.
@@ -490,17 +495,11 @@ Los valores ausentes no se sustituyen artificialmente por 0.
 
 Gap técnico pendiente
 
-Individual Analytics todavía no está conectado directamente con la recuperación de actividades detalladas de Strava.
+El flujo conecta manualmente una Run seleccionada del preview con su detalle Strava y `TrainingAnalysis`. Individual Analytics no recupera automáticamente todas las actividades ni sus detalles/laps.
 
-Actualmente:
+Flujo individual disponible: Run seleccionada en el preview → Strava detailed activity/laps → `TrainingAnalysis` individual.
 
-Datos detallados proporcionados por caller → TrainingAnalysis
-
-El flujo deseado será:
-
-Activity ID → Strava detailed activity/laps → TrainingAnalysis
-
-Por tanto, Individual Analytics existe como capacidad, pero todavía no constituye un flujo end-to-end completo.
+La consulta de detalle solo ocurre mediante selección y acción manual; no existe recuperación general/histórica, sincronización ni un flujo completo de Individual Analytics.
 
 ⸻
 
@@ -1108,13 +1107,12 @@ No todos estos gaps necesitan resolverse inmediatamente.
 
 Actualmente conocemos al menos:
 
-* Solo existe el análisis manual de una carrera seleccionada en la primera página; no existe recuperación masiva de detailed activities/laps ni un flujo de Analytics end-to-end.
-* No existe paginación automática de actividades.
+* El detalle individual se recupera solo al seleccionar manualmente una carrera del preview; el resumen semanal pagina únicamente su ventana acotada de siete semanas bajo demanda. No existe recuperación del historial completo, sincronización ni paginación en segundo plano.
 * No existe persistencia/sincronización de actividades.
 * No existe deduplicación.
-* El entry point Streamlit valida solicitudes Coach, ofrece una demo offline pregrabada con datos sintéticos y una vista previa Strava local/manual de perfil y primera página. No genera respuestas con LLM ni entrega datos Strava a Analytics/Coach; la solicitud ingresada no se asocia a la demo.
+* El entry point Streamlit valida solicitudes Coach, ofrece una demo offline pregrabada con datos sintéticos, preview/análisis individual Strava y una consulta paginada de siete semanas. Los resúmenes semanales pasan por Analytics y los tres detectores existentes; no se envían a Coach/OpenAI ni se asocian a la demo.
 * src/ai contiene conocimiento local, builder CoachContext, frontera CoachResponse, prompt versionado y ejecución OpenAI explícita. Cohorts-08/09 terminaron PROVIDER_ERROR / PROVIDER_CONNECTION sin respuesta evaluable; cohort-10 terminó SUCCESS / structural PASS y su review v2 local registró FAIL (utilidad 1, dos hallazgos MAJOR, siete escenarios UNASSESSABLE); cohort-11 terminó SUCCESS / structural PASS con revisión humana PASS para 5A-03, pero aceptación global UNEVALUATED. Cohort-13 con gpt-6-luna y 5A-1.0.0: seis escenarios PASS (01/02/03/06/07/08), 5A-05 FAIL con un hallazgo MAJOR y utilidad 1, y 5A-04 PROVIDER_TIMEOUT sin respuesta evaluable; informe técnico PASS, semantic outcome/model acceptance FAIL. Los ocho intentos autorizados se consumieron, sin reintentos; no hay nuevas llamadas live autorizadas. El prompt y sus pruebas offline aíslan mediciones cuestionables del soporte a actividad/recomendaciones, pero no demuestran corrección del modelo generado. La identidad de reviewer-01 no está autenticada. La calidad con datos reales y la aceptación global del Coach siguen pendientes.
-* Existe renderer de texto plano, formulario Streamlit, demo sintética pregrabada y una vista previa local/manual de Strava; no existe generación de respuestas en UI, sincronización de actividades ni una experiencia Coach end-to-end.
+* Existe renderer de texto plano, formulario Streamlit, demo sintética pregrabada, preview/análisis individual Strava y overview semanal manual; no existe generación LLM en UI, sincronización ni experiencia Coach end-to-end.
 * No existe CI.
 * Ampliaciones posteriores a Trends V1: TrainingType trends, ventanas, medias móviles, reporte de huecos/segmentos y selección temporal por cobertura o cierre calendario. No son capacidades pendientes del alcance cerrado ni requisitos automáticos de Insights V1.
 * Tooling Allure: CLI externa no instalada e informe HTML sin validar. En 78 casos parametrizados que contienen funciones, los IDs históricos varían entre procesos por sus representaciones; estabilizarlos queda como deuda de tooling, sin afectar resultados ni clasificación.
@@ -1131,11 +1129,13 @@ Incremento 4 permanece CLOSED e Incremento 5A está COMPLETE: ocho escenarios y 
 
 La slice Strava local permite además seleccionar una carrera de la primera página para pedir un único detalle bajo demanda y presentar el `TrainingAnalysis` individual; los valores ausentes siguen como `None` y no se persisten. Cambios de selección, errores, expiración, actualización de preview y desconexión descartan el resultado previo. No se implementa recuperación masiva, sincronización, streams, integración con Coach ni llamadas externas durante esta validación. La autorización personal fue comunicada verbalmente por el usuario y sigue pendiente de confirmación documental; esto no significa que Strava publicara o verificara una excepción. La integración Strava continúa parcial.
 
+La consulta semanal paginada complementa la preview: una acción explícita recupera únicamente Run summaries dentro de siete semanas locales completas y construye siete `WeeklyAnalysis` y los tres Insights aprobados. Se aplican límites exactos después de la consulta epoch de Strava; cero significa cero registros Run devueltos, no descanso ni retorno. La timezone es obligatoria, datos/resultados son temporales, y fallos o cambios de timezone descartan el estado previo. No se modifican modelos Analytics/Insights ni se integra Coach/OpenAI. La autorización personal sigue pendiente de confirmación documental; Strava continúa parcial.
+
 Weekly Analytics V1 está COMPLETE y Weekly Structure V1 está cerrada en activity count, distance y moving time. No falta ninguna métrica adicional para el alcance aprobado.
 
 Las seis operaciones solo exigen dos lunes consecutivos y devuelven diferencias absolutas o porcentuales de volumen, con None para porcentajes de base cero. La frontera aprobada de V1 deja cierre calendario, cobertura y selección automática de semanas aptas como posibles ampliaciones posteriores, sin confundir cero con ausencia de datos. La normalización de historial y la generación de pares están implementadas y no resuelven esas decisiones. Los seis resultados fechados de volumen están implementados, auditados y formalmente cerrados en Trends V1. Reporte de huecos y segmentos son ampliaciones posteriores; no se inicia automáticamente ningún otro incremento de Trends, Analytics, Insights o Coach.
 
-El análisis de una carrera seleccionada desde el preview ahora conecta una solicitud de detalle con `TrainingAnalysis`, pero sigue siendo manual, individual y temporal. Persisten como gaps la recuperación automática o masiva de detalles, la integración de historial/persistencia y las capacidades que dependan de datos completos; esto no modifica el cierre del resumen semanal sobre datos suministrados.
+El análisis de una carrera seleccionada desde el preview conecta una solicitud de detalle con `TrainingAnalysis`, y el overview consulta páginas de summaries para siete semanas bajo demanda. Ambos siguen siendo manuales y temporales. Persisten como gaps el historial más amplio, sincronización/persistencia y las capacidades que dependan de datos completos; el nuevo overview no cambia el cierre de Weekly Analytics sobre datos suministrados ni completa la integración Strava.
 
 ⸻
 

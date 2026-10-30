@@ -23,6 +23,18 @@ from src.ui.strava_connection import (
     load_selected_activity_analysis,
     start_authorization,
 )
+from src.ui.strava_weekly_overview import (
+    WEEKLY_ANALYSES_KEY,
+    WEEKLY_AS_OF_KEY,
+    WEEKLY_INSIGHTS_KEY,
+    WEEKLY_PAGE_COUNT_KEY,
+    WEEKLY_PERIOD_END_KEY,
+    WEEKLY_PERIOD_START_KEY,
+    WEEKLY_TIMEZONE_KEY,
+    clear_expired_weekly_overview,
+    clear_weekly_overview,
+    load_recent_weekly_overview,
+)
 
 
 REQUEST_SESSION_KEY = "validated_coach_request"
@@ -61,6 +73,7 @@ def render_request_page(ui=None) -> None:
         else None
     )
     clear_expired_activity_analysis(ui.session_state)
+    clear_expired_weekly_overview(ui.session_state)
     ui.title("Strava AI Coach")
     ui.write(
         "Validating a request does not call the Coach or access Strava. "
@@ -218,6 +231,22 @@ def render_request_page(ui=None) -> None:
         )
 
     if ui.session_state.get(ACCESS_TOKEN_KEY):
+        if ui.button("Disconnect Strava", key="disconnect_strava"):
+            disconnect_status = disconnect_from_strava(ui.session_state, environ=os.environ)
+            if disconnect_status == "revocation_requested":
+                ui.info(
+                    "The remote revoke request was accepted, but token revocation cannot be independently verified. "
+                    "Check Strava settings to confirm access is removed."
+                )
+            elif disconnect_status in ("manual_revocation", "revocation_failed"):
+                ui.warning(
+                    "This browser session was cleared, but remote revocation was not confirmed. "
+                    "Remove this app's access in Strava settings to ensure access is withdrawn."
+                )
+            else:
+                ui.info("The local Strava session is clear.")
+            return
+
         ui.success("Strava is connected for this browser session.")
         scopes = ui.session_state.get(SCOPES_KEY, ())
         ui.caption(
@@ -322,17 +351,102 @@ def render_request_page(ui=None) -> None:
             else:
                 ui.info("The loaded first page contains no Run activities to analyze.")
 
-        if ui.button("Disconnect Strava", key="disconnect_strava"):
-            disconnect_status = disconnect_from_strava(ui.session_state, environ=os.environ)
-            if disconnect_status == "revocation_requested":
-                ui.info(
-                    "The remote revoke request was accepted, but token revocation cannot be independently verified. "
-                    "Check Strava settings to confirm access is removed."
+        ui.subheader("Recent weekly Strava overview")
+        ui.write(
+            "Load the seven most recent completed local calendar weeks. This requests activity summaries only; "
+            "it does not request activity details or laps."
+        )
+        ui.text_input(
+            "IANA time zone for week boundaries",
+            key=WEEKLY_TIMEZONE_KEY,
+            placeholder="Europe/Madrid",
+            on_change=clear_weekly_overview,
+            args=(ui.session_state,),
+        )
+        if ui.button("Load seven completed weeks and Insights", key="load_weekly_strava_overview"):
+            try:
+                load_recent_weekly_overview(
+                    ui.session_state,
+                    ui.session_state.get(WEEKLY_TIMEZONE_KEY),
                 )
-            elif disconnect_status in ("manual_revocation", "revocation_failed"):
-                ui.warning(
-                    "This browser session was cleared, but remote revocation was not confirmed. "
-                    "Remove this app's access in Strava settings to ensure access is withdrawn."
+            except ValueError as error:
+                ui.error(str(error))
+            except RuntimeError:
+                ui.error("Could not load all weekly Strava activity pages. No partial result was kept.")
+
+        weekly_analyses = ui.session_state.get(WEEKLY_ANALYSES_KEY)
+        if weekly_analyses is not None:
+            period_start = ui.session_state[WEEKLY_PERIOD_START_KEY]
+            period_end = ui.session_state[WEEKLY_PERIOD_END_KEY]
+            as_of = ui.session_state[WEEKLY_AS_OF_KEY]
+            ui.caption(
+                f"Local interval: [{period_start.isoformat()}, {period_end.isoformat()}) · "
+                f"As of {as_of.isoformat()} · Pages fetched: {ui.session_state[WEEKLY_PAGE_COUNT_KEY]}"
+            )
+            ui.info(
+                "A zero Run count means no Run records were returned for that week. It does not establish "
+                "inactivity, rest, a return to running, or the completeness of Strava history. Insights describe "
+                "only these returned records."
+            )
+            ui.table(
+                [
+                    {
+                        "Local week starting Monday": week.week_start_date.isoformat(),
+                        "Run records returned": week.running_activity_count,
+                        "Distance (meters)": week.running_distance_meters,
+                        "Moving time (seconds)": week.running_moving_time_seconds,
+                    }
+                    for week in weekly_analyses
+                ],
+                hide_index=True,
+                alt="Seven complete local weeks of returned Strava Run activity totals",
+            )
+            insights = ui.session_state[WEEKLY_INSIGHTS_KEY]
+            for key, label in (
+                ("distance_increases", "Persistent weekly running distance increase"),
+                ("distance_decreases", "Persistent weekly running distance decrease"),
+            ):
+                ui.write(label)
+                results = insights[key]
+                if results:
+                    ui.json(
+                        [
+                            {
+                                "start_week_date": result.start_week_date.isoformat(),
+                                "end_week_date": result.end_week_date.isoformat(),
+                                "weekly_distances_meters": result.weekly_distances_meters,
+                                "weekly_activity_counts": result.weekly_activity_counts,
+                                "distance_changes": [
+                                    {
+                                        "previous_week_start_date":
+                                            change.previous_week_start_date.isoformat(),
+                                        "current_week_start_date":
+                                            change.current_week_start_date.isoformat(),
+                                        "distance_change_meters": change.value,
+                                    }
+                                    for change in result.distance_changes
+                                ],
+                            }
+                            for result in results
+                        ]
+                    )
+                else:
+                    ui.caption("No detector output in the returned seven-week data.")
+
+            ui.write("Observed running after zero-Run weeks")
+            observed_results = insights["observed_running_after_zero_weeks"]
+            if observed_results:
+                ui.json(
+                    [
+                        {
+                            "first_zero_week_date": result.first_zero_week_date.isoformat(),
+                            "observed_zero_week_count": result.observed_zero_week_count,
+                            "running_week_date": result.running_week_date.isoformat(),
+                            "running_week_activity_count": result.running_week_activity_count,
+                            "running_week_distance_meters": result.running_week_distance_meters,
+                        }
+                        for result in observed_results
+                    ]
                 )
             else:
-                ui.info("The local Strava session is clear.")
+                ui.caption("No detector output in the returned seven-week data.")

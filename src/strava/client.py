@@ -13,6 +13,7 @@ ATHLETE_URL = "https://www.strava.com/api/v3/athlete"
 ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities"
 ACTIVITY_DETAIL_URL = "https://www.strava.com/api/v3/activities/{activity_id}"
 TIMEOUT_SECONDS = 10
+DEFAULT_ACTIVITIES_PAGE_SIZE = 30
 
 
 class StravaClient:
@@ -57,7 +58,7 @@ class StravaClient:
         before: int | None = None,
         after: int | None = None,
         page: int = 1,
-        per_page: int = 30,
+        per_page: int = DEFAULT_ACTIVITIES_PAGE_SIZE,
     ) -> list[Activity]:
         """Return one page of the authenticated athlete's typed activities."""
         params: dict[str, int] = {"page": page, "per_page": per_page}

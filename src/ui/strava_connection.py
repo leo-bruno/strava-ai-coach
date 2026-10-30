@@ -17,8 +17,8 @@ from src.strava.auth import (
     exchange_authorization_code,
     revoke_access_token,
 )
-from src.strava.client import StravaClient
 from src.strava.activity_mapper import activity_from_strava
+from src.strava.client import StravaClient
 from src.strava.training_analysis import training_analysis_from_strava
 
 
@@ -299,6 +299,9 @@ def disconnect_from_strava(
 ) -> str:
     """Clear local state first, then make a best-effort remote revoke request."""
     access_token = clear_connection_state(session_state)
+    from src.ui.strava_weekly_overview import clear_weekly_overview
+
+    clear_weekly_overview(session_state)
     if access_token is None:
         return "disconnected"
     if not revocation_is_configured(environ):

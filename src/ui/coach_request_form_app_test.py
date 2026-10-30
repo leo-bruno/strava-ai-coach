@@ -1,11 +1,11 @@
 """Exercise the request page through Streamlit's real in-process app runner."""
 
-from datetime import date, timedelta
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import json
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import Mock
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.models.coach_request import CoachRequest
@@ -19,6 +19,16 @@ from src.ui.strava_connection import (
     SELECTED_ACTIVITY_ID_KEY,
     TRAINING_ANALYSIS_KEY,
     get_oauth_state_store,
+)
+from src.ui.strava_weekly_overview import (
+    WEEKLY_ACTIVITIES_KEY,
+    WEEKLY_ANALYSES_KEY,
+    WEEKLY_AS_OF_KEY,
+    WEEKLY_INSIGHTS_KEY,
+    WEEKLY_PAGE_COUNT_KEY,
+    WEEKLY_PERIOD_END_KEY,
+    WEEKLY_PERIOD_START_KEY,
+    WEEKLY_TIMEZONE_KEY,
 )
 
 
@@ -37,6 +47,7 @@ def visible_text(app: AppTest) -> str:
         app.text,
         app.success,
         app.info,
+        app.caption,
         app.warning,
         app.error,
     )
@@ -55,6 +66,51 @@ def submit_valid_request(app: AppTest, runner_context: str) -> date:
     app.text_area(key="runner_context").set_value(runner_context)
     app.form_submit_button[0].click().run()
     return target_date
+
+
+def seed_valid_weekly_overview(session_state) -> None:
+    from datetime import time
+    from zoneinfo import ZoneInfo
+
+    from src.analytics.weekly_analysis import weekly_analysis_from_activities
+    from src.ui.strava_weekly_overview import (
+        WEEKLY_ACTIVITIES_KEY,
+        WEEKLY_ANALYSES_KEY,
+        WEEKLY_AS_OF_KEY,
+        WEEKLY_INSIGHTS_KEY,
+        WEEKLY_PAGE_COUNT_KEY,
+        WEEKLY_PERIOD_END_KEY,
+        WEEKLY_PERIOD_START_KEY,
+    )
+
+    zone = ZoneInfo("Europe/Madrid")
+    as_of = datetime.now(timezone.utc).astimezone(zone)
+    end_date = as_of.date() - timedelta(days=as_of.weekday())
+    start_date = end_date - timedelta(weeks=7)
+    start = datetime.combine(start_date, time.min, tzinfo=zone)
+    weeks = tuple(
+        weekly_analysis_from_activities(
+            [],
+            reference_datetime=datetime.combine(
+                start_date + timedelta(weeks=offset, days=3),
+                time(hour=12),
+                tzinfo=zone,
+            ),
+            athlete_timezone=zone,
+        )
+        for offset in range(7)
+    )
+    session_state[WEEKLY_ACTIVITIES_KEY] = ()
+    session_state[WEEKLY_ANALYSES_KEY] = weeks
+    session_state[WEEKLY_INSIGHTS_KEY] = {
+        "distance_increases": (),
+        "distance_decreases": (),
+        "observed_running_after_zero_weeks": (),
+    }
+    session_state[WEEKLY_PERIOD_START_KEY] = start
+    session_state[WEEKLY_PERIOD_END_KEY] = datetime.combine(end_date, time.min, tzinfo=zone)
+    session_state[WEEKLY_PAGE_COUNT_KEY] = 1
+    session_state[WEEKLY_AS_OF_KEY] = as_of
 
 
 def test_entrypoint_initial_render_has_no_streamlit_exception():
@@ -430,6 +486,225 @@ def test_expired_session_hides_stored_activity_analysis_on_render():
     assert "Selected Run analysis" not in visible_text(app)
 
 
+def test_weekly_overview_loads_only_after_click_and_renders_seven_weeks_and_three_insights(monkeypatch):
+    from src.ui.strava_weekly_overview import DEFAULT_ACTIVITIES_PAGE_SIZE
+
+    requests = []
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            assert access_token == "session-token"
+
+        def get_activities(self, **kwargs):
+            requests.append(kwargs)
+            return []
+
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", FakeClient)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert not requests
+    app.button(key="load_weekly_strava_overview").click().run(timeout=10)
+
+    assert not app.exception
+    assert len(requests) == 1
+    assert requests[0]["page"] == 1
+    assert requests[0]["per_page"] == DEFAULT_ACTIVITIES_PAGE_SIZE
+    assert requests[0]["after"] < requests[0]["before"]
+    assert len(app.session_state[WEEKLY_ANALYSES_KEY]) == 7
+    assert app.session_state[WEEKLY_PERIOD_START_KEY].weekday() == 0
+    assert app.session_state[WEEKLY_PERIOD_END_KEY].weekday() == 0
+    assert app.session_state[WEEKLY_AS_OF_KEY].tzinfo is not None
+    assert app.session_state[WEEKLY_PAGE_COUNT_KEY] == 1
+    assert app.session_state[WEEKLY_ACTIVITIES_KEY] == ()
+    assert set(app.session_state[WEEKLY_INSIGHTS_KEY]) == {
+        "distance_increases", "distance_decreases", "observed_running_after_zero_weeks",
+    }
+    text = visible_text(app)
+    assert "Local interval:" in text
+    assert "Pages fetched: 1" in text
+    assert "A zero Run count means no Run records were returned" in text
+    assert "Persistent weekly running distance increase" in text
+    assert "Persistent weekly running distance decrease" in text
+    assert "Observed running after zero-Run weeks" in text
+    assert "No detector output in the returned seven-week data." in text
+
+    app.run(timeout=10)
+    assert not app.exception
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("weekly_distances", "expected_insight", "expected_field"),
+    [
+        ((5000, 6000, 7000, 8000, 0, 0, 0), "distance_increases", "distance_change_meters"),
+        ((8000, 7000, 6000, 5000, 0, 0, 0), "distance_decreases", "distance_change_meters"),
+        ((0, 0, 5000, 0, 0, 0, 0), "observed_running_after_zero_weeks", "observed_zero_week_count"),
+    ],
+)
+def test_weekly_overview_renders_each_existing_insight_shape(
+    monkeypatch, weekly_distances, expected_insight, expected_field
+):
+    from zoneinfo import ZoneInfo
+
+    from src.models.activity import Activity
+
+    zone = ZoneInfo("Europe/Madrid")
+    local_now = datetime.now(timezone.utc).astimezone(zone)
+    end_date = local_now.date() - timedelta(days=local_now.weekday())
+    first_week_date = end_date - timedelta(weeks=7)
+    activities = [
+        Activity(
+            id=index + 1,
+            name="Morning Run",
+            sport_type="Run",
+            start_date=datetime.combine(
+                first_week_date + timedelta(weeks=index, days=1),
+                time(hour=9),
+                tzinfo=zone,
+            ).astimezone(timezone.utc),
+            distance_meters=float(distance),
+            moving_time_seconds=1500,
+        )
+        for index, distance in enumerate(weekly_distances)
+        if distance > 0
+    ]
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            assert access_token == "session-token"
+
+        def get_activities(self, **_kwargs):
+            return activities
+
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", FakeClient)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.run(timeout=10)
+
+    app.button(key="load_weekly_strava_overview").click().run(timeout=10)
+
+    assert not app.exception
+    insights = app.session_state[WEEKLY_INSIGHTS_KEY]
+    assert insights[expected_insight]
+    rendered_json = [json.loads(element.value) for element in app.json]
+    assert expected_field in str(rendered_json)
+    text = visible_text(app)
+    assert "Persistent weekly running distance increase" in text
+    assert "Persistent weekly running distance decrease" in text
+    assert "Observed running after zero-Run weeks" in text
+
+
+def test_weekly_timezone_change_clears_old_output_without_fetching(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.run(timeout=10)
+
+    app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
+    app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
+    app.text_input(key=WEEKLY_TIMEZONE_KEY).set_value("UTC").run(timeout=10)
+
+    assert not app.exception
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
+    assert "Local interval:" not in visible_text(app)
+    client.assert_not_called()
+
+
+def test_invalid_weekly_timezone_click_clears_old_output_without_strava_call(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Not/A_Zone"
+    app.run(timeout=10)
+
+    app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
+    app.button(key="load_weekly_strava_overview").click().run(timeout=10)
+
+    assert not app.exception
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert client.call_count == 0
+    assert "valid IANA time zone" in visible_text(app)
+
+
+def test_weekly_expiry_on_rerun_hides_prior_output_without_fetching(monkeypatch):
+    client = Mock()
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "expired-session-token"
+    app.session_state[EXPIRES_AT_KEY] = 1
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
+    app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
+
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
+    assert "Local interval:" not in visible_text(app)
+    client.assert_not_called()
+
+
+def test_mid_pagination_ui_failure_discards_stale_and_partial_results(monkeypatch):
+    from src.models.activity import Activity
+    from src.ui.strava_weekly_overview import DEFAULT_ACTIVITIES_PAGE_SIZE
+
+    class FakeClient:
+        def __init__(self, *, access_token):
+            pass
+
+        def get_activities(self, *, page, **_kwargs):
+            if page == 1:
+                return [
+                    Activity(
+                        index,
+                        "Run",
+                        "Run",
+                        datetime.now(timezone.utc),
+                        5000,
+                        1500,
+                    )
+                    for index in range(DEFAULT_ACTIVITIES_PAGE_SIZE)
+                ]
+            raise RuntimeError("private provider diagnostic")
+
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", FakeClient)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.run(timeout=10)
+
+    app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
+    app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
+    app.button(key="load_weekly_strava_overview").click().run(timeout=10)
+
+    assert not app.exception
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
+    assert "private provider diagnostic" not in visible_text(app)
+    assert "No partial result was kept" in visible_text(app)
+
+
 def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypatch):
     monkeypatch.setenv("STRAVA_CLIENT_ID", "test-client-id")
     monkeypatch.setenv("STRAVA_CLIENT_SECRET", "test-client-secret")
@@ -444,6 +719,8 @@ def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypa
     app.session_state[TRAINING_ANALYSIS_KEY] = "stored-analysis"
     app.run()
 
+    seed_valid_weekly_overview(app.session_state)
+
     app.button(key="disconnect_strava").click().run(timeout=10)
 
     assert not app.exception
@@ -453,5 +730,8 @@ def test_disconnect_clears_session_data_and_uses_best_effort_revocation(monkeypa
     assert ATHLETE_PREVIEW_KEY not in app.session_state
     assert ACTIVITY_PREVIEW_KEY not in app.session_state
     assert TRAINING_ANALYSIS_KEY not in app.session_state
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
+    assert "Local interval:" not in visible_text(app)
     assert revoke.call_args.args == ("access-token",)
     assert "cannot be independently verified" in visible_text(app)
