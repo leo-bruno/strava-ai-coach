@@ -62,7 +62,7 @@ def submit_valid_request(app: AppTest, runner_context: str) -> date:
     target_date = date.today() + timedelta(days=45)
     app.date_input(key="target_date").set_value(target_date)
     app.number_input(key="available_training_days").set_value(4)
-    app.text_input(key="athlete_timezone").set_value("Europe/Madrid")
+    app.selectbox(key="athlete_timezone").set_value("Pacific/Honolulu")
     app.text_area(key="runner_context").set_value(runner_context)
     app.form_submit_button[0].click().run()
     return target_date
@@ -114,12 +114,18 @@ def seed_valid_weekly_overview(session_state) -> None:
 
 
 def test_entrypoint_initial_render_has_no_streamlit_exception():
+    from zoneinfo import available_timezones
+
     app = run_app()
 
     assert not app.exception
     assert "Strava AI Coach" in visible_text(app)
     assert "Validating a request does not call the Coach or access Strava." in visible_text(app)
     assert not app.session_state.get(REQUEST_SESSION_KEY)
+    coach_timezone = app.selectbox(key="athlete_timezone")
+    assert coach_timezone.value is None
+    assert coach_timezone.options == sorted(set(available_timezones()))
+    assert "Pacific/Honolulu" in coach_timezone.options
 
 
 def test_valid_submission_stores_request_and_keeps_runner_context_private():
@@ -145,19 +151,19 @@ def test_invalid_resubmission_clears_previous_valid_request():
     submit_valid_request(app, "context retained in request state")
     assert REQUEST_SESSION_KEY in app.session_state
 
-    app.text_input(key="athlete_timezone").set_value("Not/A_Timezone")
+    app.selectbox(key="athlete_timezone").set_value(None)
     app.form_submit_button[0].click().run()
 
     assert not app.exception
     assert REQUEST_SESSION_KEY not in app.session_state
     assert app.error
-    assert "No time zone found" in visible_text(app)
+    assert "Select an IANA time zone before validating the request." in visible_text(app)
 
 
 def assert_default_form_values(app: AppTest) -> None:
     assert app.date_input(key="target_date").value == date.today() + timedelta(days=30)
     assert app.number_input(key="available_training_days").value == 0
-    assert app.text_input(key="athlete_timezone").value == ""
+    assert app.selectbox(key="athlete_timezone").value is None
     assert app.text_area(key="runner_context").value == ""
 
 
@@ -165,7 +171,7 @@ def test_clear_form_discards_unsubmitted_draft_and_restores_defaults():
     app = run_app()
     app.date_input(key="target_date").set_value(date.today() + timedelta(days=45))
     app.number_input(key="available_training_days").set_value(4)
-    app.text_input(key="athlete_timezone").set_value("Not/A_Timezone")
+    app.selectbox(key="athlete_timezone").set_value("Pacific/Honolulu")
     app.text_area(key="runner_context").set_value("PRIVATE DRAFT CONTEXT")
 
     app.button(key="clear_request_form").click().run()
@@ -539,6 +545,42 @@ def test_weekly_overview_loads_only_after_click_and_renders_seven_weeks_and_thre
     assert len(requests) == 1
 
 
+def test_weekly_timezone_selectbox_is_unique_searchable_and_has_no_default():
+    from zoneinfo import available_timezones
+
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.run(timeout=10)
+
+    selector = app.selectbox(key=WEEKLY_TIMEZONE_KEY)
+    assert not app.exception
+    assert selector.value is None
+    assert selector.options == sorted(set(available_timezones()))
+    assert {"Europe/Madrid", "UTC", "America/New_York"}.issubset(selector.options)
+    assert len(selector.options) == len(set(selector.options))
+
+
+def test_weekly_timezone_choice_is_passed_unchanged_to_loader(monkeypatch):
+    calls = []
+
+    def fake_loader(session_state, timezone_name):
+        calls.append(timezone_name)
+
+    monkeypatch.setattr("src.ui.coach_request_form.load_recent_weekly_overview", fake_loader)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.run(timeout=10)
+    app.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("Asia/Kathmandu").run(timeout=10)
+    app.button(key="load_weekly_strava_overview").click().run(timeout=10)
+
+    assert not app.exception
+    assert calls == ["Asia/Kathmandu"]
+
+
 @pytest.mark.parametrize(
     ("weekly_distances", "expected_insight", "expected_field"),
     [
@@ -615,7 +657,7 @@ def test_weekly_timezone_change_clears_old_output_without_fetching(monkeypatch):
 
     app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
     app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
-    app.text_input(key=WEEKLY_TIMEZONE_KEY).set_value("UTC").run(timeout=10)
+    app.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("UTC").run(timeout=10)
 
     assert not app.exception
     assert WEEKLY_ANALYSES_KEY not in app.session_state
@@ -624,23 +666,24 @@ def test_weekly_timezone_change_clears_old_output_without_fetching(monkeypatch):
     client.assert_not_called()
 
 
-def test_invalid_weekly_timezone_click_clears_old_output_without_strava_call(monkeypatch):
+def test_empty_weekly_timezone_click_clears_old_output_without_strava_call(monkeypatch):
     client = Mock()
     monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
     app = AppTest.from_file(APP_ENTRYPOINT)
     app.session_state[ACCESS_TOKEN_KEY] = "session-token"
     app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
     app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
-    app.session_state[WEEKLY_TIMEZONE_KEY] = "Not/A_Zone"
     app.run(timeout=10)
 
     app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
+    app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
     app.button(key="load_weekly_strava_overview").click().run(timeout=10)
 
     assert not app.exception
     assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
     assert client.call_count == 0
-    assert "valid IANA time zone" in visible_text(app)
+    assert "Select an IANA time zone before loading weekly Strava data." in visible_text(app)
 
 
 def test_weekly_expiry_on_rerun_hides_prior_output_without_fetching(monkeypatch):

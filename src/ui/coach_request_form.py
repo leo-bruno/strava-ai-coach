@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta, timezone
 import os
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from src.ai.coach_demo import build_offline_demo
 from src.models.coach_request import coach_request_from_input
@@ -45,6 +45,15 @@ FORM_WIDGET_KEYS = (
     "athlete_timezone",
     "runner_context",
 )
+
+
+def _resolve_coach_timezone(timezone_name: object) -> ZoneInfo:
+    if not isinstance(timezone_name, str) or not timezone_name:
+        raise ValueError("Select an IANA time zone before validating the request.")
+    try:
+        return ZoneInfo(timezone_name)
+    except (ValueError, ZoneInfoNotFoundError):
+        raise ValueError("Select a valid IANA time zone before validating the request.") from None
 
 
 def _clear_request_form(session_state) -> None:
@@ -95,9 +104,11 @@ def render_request_page(ui=None) -> None:
             step=1,
             key="available_training_days",
         )
-        timezone_name = ui.text_input(
+        timezone_name = ui.selectbox(
             "Your time zone (IANA name)",
-            placeholder="For example, Europe/Madrid",
+            options=sorted(available_timezones()),
+            index=None,
+            placeholder="Select an IANA time zone",
             key="athlete_timezone",
         )
         runner_context = ui.text_area(
@@ -127,9 +138,7 @@ def render_request_page(ui=None) -> None:
     if submitted:
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
         try:
-            if not timezone_name.strip():
-                raise ValueError("Enter an IANA time zone, such as Europe/Madrid.")
-            athlete_timezone = ZoneInfo(timezone_name.strip())
+            athlete_timezone = _resolve_coach_timezone(timezone_name)
             request = coach_request_from_input(
                 {
                     "goal": {
@@ -356,23 +365,30 @@ def render_request_page(ui=None) -> None:
             "Load the seven most recent completed local calendar weeks. This requests activity summaries only; "
             "it does not request activity details or laps."
         )
-        ui.text_input(
+        ui.selectbox(
             "IANA time zone for week boundaries",
+            options=sorted(available_timezones()),
+            index=None,
+            placeholder="Select an IANA time zone",
             key=WEEKLY_TIMEZONE_KEY,
-            placeholder="Europe/Madrid",
             on_change=clear_weekly_overview,
             args=(ui.session_state,),
         )
         if ui.button("Load seven completed weeks and Insights", key="load_weekly_strava_overview"):
-            try:
-                load_recent_weekly_overview(
-                    ui.session_state,
-                    ui.session_state.get(WEEKLY_TIMEZONE_KEY),
-                )
-            except ValueError as error:
-                ui.error(str(error))
-            except RuntimeError:
-                ui.error("Could not load all weekly Strava activity pages. No partial result was kept.")
+            selected_timezone = ui.session_state.get(WEEKLY_TIMEZONE_KEY)
+            if selected_timezone is None:
+                clear_weekly_overview(ui.session_state)
+                ui.error("Select an IANA time zone before loading weekly Strava data.")
+            else:
+                try:
+                    load_recent_weekly_overview(
+                        ui.session_state,
+                        selected_timezone,
+                    )
+                except ValueError as error:
+                    ui.error(str(error))
+                except RuntimeError:
+                    ui.error("Could not load all weekly Strava activity pages. No partial result was kept.")
 
         weekly_analyses = ui.session_state.get(WEEKLY_ANALYSES_KEY)
         if weekly_analyses is not None:

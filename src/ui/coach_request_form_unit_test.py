@@ -51,6 +51,12 @@ class MockStreamlit:
     def text_input(self, _label, *, key=None, value="", **_kwargs):
         return self.values.get(key, value)
 
+    def selectbox(self, _label, options, *, key, index=None, **kwargs):
+        self.widget_options[key] = {"options": options, "index": index, **kwargs}
+        if key in self.values:
+            return self.values[key]
+        return None if index is None else options[index]
+
     def date_input(self, _label, *, key, value, **_kwargs):
         self.widget_options[key] = _kwargs
         return self.values.get(key, value)
@@ -143,10 +149,18 @@ def test_target_picker_does_not_block_date_valid_in_selected_timezone():
     assert "min_value" not in ui.widget_options["target_date"]
 
 
+@pytest.mark.parametrize("timezone_name", [None, "", 17, "Not/A_Timezone"])
+def test_timezone_resolver_defensively_rejects_missing_or_malformed_values(timezone_name):
+    from src.ui.coach_request_form import _resolve_coach_timezone
+
+    with pytest.raises(ValueError):
+        _resolve_coach_timezone(timezone_name)
+
+
 @pytest.mark.parametrize(
     "overrides,error_fragment",
     [
-        ({"athlete_timezone": "Not/A_Timezone"}, "No time zone found"),
+        ({"athlete_timezone": "Not/A_Timezone"}, "Select a valid IANA time zone"),
         ({"target_date": datetime.now(ZoneInfo("Europe/Madrid")).date() - timedelta(days=1)}, "strictly after"),
         ({"target_date": datetime.now(ZoneInfo("Europe/Madrid")).date()}, "strictly after"),
     ],
