@@ -1,6 +1,7 @@
 """Session-only OAuth callback handling for the local Streamlit flow."""
 
 from collections.abc import Mapping, MutableMapping
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
 import secrets
@@ -20,6 +21,7 @@ from src.strava.auth import (
 from src.strava.activity_mapper import activity_from_strava
 from src.strava.client import StravaClient
 from src.strava.training_analysis import training_analysis_from_strava
+from src.ui.timezone_preference import ATHLETE_TIMEZONE_KEY, is_valid_iana_timezone_name
 
 
 ACCESS_TOKEN_KEY = "strava_access_token"
@@ -32,6 +34,12 @@ SELECTED_ACTIVITY_ID_KEY = "selected_strava_activity_id"
 CALLBACK_KEYS = ("code", "state", "scope", "error")
 OAUTH_STATE_TTL_SECONDS = 600
 OAUTH_STATE_MAX_ENTRIES = 1024
+
+
+@dataclass(frozen=True)
+class _PendingOAuthState:
+    expires_at: float
+    timezone_preference: str | None
 
 
 class OAuthStateStore:
@@ -48,11 +56,16 @@ class OAuthStateStore:
         self._max_entries = max_entries
         self._clock = clock
         self._lock = Lock()
-        self._pending: dict[str, float] = {}
+        self._pending: dict[str, _PendingOAuthState] = {}
         self._consumed: dict[str, float] = {}
 
-    def issue(self) -> str:
+    def issue(self, timezone_preference: object = None) -> str:
         now = self._clock()
+        snapshot = (
+            timezone_preference
+            if is_valid_iana_timezone_name(timezone_preference)
+            else None
+        )
         with self._lock:
             self._remove_expired(now)
             if len(self._pending) + len(self._consumed) >= self._max_entries:
@@ -60,27 +73,39 @@ class OAuthStateStore:
             state = secrets.token_urlsafe(32)
             while state in self._pending or state in self._consumed:
                 state = secrets.token_urlsafe(32)
-            self._pending[state] = now + self._ttl_seconds
+            self._pending[state] = _PendingOAuthState(
+                expires_at=now + self._ttl_seconds,
+                timezone_preference=snapshot,
+            )
             return state
 
     def consume(self, state: str) -> str:
         """Return consumed, expired, replay, or mismatch; consume atomically."""
+        status, _ = self.consume_with_preference(state)
+        return status
+
+    def consume_with_preference(self, state: str) -> tuple[str, str | None]:
+        """Atomically consume a nonce and return its one-use timezone snapshot."""
         now = self._clock()
         with self._lock:
-            expires_at = self._pending.pop(state, None)
-            if expires_at is not None:
+            pending = self._pending.pop(state, None)
+            if pending is not None:
                 self._remove_expired(now)
-                if expires_at <= now:
-                    return "expired"
-                self._consumed[state] = expires_at
-                return "consumed"
+                if pending.expires_at <= now:
+                    return "expired", None
+                self._consumed[state] = pending.expires_at
+                return "consumed", pending.timezone_preference
             self._remove_expired(now)
             if state in self._consumed:
-                return "replay"
-            return "mismatch"
+                return "replay", None
+            return "mismatch", None
 
     def _remove_expired(self, now: float) -> None:
-        self._pending = {state: expiry for state, expiry in self._pending.items() if expiry > now}
+        self._pending = {
+            state: pending
+            for state, pending in self._pending.items()
+            if pending.expires_at > now
+        }
         self._consumed = {state: expiry for state, expiry in self._consumed.items() if expiry > now}
 
     def clear(self) -> None:
@@ -100,6 +125,7 @@ def start_authorization(
     *,
     environ: Mapping[str, str] | None = None,
     state_store: OAuthStateStore | None = None,
+    timezone_preference: object = None,
 ) -> str:
     """Create a short-lived, one-time state and authorization URL."""
     configuration = os.environ if environ is None else environ
@@ -109,7 +135,7 @@ def start_authorization(
     if not all(configuration.get(name) for name in CLIENT_CONFIGURATION_VARIABLES):
         raise RuntimeError("Strava client configuration is incomplete.")
     store = state_store if state_store is not None else get_oauth_state_store()
-    state = store.issue()
+    state = store.issue(timezone_preference)
     authorization_url = build_authorization_url(redirect_uri, state=state)
     return authorization_url
 
@@ -180,17 +206,19 @@ def consume_oauth_callback(
 
     if len(state_values) > 1:
         for value in state_values:
-            store.consume(value)
+            store.consume_with_preference(value)
         return "multiple_state"
     if returned_state is None:
         return "missing_state"
-    state_status = store.consume(returned_state)
+    state_status, timezone_preference = store.consume_with_preference(returned_state)
     if state_status == "mismatch":
         return "state_mismatch"
     if state_status != "consumed":
         return state_status
     if duplicate_callback_values:
         return "invalid_callback"
+    if is_valid_iana_timezone_name(timezone_preference):
+        session_state[ATHLETE_TIMEZONE_KEY] = timezone_preference
     if error == "access_denied":
         return "access_denied"
     if error is not None:

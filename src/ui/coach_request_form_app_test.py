@@ -113,8 +113,10 @@ def seed_valid_weekly_overview(session_state) -> None:
     session_state[WEEKLY_AS_OF_KEY] = as_of
 
 
-def test_entrypoint_initial_render_has_no_streamlit_exception():
-    from zoneinfo import available_timezones
+def test_entrypoint_initial_render_has_no_streamlit_exception(monkeypatch):
+    from src.ui.timezone_preference import IANA_TIMEZONE_OPTIONS
+
+    monkeypatch.setattr("src.ui.coach_request_form.detect_local_iana_timezone", lambda: None)
 
     app = run_app()
 
@@ -124,7 +126,7 @@ def test_entrypoint_initial_render_has_no_streamlit_exception():
     assert not app.session_state.get(REQUEST_SESSION_KEY)
     coach_timezone = app.selectbox(key="athlete_timezone")
     assert coach_timezone.value is None
-    assert coach_timezone.options == sorted(set(available_timezones()))
+    assert coach_timezone.options == list(IANA_TIMEZONE_OPTIONS)
     assert "Pacific/Honolulu" in coach_timezone.options
     assert len(app.selectbox) == 1
 
@@ -157,6 +159,30 @@ def test_valid_submission_stores_request_and_keeps_runner_context_private(monkey
     assert "Request summary" in visible_text(app)
     assert f"Target date: {target_date.isoformat()}" in visible_text(app)
     assert private_context not in visible_text(app)
+
+
+def test_existing_timezone_preference_is_not_overwritten_on_reruns():
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Pacific/Honolulu"
+
+    app.run(timeout=10)
+    assert not app.exception
+    assert app.selectbox(key=WEEKLY_TIMEZONE_KEY).value == "Pacific/Honolulu"
+    app.run(timeout=10)
+    assert app.selectbox(key=WEEKLY_TIMEZONE_KEY).value == "Pacific/Honolulu"
+
+
+def test_local_timezone_is_detected_once_for_new_session(monkeypatch):
+    detect = Mock(return_value="Pacific/Honolulu")
+    monkeypatch.setattr("src.ui.coach_request_form.detect_local_iana_timezone", detect)
+    app = AppTest.from_file(APP_ENTRYPOINT)
+
+    app.run(timeout=10)
+    assert app.selectbox(key=WEEKLY_TIMEZONE_KEY).value == "Pacific/Honolulu"
+    app.run(timeout=10)
+
+    assert app.selectbox(key=WEEKLY_TIMEZONE_KEY).value == "Pacific/Honolulu"
+    detect.assert_called_once_with()
 
 
 def test_invalid_resubmission_clears_previous_valid_request():
@@ -296,12 +322,14 @@ def test_oauth_callback_completes_in_second_streamlit_session_and_clears_url(mon
     monkeypatch.setattr("src.ui.strava_connection.exchange_authorization_code", exchange)
 
     first_session = run_app()
+    first_session.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("Pacific/Honolulu").run(timeout=10)
     first_session.button(key="prepare_strava_authorization").click().run(timeout=10)
 
     assert not first_session.exception
     authorization_url = first_session.link_button[0].url
     state = parse_qs(urlparse(authorization_url).query)["state"][0]
     assert "redirect_uri=http%3A%2F%2Flocalhost%3A8501" in authorization_url
+    assert "timezone" not in urlparse(authorization_url).query.lower()
     assert all(state not in str(value) for value in first_session.session_state.values())
 
     callback_session = AppTest.from_file(APP_ENTRYPOINT)
@@ -315,6 +343,7 @@ def test_oauth_callback_completes_in_second_streamlit_session_and_clears_url(mon
     assert callback_session.session_state[ACCESS_TOKEN_KEY] == "short-lived-access-token"
     assert callback_session.session_state[EXPIRES_AT_KEY] == 2_100_000_000
     assert callback_session.session_state[SCOPES_KEY] == ("read", "activity:read_all")
+    assert callback_session.session_state[WEEKLY_TIMEZONE_KEY] == "Pacific/Honolulu"
     assert "refresh-token-must-not-be-stored" not in str(callback_session.session_state)
     assert "one-time-authorization-code" not in str(callback_session.session_state)
     assert ATHLETE_PREVIEW_KEY not in callback_session.session_state
@@ -559,9 +588,10 @@ def test_weekly_overview_loads_only_after_click_and_renders_seven_weeks_and_thre
     assert len(requests) == 1
 
 
-def test_weekly_timezone_selectbox_is_unique_searchable_and_has_no_default():
-    from zoneinfo import available_timezones
+def test_weekly_timezone_selectbox_is_unique_searchable_and_has_no_default(monkeypatch):
+    from src.ui.timezone_preference import IANA_TIMEZONE_OPTIONS
 
+    monkeypatch.setattr("src.ui.coach_request_form.detect_local_iana_timezone", lambda: None)
     app = AppTest.from_file(APP_ENTRYPOINT)
     app.session_state[ACCESS_TOKEN_KEY] = "session-token"
     app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
@@ -571,7 +601,7 @@ def test_weekly_timezone_selectbox_is_unique_searchable_and_has_no_default():
     selector = app.selectbox(key=WEEKLY_TIMEZONE_KEY)
     assert not app.exception
     assert selector.value is None
-    assert selector.options == sorted(set(available_timezones()))
+    assert selector.options == list(IANA_TIMEZONE_OPTIONS)
     assert {"Europe/Madrid", "UTC", "America/New_York"}.issubset(selector.options)
     assert len(selector.options) == len(set(selector.options))
     assert len(app.selectbox) == 1
@@ -690,6 +720,7 @@ def test_shared_timezone_change_clears_coach_request_and_weekly_output_without_f
 def test_empty_weekly_timezone_click_clears_old_output_without_strava_call(monkeypatch):
     client = Mock()
     monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    monkeypatch.setattr("src.ui.coach_request_form.detect_local_iana_timezone", lambda: None)
     app = AppTest.from_file(APP_ENTRYPOINT)
     app.session_state[ACCESS_TOKEN_KEY] = "session-token"
     app.session_state[EXPIRES_AT_KEY] = 2_100_000_000

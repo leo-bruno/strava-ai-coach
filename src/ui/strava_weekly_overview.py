@@ -15,9 +15,10 @@ from src.models.activity import Activity
 from src.models.weekly_analysis import WeeklyAnalysis
 from src.strava.client import DEFAULT_ACTIVITIES_PAGE_SIZE, StravaClient
 from src.ui.strava_connection import ACCESS_TOKEN_KEY, EXPIRES_AT_KEY
+from src.ui.timezone_preference import ATHLETE_TIMEZONE_KEY
 
 
-WEEKLY_TIMEZONE_KEY = "athlete_timezone"
+WEEKLY_TIMEZONE_KEY = ATHLETE_TIMEZONE_KEY
 WEEKLY_ACTIVITIES_KEY = "strava_weekly_activities"
 WEEKLY_ANALYSES_KEY = "strava_weekly_analyses"
 WEEKLY_INSIGHTS_KEY = "strava_weekly_insights"

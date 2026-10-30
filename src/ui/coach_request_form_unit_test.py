@@ -54,8 +54,11 @@ class MockStreamlit:
     def selectbox(self, _label, options, *, key, index=None, **kwargs):
         self.widget_options[key] = {"options": options, "index": index, **kwargs}
         if key in self.values:
-            return self.values[key]
-        return None if index is None else options[index]
+            selected = self.values[key]
+        else:
+            selected = None if index is None else options[index]
+        self.session_state[key] = selected
+        return selected
 
     def date_input(self, _label, *, key, value, **_kwargs):
         self.widget_options[key] = _kwargs
@@ -131,7 +134,7 @@ def test_valid_submission_stores_request_and_hides_runner_context(forbid_coach_a
     assert "Request validated and kept in this session." in visible_output
     assert "No training advice has been generated" in visible_output
     assert "no Strava data has been accessed" in visible_output
-    assert set(ui.session_state) == {REQUEST_SESSION_KEY}
+    assert set(ui.session_state) == {REQUEST_SESSION_KEY, "athlete_timezone"}
 
 
 def test_target_picker_does_not_block_date_valid_in_selected_timezone():
@@ -189,7 +192,10 @@ def test_unsubmitted_form_keeps_only_existing_session_request():
 
     render_request_page(ui)
 
-    assert ui.session_state == {REQUEST_SESSION_KEY: previous_request}
+    assert ui.session_state == {
+        REQUEST_SESSION_KEY: previous_request,
+        "athlete_timezone": "Europe/Madrid",
+    }
     assert "Request summary" in ui.output
     assert not ui.errors
 

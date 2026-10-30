@@ -18,6 +18,7 @@ from src.ui.strava_connection import (
     revocation_is_configured,
     start_authorization,
 )
+from src.ui.timezone_preference import ATHLETE_TIMEZONE_KEY
 
 
 class QueryParamsStub(dict):
@@ -41,17 +42,19 @@ def test_start_authorization_uses_configured_redirect_and_random_state(monkeypat
             "STRAVA_REDIRECT_URI": "http://localhost:8501",
         },
         state_store=store,
+        timezone_preference="Europe/Madrid",
     )
 
     assert "state=state-32" in url
     assert "redirect_uri=http%3A%2F%2Flocalhost%3A8501" in url
-    assert store.consume("state-32") == "consumed"
+    assert "timezone" not in url.lower()
+    assert store.consume_with_preference("state-32") == ("consumed", "Europe/Madrid")
 
 
 def test_valid_callback_consumes_state_and_keeps_only_access_token_fields():
     session = {}
     store = OAuthStateStore(clock=lambda: 100.0)
-    expected_state = store.issue()
+    expected_state = store.issue("Pacific/Honolulu")
     params = QueryParamsStub(
         code="one-time-code",
         state=expected_state,
@@ -78,6 +81,7 @@ def test_valid_callback_consumes_state_and_keeps_only_access_token_fields():
         ACCESS_TOKEN_KEY: "short-lived-access-token",
         EXPIRES_AT_KEY: 2_100_000_000,
         SCOPES_KEY: ("read", "activity:read_all"),
+        ATHLETE_TIMEZONE_KEY: "Pacific/Honolulu",
     }
     assert "one-time-code" not in session.values()
     assert "must-not-be-kept" not in session.values()
@@ -95,7 +99,8 @@ def test_callback_with_unknown_state_is_rejected_and_clears_query():
 
 def test_callback_replay_does_not_exchange_code_again():
     store = OAuthStateStore(clock=lambda: 100.0)
-    state = store.issue()
+    state = store.issue("Europe/Madrid")
+    first_session = {}
     first = QueryParamsStub(code="first-code", state=state, scope="read,activity:read_all")
     token_data = {
         "access_token": "token",
@@ -103,21 +108,26 @@ def test_callback_replay_does_not_exchange_code_again():
         "expires_at": 2_100_000_000,
         "scope": "read,activity:read_all",
     }
-    assert consume_oauth_callback({}, first, state_store=store, exchange_code=lambda _code: token_data) == "connected"
+    assert consume_oauth_callback(
+        first_session, first, state_store=store, exchange_code=lambda _code: token_data
+    ) == "connected"
+    assert first_session[ATHLETE_TIMEZONE_KEY] == "Europe/Madrid"
 
     replay = QueryParamsStub(code="second-code", state=state, scope="read,activity:read_all")
+    replay_session = {}
     calls = []
     assert consume_oauth_callback(
-        {}, replay, state_store=store, exchange_code=lambda code: calls.append(code)
+        replay_session, replay, state_store=store, exchange_code=lambda code: calls.append(code)
     ) == "replay"
     assert not calls
     assert not replay
+    assert ATHLETE_TIMEZONE_KEY not in replay_session
 
 
 def test_expired_callback_state_is_consumed_without_exchanging_code():
     now = [100.0]
     store = OAuthStateStore(ttl_seconds=5, clock=lambda: now[0])
-    state = store.issue()
+    state = store.issue("Europe/Madrid")
     now[0] = 106.0
     params = QueryParamsStub(code="code", state=state, scope="read,activity:read_all")
     calls = []
@@ -132,6 +142,21 @@ def test_expired_callback_state_is_consumed_without_exchanging_code():
     assert status == "expired"
     assert not calls
     assert not params
+
+
+def test_state_store_removes_timezone_snapshot_when_consumed_or_cleared():
+    store = OAuthStateStore(clock=lambda: 100.0)
+    state = store.issue("Europe/Madrid")
+    assert "Europe/Madrid" in str(store._pending[state])
+
+    assert store.consume_with_preference(state) == ("consumed", "Europe/Madrid")
+    assert state not in store._pending
+    assert "Europe/Madrid" not in str(store._consumed)
+
+    store.issue("Asia/Tokyo")
+    store.clear()
+    assert store._pending == {}
+    assert store._consumed == {}
 
 
 def test_callback_rejects_state_mismatch_without_exchange():
@@ -172,7 +197,7 @@ def test_callback_handles_missing_state_code_and_insufficient_scopes_without_exc
 def test_callback_handles_access_denied_before_exchange():
     session = {}
     store = OAuthStateStore(clock=lambda: 100.0)
-    expected_state = store.issue()
+    expected_state = store.issue("Europe/Madrid")
     params = QueryParamsStub(state=expected_state, error="access_denied")
     calls = []
 
@@ -181,6 +206,7 @@ def test_callback_handles_access_denied_before_exchange():
     assert status == "access_denied"
     assert not calls
     assert not params
+    assert session == {ATHLETE_TIMEZONE_KEY: "Europe/Madrid"}
 
 
 def test_callback_rejects_insufficient_grant_in_exchange_response():
@@ -208,7 +234,7 @@ def test_callback_rejects_insufficient_grant_in_exchange_response():
 def test_callback_rejects_exchange_error_without_exposing_error_or_code():
     session = {}
     store = OAuthStateStore(clock=lambda: 100.0)
-    expected_state = store.issue()
+    expected_state = store.issue("Asia/Tokyo")
     params = QueryParamsStub(code="secret-code", state=expected_state, scope="read,activity:read_all")
 
     def fail(_code):
@@ -217,6 +243,7 @@ def test_callback_rejects_exchange_error_without_exposing_error_or_code():
     status = consume_oauth_callback(session, params, state_store=store, exchange_code=fail)
 
     assert status == "exchange_failed"
+    assert session == {ATHLETE_TIMEZONE_KEY: "Asia/Tokyo"}
     assert "secret-code" not in str(session)
     assert "provider diagnostic" not in status
 
@@ -254,19 +281,22 @@ def test_state_store_enforces_capacity_and_reclaims_expired_nonces():
 
 def test_state_store_consumes_nonce_atomically_under_concurrent_callbacks():
     store = OAuthStateStore(clock=lambda: 100.0)
-    state = store.issue()
+    state = store.issue("Pacific/Honolulu")
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        statuses = list(pool.map(lambda _index: store.consume(state), range(8)))
+        results = list(pool.map(lambda _index: store.consume_with_preference(state), range(8)))
 
-    assert statuses.count("consumed") == 1
-    assert statuses.count("replay") == 7
+    assert results.count(("consumed", "Pacific/Honolulu")) == 1
+    assert results.count(("replay", None)) == 7
+    assert state not in store._pending
+    assert isinstance(store._consumed[state], float)
+    assert "Pacific/Honolulu" not in str(store._consumed)
 
 
 def test_multiple_callback_state_values_are_rejected_without_exchange():
     store = OAuthStateStore(clock=lambda: 100.0)
-    first = store.issue()
-    second = store.issue()
+    first = store.issue("Europe/Madrid")
+    second = store.issue("Asia/Tokyo")
     session = {}
     params = QueryParamsStub(code="code", state=[first, second], scope="read,activity:read_all")
     calls = []
@@ -281,13 +311,14 @@ def test_multiple_callback_state_values_are_rejected_without_exchange():
     assert status == "multiple_state"
     assert not calls
     assert not params
+    assert ATHLETE_TIMEZONE_KEY not in session
     assert store.consume(first) == "replay"
     assert store.consume(second) == "replay"
 
 
 def test_duplicate_code_values_are_rejected_without_exchange():
     store = OAuthStateStore(clock=lambda: 100.0)
-    state = store.issue()
+    state = store.issue("Europe/Madrid")
     params = QueryParamsStub(
         code=["first-code", "second-code"],
         state=state,
@@ -295,8 +326,9 @@ def test_duplicate_code_values_are_rejected_without_exchange():
     )
     calls = []
 
+    session = {}
     status = consume_oauth_callback(
-        {},
+        session,
         params,
         state_store=store,
         exchange_code=lambda code: calls.append(code),
@@ -305,6 +337,43 @@ def test_duplicate_code_values_are_rejected_without_exchange():
     assert status == "invalid_callback"
     assert not calls
     assert not params
+    assert ATHLETE_TIMEZONE_KEY not in session
+
+
+def test_callback_with_mismatched_state_does_not_restore_pending_timezone():
+    store = OAuthStateStore(clock=lambda: 100.0)
+    store.issue("Europe/Madrid")
+    session = {}
+    params = QueryParamsStub(code="code", state="other-state", scope="read,activity:read_all")
+
+    status = consume_oauth_callback(
+        session,
+        params,
+        state_store=store,
+        exchange_code=lambda _code: None,
+    )
+
+    assert status == "state_mismatch"
+    assert ATHLETE_TIMEZONE_KEY not in session
+
+
+def test_expired_callback_does_not_restore_pending_timezone():
+    now = [100.0]
+    store = OAuthStateStore(ttl_seconds=5, clock=lambda: now[0])
+    state = store.issue("Europe/Madrid")
+    now[0] = 106.0
+    session = {}
+    params = QueryParamsStub(code="code", state=state, scope="read,activity:read_all")
+
+    status = consume_oauth_callback(
+        session,
+        params,
+        state_store=store,
+        exchange_code=lambda _code: None,
+    )
+
+    assert status == "expired"
+    assert ATHLETE_TIMEZONE_KEY not in session
 
 
 def test_clear_connection_state_returns_only_access_token_and_removes_all_session_data():

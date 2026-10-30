@@ -2,11 +2,17 @@
 
 from datetime import date, datetime, timedelta, timezone
 import os
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ai.coach_demo import build_offline_demo
 from src.models.coach_request import coach_request_from_input
 from src.ui.coach_response import render_coach_response
+from src.ui.timezone_preference import (
+    ATHLETE_TIMEZONE_KEY,
+    IANA_TIMEZONE_OPTIONS,
+    detect_local_iana_timezone,
+    is_valid_iana_timezone_name,
+)
 from src.ui.strava_connection import (
     ACCESS_TOKEN_KEY,
     ACTIVITY_PREVIEW_KEY,
@@ -30,7 +36,6 @@ from src.ui.strava_weekly_overview import (
     WEEKLY_PAGE_COUNT_KEY,
     WEEKLY_PERIOD_END_KEY,
     WEEKLY_PERIOD_START_KEY,
-    WEEKLY_TIMEZONE_KEY,
     clear_expired_weekly_overview,
     clear_weekly_overview,
     load_recent_weekly_overview,
@@ -49,6 +54,8 @@ FORM_WIDGET_KEYS = (
 def _resolve_coach_timezone(timezone_name: object) -> ZoneInfo:
     if not isinstance(timezone_name, str) or not timezone_name:
         raise ValueError("Select an IANA time zone before validating the request.")
+    if not is_valid_iana_timezone_name(timezone_name):
+        raise ValueError("Select a valid IANA time zone before validating the request.")
     try:
         return ZoneInfo(timezone_name)
     except (ValueError, ZoneInfoNotFoundError):
@@ -88,6 +95,8 @@ def render_request_page(ui=None) -> None:
     )
     clear_expired_activity_analysis(ui.session_state)
     clear_expired_weekly_overview(ui.session_state)
+    if ATHLETE_TIMEZONE_KEY not in ui.session_state:
+        ui.session_state[ATHLETE_TIMEZONE_KEY] = detect_local_iana_timezone()
     ui.title("Strava AI Coach")
     ui.write(
         "Validating a request does not call the Coach or access Strava. "
@@ -95,10 +104,10 @@ def render_request_page(ui=None) -> None:
     )
     timezone_name = ui.selectbox(
         "Your time zone (IANA name)",
-        options=sorted(available_timezones()),
+        options=IANA_TIMEZONE_OPTIONS,
         index=None,
         placeholder="Select an IANA time zone",
-        key=WEEKLY_TIMEZONE_KEY,
+        key=ATHLETE_TIMEZONE_KEY,
         on_change=_timezone_changed,
         args=(ui.session_state,),
     )
@@ -231,7 +240,10 @@ def render_request_page(ui=None) -> None:
     authorization_url = None
     if ui.button("Prepare Strava authorization", key="prepare_strava_authorization"):
         try:
-            authorization_url = start_authorization(environ=os.environ)
+            authorization_url = start_authorization(
+                environ=os.environ,
+                timezone_preference=ui.session_state.get(ATHLETE_TIMEZONE_KEY),
+            )
         except RuntimeError:
             ui.error(
                 "Configure STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REDIRECT_URI before starting. "
@@ -373,7 +385,7 @@ def render_request_page(ui=None) -> None:
             "it does not request activity details or laps."
         )
         if ui.button("Load seven completed weeks and Insights", key="load_weekly_strava_overview"):
-            selected_timezone = ui.session_state.get(WEEKLY_TIMEZONE_KEY)
+            selected_timezone = ui.session_state.get(ATHLETE_TIMEZONE_KEY)
             if selected_timezone is None:
                 clear_weekly_overview(ui.session_state)
                 ui.error("Select an IANA time zone before loading weekly Strava data.")
