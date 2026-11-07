@@ -3,6 +3,7 @@
 from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 import builtins
+from unittest.mock import Mock
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -21,6 +22,7 @@ class MockStreamlit:
         self.authorization_submitted = False
         self.weekly_submitted = False
         self.evidence_submitted = False
+        self.generation_submitted = False
         self.clear_clicked = clear_clicked
         self.session_state = session_state if session_state is not None else {}
         self.output = []
@@ -28,6 +30,12 @@ class MockStreamlit:
         self.widget_options = {}
 
     def form(self, _key):
+        return nullcontext()
+
+    def container(self, **_kwargs):
+        return nullcontext()
+
+    def expander(self, _label, **_kwargs):
         return nullcontext()
 
     def title(self, value):
@@ -43,6 +51,12 @@ class MockStreamlit:
         self.output.append(value)
 
     def write(self, value):
+        self.output.append(value)
+
+    def text(self, value):
+        self.output.append(value)
+
+    def markdown(self, value, **_kwargs):
         self.output.append(value)
 
     def info(self, value):
@@ -86,6 +100,7 @@ class MockStreamlit:
             "prepare_strava_authorization": self.authorization_submitted,
             "load_weekly_strava_overview": self.weekly_submitted,
             "prepare_coach_evidence_context": self.evidence_submitted,
+            "generate_experimental_coach_response": self.generation_submitted,
         }.get(key, False)
 
     def button(self, _label, *, key=None, on_click=None, args=(), **_kwargs):
@@ -124,6 +139,26 @@ def valid_request():
     )
 
 
+def test_experimental_generation_reuses_existing_execution_and_renderer_boundaries(monkeypatch):
+    from src.ui.coach_request_form import _generate_experimental_coach_output
+
+    context = object()
+    response = object()
+    knowledge = object()
+    generated = Mock(return_value=response)
+    loaded_knowledge = Mock(return_value=knowledge)
+    rendered = Mock(return_value="rendered Coach response")
+    monkeypatch.setattr("src.ai.coach.generate_coach_response", generated)
+    monkeypatch.setattr("src.ai.training_knowledge.load_training_knowledge", loaded_knowledge)
+    monkeypatch.setattr("src.ui.coach_request_form.render_coach_response", rendered)
+
+    assert _generate_experimental_coach_output(context) == "rendered Coach response"
+
+    generated.assert_called_once_with(context)
+    loaded_knowledge.assert_called_once_with()
+    rendered.assert_called_once_with(response, context=context, knowledge=knowledge)
+
+
 @pytest.fixture
 def forbid_coach_and_strava_imports(monkeypatch):
     original_import = builtins.__import__
@@ -150,8 +185,8 @@ def test_valid_submission_stores_request_and_hides_runner_context(forbid_coach_a
     visible_output = " ".join(map(str, ui.output))
     assert private_context not in visible_output
     assert "Request validated and kept in this session." in visible_output
-    assert "No training advice has been generated" in visible_output
-    assert "Request validation itself does not access Strava" in visible_output
+    assert "does not access Strava or generate a Coach response" in visible_output
+    assert "Request validation does not access Strava" in visible_output
     assert set(ui.session_state) == {
         REQUEST_SESSION_KEY,
         ATHLETE_TIMEZONE_KEY,

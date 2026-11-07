@@ -141,7 +141,7 @@ def render_coach_evidence_context(
 ) -> None:
     """Display safe fields explicitly; never dump RunnerContext or CoachContext."""
     ui.subheader("Coach evidence context")
-    ui.info("Deterministic evidence for Coach; no advice was generated.")
+    ui.info("Deterministic evidence context; this view adds no interpretation.")
     metadata = context.source_metadata
     ui.write(
         f"Local evidence window: {context.recent_window_start.isoformat()} to "

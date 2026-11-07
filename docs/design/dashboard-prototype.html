@@ -1,0 +1,144 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Strava AI Coach · Boceto</title><style>
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+*{box-sizing:border-box}body{margin:0;background:#f7f6f2;color:#232920;font:16px system-ui}header,main{max-width:1040px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;border-bottom:1px solid #dedfd7}small{color:#526044}h1{font-size:clamp(36px,6vw,64px);letter-spacing:-.06em;margin:10px 0}p{color:#53604d}section{background:white;border:1px solid #dedfd7;border-radius:18px;padding:24px;margin-top:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.grid div{background:#f0f3ea;padding:15px;border-radius:10px}.grid strong{display:block;font-size:28px}summary{cursor:pointer;font-weight:650}textarea{display:block;width:100%;margin:12px 0;padding:12px;border:1px solid #aeb7a7;border-radius:8px;font:inherit}button{background:#28462d;color:white;border:0;border-radius:8px;padding:12px;font:inherit;cursor:pointer}h2{margin-top:0}
+section:has(.plan){padding:13px 20px}.plan-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 4px}.plan select{font:inherit;padding:4px}.plan article{display:grid;grid-template-columns:minmax(185px,1fr) 2.5fr;align-items:baseline;gap:8px;padding:7px 0;border-top:1px solid #dedfd7}.plan h3,.plan p{margin:0;font-size:.875rem}.plan p{display:flex;flex-wrap:wrap;gap:3px 14px}@media(max-width:650px){.plan article{grid-template-columns:1fr;gap:3px}}
+.plan a,#race a{color:#28462d;text-underline-offset:3px}#race-data span{display:block;margin-top:8px}.week-progress{padding:14px 20px}.week-progress h2{margin:0 0 9px;font-size:1.2rem}.week-progress .grid div{padding:8px 12px}.week-progress .grid strong{font-size:1.35rem}
+body{background:#e9edef;color:#192629}header{border-color:#cfd8dc;padding-block:16px}main{padding-top:24px}h1{font-size:clamp(32px,5vw,48px);margin:4px 0}main>p{margin:6px 0 18px}p,small{color:#4c6166}section{border-color:#d8e1e4;border-radius:16px;box-shadow:0 2px 5px #2039420a;margin-top:12px;padding:16px 20px}.grid>div{background:#eef7f7;border-radius:12px;min-height:75px}.grid>div:last-child{background:#f4f6f7}.week-progress .grid strong{font-size:1.65rem;letter-spacing:-.05em}.week-progress .grid .distance-ring{float:right;display:grid;place-items:center;min-height:54px;width:54px;padding:0;margin:0 0 0 6px;border-radius:50%;font-size:12px;font-weight:750;background:radial-gradient(circle,#eef7f7 56%,transparent 58%),conic-gradient(#00878f 63%,#d4e6e7 0)}button{background:#08646a}.plan a,#race a{color:#08646a}.plan summary::marker{color:#00878f}
+
+header,main{max-width:1200px}.dashboard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:12px}.dashboard section{margin:0}.dashboard section:has(.plan){grid-column:1/-1}.week-progress .grid{grid-template-columns:1fr 1fr}.week-progress .grid>div:last-child{grid-column:1/-1}.schedule h2{font-size:1.2rem;margin:4px 0 14px}.agenda{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.agenda>div{display:grid;align-content:start;gap:8px;background:linear-gradient(#e6f6f7,#f5fafb);padding:12px 8px;border-radius:10px}.agenda>div:last-child{background:linear-gradient(#ffecef,#fff8f9)}.agenda a{color:#08646a;font-size:.9rem;font-weight:700}.agenda small{font-size:.75rem}@media(max-width:760px){.dashboard{grid-template-columns:1fr}}@media(max-width:390px){.week-progress .grid,.agenda{grid-template-columns:1fr}}
+
+.dashboard{grid-template-columns:1fr .95fr 1.45fr}.performance{grid-column:span 2}.performance h2,.training h2{font-size:1.12rem;margin:0 0 12px}.performance strong{font-size:1.65rem}.week-progress .grid{grid-template-columns:1fr}.week-progress .grid>div{min-height:0}.training a{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #e5ecee;color:inherit;text-decoration:none;font-size:.9rem;font-weight:650}.training b{background:#e6f6f7;color:#08646a;border-radius:8px;padding:7px}.training small{display:block;font-weight:400}.agenda{grid-template-columns:repeat(5,minmax(0,1fr));background:repeating-linear-gradient(90deg,#edf8f9 0 19.8%,white 19.8% 20%);padding:8px;border-radius:10px}.agenda>div{grid-column:span 3;background:#fff;box-shadow:0 2px 6px #24485014;gap:3px}.agenda>div:nth-child(2){grid-column:3/6}.agenda>div:last-child{grid-column:2/5}.dashboard>section:last-child{background:#183135;color:#fff}.dashboard>section:last-child p{color:#c5dadc}@media(max-width:860px){.dashboard{grid-template-columns:1fr 1fr}.schedule{grid-column:1/-1}.performance{grid-column:auto}}@media(max-width:620px){.dashboard{grid-template-columns:1fr}}
+
+body{background:#e1e4e5;color:#171d1e;max-width:1800px;margin:0 auto;display:grid;grid-template-columns:clamp(154px,16vw,250px) minmax(0,1fr);gap:clamp(14px,1.6vw,28px);padding:20px;font-family:Arial,sans-serif}
+.sidebar{background:#f7f9f9;border-radius:24px;padding:20px 15px;display:flex;flex-direction:column;gap:32px;min-height:calc(100vh - 40px);box-shadow:0 1px 2px #17262820}.sidebar strong{display:flex;align-items:center;gap:8px}.sidebar strong b{background:linear-gradient(#fc382a,#ef0063);color:white;border-radius:8px;padding:7px;font-size:24px}.sidebar nav{display:grid;gap:12px}.sidebar a{color:#344042;text-decoration:none;padding:11px 7px;border-radius:9px}.sidebar a.active{background:#171d1e;color:white}.sidebar>small{margin-top:auto}
+main{width:100%;min-width:0;max-width:none;padding:0}main[hidden]{display:none}.top{max-width:none;padding:10px 0 24px;border:0;align-items:center;font-size:1.15rem}.pill{border:1px solid #cbd2d3;border-radius:50px;background:#fafcfc;padding:7px 12px;white-space:nowrap}.intro{margin:8px 0 20px}.intro h1{font-size:clamp(24px,2.6vw,38px);font-weight:550;letter-spacing:-.04em}.dashboard{grid-template-columns:30fr 24fr 46fr;gap:14px}.dashboard section{background:#f7f9f9;border-color:#fff;border-radius:20px;box-shadow:0 1px 2px #17262818}.dashboard h2{font-size:clamp(16px,1.4vw,23px);font-weight:550}.metric-stack{display:grid;gap:14px}.hero-progress,.pace{position:relative;overflow:hidden;min-height:138px}.hero-value,.pace>div:first-of-type{margin-top:25px;position:relative;z-index:1}.hero-value strong,.pace strong{font-size:clamp(23px,2.5vw,38px);letter-spacing:-.05em}.hero-value p{font-size:.78rem;margin:5px 0 0}.gauge{position:absolute;right:-9px;bottom:-18px;width:clamp(115px,12vw,175px);aspect-ratio:1;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#f7f9f9 55%,transparent 56%),conic-gradient(from 208deg,#16b9c6 0 63%,#c4ced0 63% 100%);color:#192527}.gauge b{transform:translate(-11px,-10px);font-size:24px}.pace-bars{position:absolute;right:14px;bottom:19px;width:43%;height:62px;display:flex;align-items:end;gap:5px}.pace-bars i{width:12%;height:var(--h);border-radius:3px;background:repeating-linear-gradient(to top,#f5a7bb 0 6px,transparent 6px 8px)}.pace-bars i:nth-child(4){background:repeating-linear-gradient(to top,#f32c59 0 6px,transparent 6px 8px)}
+.panel-top,.timeline-labels{display:flex;justify-content:space-between;align-items:center;gap:8px}.panel-top h2{margin:0}.timeline-labels{margin:18px 0 8px;font-size:.7rem;color:#52666a}.agenda{min-height:190px}.agenda>div{padding:7px 9px}.training a{padding:15px 0}.dashboard section:has(.plan){grid-row:3}.performance{min-height:250px}.dashboard #coach-panel{background:radial-gradient(ellipse at 96% 95%,#a8272a,#351516 55%,#180f10);color:white}.dashboard #coach-panel button{background:#ffffff24;border:1px solid #ffffff55}.dashboard #coach-panel textarea{min-height:65px}
+@media(max-width:1000px){.dashboard{grid-template-columns:1fr 1fr}.schedule{grid-column:1/-1}.dashboard section:has(.plan){grid-row:auto}.performance{grid-column:auto}}@media(max-width:680px){body{display:block;padding:12px}.sidebar{min-height:0;gap:8px;margin-bottom:12px;padding:10px}.sidebar nav{display:flex;flex-wrap:wrap;gap:3px}.sidebar a{padding:7px;font-size:.8rem}.sidebar>small{display:none}.dashboard{grid-template-columns:1fr}}
+
+#toggle-sidebar{align-self:end;padding:1px 9px;background:white;color:#273738;border:1px solid #aab8ba;font-size:20px;line-height:1.2}.sidebar{gap:16px}body.sidebar-closed{grid-template-columns:48px minmax(0,1fr)}.sidebar-closed .sidebar{padding:8px}.sidebar-closed .sidebar>:not(button){display:none}.training b.done{background:#d9f4eb;color:#09664f}.training b.date{text-align:center;background:#fff;color:#263537}.training b{min-width:34px;text-align:center}.gauge b{transform:none}@media(max-width:1200px){.gauge{width:94px;right:-8px;bottom:-8px}}@media(max-width:680px){.sidebar-closed .sidebar{align-items:end}}
+.progress-arc{position:absolute;right:5px;bottom:3px;width:43%;max-width:150px}.hero-value{max-width:57%}body{font-family:"Manrope","Helvetica Neue",system-ui,sans-serif}
+button,select,textarea{font-family:inherit}
+.intro h1{font-weight:600;letter-spacing:-.045em}
+.top,.dashboard h2{font-weight:600;letter-spacing:-.035em}
+.hero-value strong,.pace strong,.performance strong,.progress-arc text{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.sidebar strong{font-weight:800;letter-spacing:-.045em}
+small,.intro p{font-weight:500}
+
+.plan select,.schedule select{
+  appearance:none;
+  font-family:inherit;
+  font-size:.75rem;
+  font-weight:600;
+  line-height:1.35;
+  color:#273638;
+  border:1px solid #cbd2d3;
+  border-radius:999px;
+  padding:7px 33px 7px 12px;
+  max-width:100%;
+  background:#fafcfc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23536568' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+}
+.plan select:focus-visible,.schedule select:focus-visible{outline:2px solid #00878f;outline-offset:2px}
+.schedule .panel-top{flex-wrap:wrap}
+a{text-decoration:none}
+</style><aside class="sidebar" id="sidebar"><button id="toggle-sidebar" aria-controls="sidebar" aria-expanded="true" aria-label="Plegar barra lateral">‹</button><strong><b>↗</b> Strava AI Coach</strong><nav><a class="active" href="#">▦　Dashboard</a><a href="#plan">▤　Mi plan</a><a href="#stats">◉　Estadísticas</a><a href="#coach-panel">✦　Coach</a></nav><small>Datos de ejemplo</small></aside><main><header class="top"><span>Mi dashboard</span><small class="pill">Vista de ejemplo</small></header><div class="intro"><h1>Tu entrenamiento esta semana</h1><p>2 de 3 sesiones completadas · 2–8 de noviembre</p></div><div class="dashboard"><div class="metric-stack"><section class="hero-progress"><h2>Progreso semanal</h2><div class="hero-value"><strong>11,4 km</strong> <small>/ 18 km</small><p>2 de 3 entrenamientos</p></div><svg class="progress-arc" viewBox="0 0 110 94" role="img" aria-label="63 % de la distancia prevista">
+<path d="M20.36 75 A40 40 0 1 1 89.64 75" fill="none" stroke="#c4ced0" stroke-width="12" stroke-linecap="round"/>
+<path d="M20.36 75 A40 40 0 1 1 89.64 75" pathLength="100" fill="none" stroke="#12afbc" stroke-width="12" stroke-linecap="round" stroke-dasharray="63 100"/>
+<text x="55" y="63" text-anchor="middle" font-size="24" font-weight="700" fill="#192527">63<tspan font-size="12">%</tspan></text>
+</svg></section>
+<section class="pace"><h2>Ritmo medio</h2><div><strong>5:42</strong> <small>/km</small></div><div class="pace-bars" aria-label="Ritmos de ejemplo" role="img"><i style="--h:48%"></i><i style="--h:73%"></i><i style="--h:51%"></i><i style="--h:92%"></i><i style="--h:54%"></i><i style="--h:74%"></i><i style="--h:32%"></i></div></section></div><section class="training"><h2>Entrenamientos</h2>
+<a href="#sesion-4"><b class="done" aria-label="Completado">✓</b><span>Rodaje suave<small>7 km previstos · 6,8 km hechos</small></span></a>
+<a href="#sesion-5"><b class="done" aria-label="Completado">✓</b><span>Carrera continua<small>25 min previstos · 24 min hechos</small></span></a>
+<a href="#sesion-6"><b class="date"><small>Dom</small>08</b><span>Tirada larga<small>11 km previstos · Próxima</small></span></a></section><section class="schedule"><div class="panel-top"><h2>Agenda semanal</h2><select class="pill" id="agenda-week" aria-label="Semana de la agenda"><option value="past">26 oct–1 nov</option><option value="current" selected>2–8 nov</option><option value="future">9–15 nov</option></select></div><div class="timeline-labels"><span>Día</span><span>Sesión 01</span><span>Sesión 02</span><span>Sesión 03</span></div><div class="agenda">
+<div><small>MAR 03</small><a href="#sesion-4">Rodaje suave</a><small>7 km · Realizado</small></div>
+<div><small>JUE 05</small><a href="#sesion-5">Carrera continua</a><small>25 min · Realizado</small></div>
+<div><small>DOM 08</small><a href="#sesion-6">Tirada larga</a><small>11 km · Próxima</small></div>
+</div></section><section aria-labelledby="plan-title">
+<details class="plan"><summary id="plan-title">Mi plan <small>· 10 km · Ejemplo</small></summary><div class="plan-controls">
+<label for="week">Semana del plan</label>
+<select id="week">
+<option value="past">Semana 2 · 26 oct–1 nov</option>
+<option value="current" selected>Semana 3 · 2–8 nov · Actual</option>
+<option value="future">Semana 4 · 9–15 nov</option>
+</select></div>
+<div id="past" hidden>
+<article id="sesion-1"><h3><a href="#sesion-1">Mar 27 oct · Rodaje suave</a></h3><p><span><b>Previsto</b> · 6 km suaves</span><span><b>Realizado</b> · 6,4 km en 38 min</span></p></article>
+<article id="sesion-2"><h3><a href="#sesion-2">Jue 29 oct · Series</a></h3><p><span><b>Previsto</b> · 5 × 800 m con 2 min de recuperación</span><span><b>Realizado</b> · Sin actividad vinculada</span></p></article>
+<article id="sesion-3"><h3><a href="#sesion-3">Dom 1 nov · Tirada larga</a></h3><p><span><b>Previsto</b> · 10 km suaves</span><span><b>Realizado</b> · 10,2 km en 59 min</span></p></article>
+</div>
+<div id="current">
+<article id="sesion-4"><h3><a href="#sesion-4">Mar 3 nov · Rodaje suave</a></h3><p><span><b>Previsto</b> · 7 km suaves</span><span><b>Realizado</b> · 6,8 km en 41 min</span></p></article>
+<article id="sesion-5"><h3><a href="#sesion-5">Jue 5 nov · Carrera continua</a></h3><p><span><b>Previsto</b> · 25 min a ritmo sostenido</span><span><b>Realizado</b> · 24 min · 4,6 km</span></p></article>
+<article id="sesion-6"><h3><a href="#sesion-6">Dom 8 nov · Tirada larga</a></h3><p><span><b>Previsto</b> · 11 km suaves · Próxima sesión</span></p></article>
+</div>
+<div id="future" hidden>
+<article id="sesion-7"><h3><a href="#sesion-7">Mar 10 nov · Rodaje suave</a></h3><p><span><b>Previsto</b> · 7 km suaves</span></p></article>
+<article id="sesion-8"><h3><a href="#sesion-8">Jue 12 nov · Series</a></h3><p><span><b>Previsto</b> · 6 × 800 m con 2 min de recuperación</span></p></article>
+<article id="sesion-9"><h3><a href="#sesion-9">Dom 15 nov · Tirada larga</a></h3><p><span><b>Previsto</b> · 12 km suaves</span></p></article>
+</div>
+</details></section><section class="performance" id="stats"><small>HISTORIAL DE EJEMPLO · 7 SEMANAS</small><h2>Rendimiento</h2><strong>32,4 km</strong> <small>Última semana completa</small>
+<svg viewBox="0 0 560 145" role="img" aria-label="Distancia por semana: 18, 22, 20, 27, 25, 30 y 32,4 kilómetros" style="width:100%;display:block;margin-top:8px">
+<defs><linearGradient id="area" x2="0" y2="1"><stop stop-color="#36c7ce" stop-opacity=".72"/><stop offset="1" stop-color="#36c7ce" stop-opacity=".13"/></linearGradient></defs>
+<path d="M20 105H540 M20 75H540 M20 45H540" stroke="#dce8ea"/>
+<path d="M20 105L20 61L107 50L193 55L280 36L367 41L453 27L540 20V105Z" fill="url(#area)"/>
+<path d="M20 61L107 50L193 55L280 36L367 41L453 27L540 20" fill="none" stroke="#00959e" stroke-width="3"/>
+<g fill="#52666a" font-size="12" text-anchor="middle"><text x="20" y="130">14 sep</text><text x="107" y="130">21 sep</text><text x="193" y="130">28 sep</text><text x="280" y="130">5 oct</text><text x="367" y="130">12 oct</text><text x="453" y="130">19 oct</text><text x="540" y="130">26 oct</text></g></svg></section><section id="coach-panel"><h2>Coach</h2><form id="coach"><label for="question">¿Qué quieres entender de tu entrenamiento?</label><textarea id="question" required placeholder="Ej. ¿Cómo cambió mi volumen en las últimas semanas?"></textarea><button>Preparar contexto</button></form><p id="context" hidden role="status">Vista de ejemplo: el contexto reúne siete semanas, tendencias y límites de cobertura.</p><details><summary>Ver demo offline</summary><p>Respuesta pregrabada para un escenario sintético independiente.</p></details></section></div></main><main id="race" hidden><a href="#plan">← Volver a Mi plan</a><section><small>DETALLE DE EJEMPLO</small><h2 id="race-title" tabindex="-1"></h2><div id="race-data"></div></section></main><script>document.querySelector('#coach').onsubmit=event=>{event.preventDefault();document.querySelector('#context').hidden=false};const week = document.getElementById('week');
+week.addEventListener('change', () => {
+  for (const option of week.options) {
+    document.getElementById(option.value).hidden = option.value !== week.value;
+  }
+});
+
+const overview = document.querySelector('main');
+const race = document.getElementById('race');
+const plan = document.querySelector('.plan');
+function showScreen() {
+  const id = location.hash.slice(1);
+  const session = /^sesion-[1-9]$/.test(id) ? document.getElementById(id) : null;
+  overview.hidden = Boolean(session);
+  race.hidden = !session;
+  if (session) {
+    week.value = session.parentElement.id;
+    week.dispatchEvent(new Event('change'));
+    plan.open = true;
+    const title = document.getElementById('race-title');
+    title.textContent = session.querySelector('a').textContent;
+    document.getElementById('race-data').replaceChildren(session.querySelector('p').cloneNode(true));
+    title.focus();
+  } else if (id === 'plan') {
+    plan.open = true;
+    plan.querySelector('summary').focus();
+  }
+}
+window.addEventListener('hashchange', showScreen);
+showScreen();
+
+const toggleSidebar = document.getElementById('toggle-sidebar');
+toggleSidebar.addEventListener('click', () => {
+  const closed = document.body.classList.toggle('sidebar-closed');
+  toggleSidebar.textContent = closed ? '›' : '‹';
+  toggleSidebar.setAttribute('aria-expanded', String(!closed));
+  toggleSidebar.setAttribute('aria-label', closed ? 'Abrir barra lateral' : 'Plegar barra lateral');
+});
+const agendaWeek = document.getElementById('agenda-week');
+const agenda = document.querySelector('.agenda');
+const currentAgenda = Array.from(agenda.children);
+agendaWeek.addEventListener('change', () => {
+  if (agendaWeek.value === 'current') {
+    agenda.replaceChildren(...currentAgenda);
+    return;
+  }
+  const sessions = document.getElementById(agendaWeek.value).querySelectorAll('article');
+  agenda.replaceChildren(...Array.from(sessions, session => {
+    const card = document.createElement('div');
+    const link = session.querySelector('a').cloneNode(true);
+    const [date, name] = link.textContent.split(' · ');
+    link.textContent = name;
+    const day = document.createElement('small');
+    day.textContent = date;
+    const target = document.createElement('small');
+    target.textContent = session.querySelector('p span').textContent;
+    card.append(day, link, target);
+    return card;
+  }));
+});
+</script></html>

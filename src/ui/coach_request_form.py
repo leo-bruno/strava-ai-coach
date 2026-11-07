@@ -52,6 +52,7 @@ from src.ui.strava_weekly_overview import (
 
 REQUEST_SESSION_KEY = "validated_coach_request"
 DEMO_SESSION_KEY = "offline_coach_demo_output"
+GENERATED_COACH_OUTPUT_KEY = "experimental_coach_output"
 FORM_WIDGET_KEYS = (
     "target_date",
     "available_training_days",
@@ -74,6 +75,7 @@ def _clear_request_form(session_state) -> None:
     """Clear the request, demo result and form values before rerunning."""
     session_state.pop(REQUEST_SESSION_KEY, None)
     session_state.pop(DEMO_SESSION_KEY, None)
+    session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
     clear_coach_evidence_context(session_state)
     for key in FORM_WIDGET_KEYS:
         session_state.pop(key, None)
@@ -82,6 +84,7 @@ def _clear_request_form(session_state) -> None:
 def _invalidate_timezone_bound_state(session_state) -> None:
     """Clear Coach and weekly results after a committed preference change."""
     session_state.pop(REQUEST_SESSION_KEY, None)
+    session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
     clear_weekly_overview(session_state)
 
 
@@ -99,6 +102,16 @@ def _request_matches_form(request, target_date, available_days, runner_context) 
 def _offline_demo_output() -> str:
     """Return a fully parsed, domain-validated and rendered demo result."""
     context, response, knowledge = build_offline_demo()
+    return render_coach_response(response, context=context, knowledge=knowledge)
+
+
+def _generate_experimental_coach_output(context) -> str:
+    """Run the existing one-shot Coach boundary and render only validated output."""
+    from src.ai.coach import generate_coach_response
+    from src.ai.training_knowledge import load_training_knowledge
+
+    knowledge = load_training_knowledge()
+    response = generate_coach_response(context)
     return render_coach_response(response, context=context, knowledge=knowledge)
 
 
@@ -129,12 +142,54 @@ def render_request_page(ui=None) -> None:
             ATHLETE_TIMEZONE_KEY
         )
     ui.title("Strava AI Coach")
-    ui.caption("Validate a Coach request without generating advice or accessing Strava.")
+    ui.caption("Prepare a Coach request and evidence. Coach generation requires a separate explicit action.")
     authorization_url = None
     authorization_error = False
     weekly_load_error = False
     evidence_error = None
+    generation_error = False
     ui.header("Coach request")
+    ui.markdown(
+        """<style>
+        @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+        .st-key-coach-panel, .st-key-coach-response-panel {
+            font-family: "Manrope", "Helvetica Neue", system-ui, sans-serif;
+            background: radial-gradient(ellipse at 96% 95%, #8f3037, #351719 56%, #180f10);
+            border: 1px solid #593437;
+            border-radius: 20px;
+            padding: 1rem 1.2rem;
+            margin: .4rem 0 1rem;
+        }
+        .st-key-coach-panel [data-testid="stMarkdownContainer"] p,
+        .st-key-coach-panel [data-testid="stCaptionContainer"] p,
+        .st-key-coach-panel label,
+        .st-key-coach-response-panel [data-testid="stMarkdownContainer"] p {
+            color: #f2e9e9 !important;
+            font-family: inherit;
+        }
+        .st-key-coach-panel [data-testid="stTextArea"] textarea {
+            min-height: 4.5rem;
+            background: #251819;
+            color: #fff;
+            border-color: #76575a;
+        }
+        .st-key-coach-panel button {
+            background: #ffffff24;
+            color: #fff;
+            border: 1px solid #ffffff55;
+        }
+        .st-key-coach-panel button:focus-visible,
+        .st-key-coach-panel textarea:focus-visible {
+            outline: 2px solid #57d5dc;
+            outline-offset: 2px;
+        }
+        @media (max-width: 680px) {
+            .st-key-coach-panel, .st-key-coach-response-panel { padding: .8rem; }
+            .st-key-coach-panel button { width: 100%; }
+        }
+        </style>""",
+        unsafe_allow_html=True,
+    )
     with ui.form("coach_request_form"):
         ui.text_input("Goal", value="Half marathon", disabled=True)
         timezone_name = ui.selectbox(
@@ -157,12 +212,6 @@ def render_request_page(ui=None) -> None:
             step=1,
             key="available_training_days",
         )
-        runner_context = ui.text_area(
-            "Optional context for the Coach",
-            max_chars=2000,
-            help="Up to 2,000 characters. This text is not shown in the confirmation.",
-            key="runner_context",
-        )
         coach_submitted = ui.form_submit_button(
             "Validate request", key="validate_coach_request", type="primary"
         )
@@ -183,26 +232,55 @@ def render_request_page(ui=None) -> None:
             if ui.session_state.get(ACCESS_TOKEN_KEY)
             else False
         )
-        ui.subheader("Coach evidence context")
-        ui.caption(
-            "Preparing evidence validates the current Coach request; a separate Validate request click is not required."
-        )
-        evidence_guidance = coach_evidence_context_guidance(
-            ui.session_state, timezone_name, datetime.now(timezone.utc)
-        )
-        evidence_available = evidence_guidance is None
-        if evidence_available:
-            evidence_submitted = ui.form_submit_button(
-                "Prepare Coach evidence context",
-                key="prepare_coach_evidence_context",
-                type="secondary",
+        with ui.container(key="coach-panel"):
+            ui.subheader("Coach")
+            runner_context = ui.text_area(
+                "Optional context for the Coach",
+                max_chars=2000,
+                height=80,
+                help="Up to 2,000 characters. This text is not shown in the confirmation.",
+                key="runner_context",
             )
-        else:
-            evidence_submitted = False
-            ui.caption(evidence_guidance)
+            ui.caption(
+                "This context belongs to the current Coach request. The session keeps it private until you choose an action."
+            )
+            evidence_guidance = coach_evidence_context_guidance(
+                ui.session_state, timezone_name, datetime.now(timezone.utc)
+            )
+            evidence_available = evidence_guidance is None
+            if not evidence_available:
+                clear_coach_evidence_context(ui.session_state)
+                ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
+            ui.subheader("Evidence context")
+            ui.caption(
+                "Prepare deterministic evidence or generate a response. Both actions use the current request and loaded weekly summary."
+            )
+            if evidence_available:
+                evidence_submitted = ui.form_submit_button(
+                    "Prepare Coach evidence context",
+                    key="prepare_coach_evidence_context",
+                    type="secondary",
+                )
+            else:
+                evidence_submitted = False
+                ui.caption(evidence_guidance)
+            ui.warning(
+                "Experimental: the model has not been accepted and its latest semantic evaluation failed. "
+                "Generating sends your request (including optional context) and Strava-derived weekly evidence "
+                "to OpenAI; provider charges may apply. This is not a verified training plan."
+            )
+            if evidence_available:
+                generation_submitted = ui.form_submit_button(
+                    "Generate experimental Coach response",
+                    key="generate_experimental_coach_response",
+                    type="secondary",
+                )
+            else:
+                generation_submitted = False
 
     if coach_submitted:
         clear_coach_evidence_context(ui.session_state)
+        ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
         try:
             athlete_timezone = _resolve_coach_timezone(timezone_name)
@@ -232,6 +310,7 @@ def render_request_page(ui=None) -> None:
             ui.session_state.get(REQUEST_SESSION_KEY), target_date, available_days, runner_context
         ):
             clear_coach_evidence_context(ui.session_state)
+            ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
         try:
             authorization_url = start_authorization(
                 environ=os.environ,
@@ -242,6 +321,7 @@ def render_request_page(ui=None) -> None:
 
     elif evidence_submitted:
         clear_coach_evidence_context(ui.session_state)
+        ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
         ui.session_state.pop(REQUEST_SESSION_KEY, None)
         try:
             reference_datetime = datetime.now(timezone.utc)
@@ -267,8 +347,37 @@ def render_request_page(ui=None) -> None:
         else:
             ui.session_state[REQUEST_SESSION_KEY] = request
             ui.session_state[COACH_EVIDENCE_CONTEXT_KEY] = context
+    elif generation_submitted:
+        clear_coach_evidence_context(ui.session_state)
+        ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
+        ui.session_state.pop(REQUEST_SESSION_KEY, None)
+        try:
+            reference_datetime = datetime.now(timezone.utc)
+            request, context = prepare_coach_evidence_context(
+                ui.session_state,
+                {
+                    "goal": {
+                        "goal_type": "HALF_MARATHON",
+                        "target_date": target_date.isoformat(),
+                    },
+                    "constraints": {
+                        "available_training_days_per_week": available_days,
+                    },
+                    "runner_context": runner_context,
+                },
+                timezone_name,
+                reference_datetime,
+            )
+            rendered_response = _generate_experimental_coach_output(context)
+        except Exception:
+            generation_error = True
+        else:
+            ui.session_state[REQUEST_SESSION_KEY] = request
+            ui.session_state[COACH_EVIDENCE_CONTEXT_KEY] = context
+            ui.session_state[GENERATED_COACH_OUTPUT_KEY] = rendered_response
     elif weekly_submitted:
         clear_coach_evidence_context(ui.session_state)
+        ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
         selected_timezone = ui.session_state.get(ATHLETE_TIMEZONE_KEY)
         if selected_timezone is None:
             clear_weekly_overview(ui.session_state)
@@ -337,14 +446,22 @@ def render_request_page(ui=None) -> None:
             f"{request.constraints.available_training_days_per_week}"
         )
         if ui.session_state.get(COACH_EVIDENCE_CONTEXT_KEY) is not None:
-            ui.info(
-                "This deterministic evidence context uses only the already-loaded weekly Strava summary. "
-                "No advice has been generated. It remains separate from the offline demo."
-            )
+            if ui.session_state.get(GENERATED_COACH_OUTPUT_KEY) is not None:
+                ui.info(
+                    "The experimental response below was generated from this request and the already-loaded "
+                    "weekly Strava summary. The evidence view adds no interpretation and remains separate "
+                    "from the offline demo."
+                )
+            else:
+                ui.info(
+                    "This deterministic evidence context uses only the already-loaded weekly Strava summary. "
+                    "No experimental response has been generated for this context yet. It remains separate "
+                    "from the offline demo."
+                )
         else:
             ui.info(
-                "No training advice has been generated for this validated request. Request validation itself "
-                "does not access Strava. It remains separate from the offline demo."
+                "This request is validated in the current session. Request validation does not access Strava "
+                "or generate a Coach response. It remains separate from the offline demo."
             )
 
     evidence_context = ui.session_state.get(COACH_EVIDENCE_CONTEXT_KEY)
@@ -356,11 +473,23 @@ def render_request_page(ui=None) -> None:
             clear_coach_evidence_context(ui.session_state)
     if evidence_error is not None:
         ui.error(evidence_error)
+    if generation_error:
+        ui.error("Coach generation failed or its response could not be validated. No response was displayed; select the button to try again.")
+    generated_output = ui.session_state.get(GENERATED_COACH_OUTPUT_KEY)
+    if generated_output is not None:
+        with ui.container(key="coach-response-panel"):
+            ui.subheader("Experimental Coach response")
+            ui.warning(
+                "This model is not accepted. This response was generated from your request and Strava-derived "
+                "evidence; it may be unsupported or unsuitable."
+            )
+            ui.text(generated_output)
 
     ui.header("Strava data")
 
     if ui.session_state.get(ACCESS_TOKEN_KEY):
         if ui.button("Disconnect Strava", key="disconnect_strava"):
+            ui.session_state.pop(GENERATED_COACH_OUTPUT_KEY, None)
             disconnect_status = disconnect_from_strava(ui.session_state, environ=os.environ)
             if disconnect_status == "revocation_requested":
                 ui.info(
@@ -592,20 +721,21 @@ def render_request_page(ui=None) -> None:
 
 
     ui.header("Synthetic offline demo")
-    ui.info(
-        "Synthetic fixture and pre-recorded response only; no athlete data, Strava or OpenAI calls, or advice. "
-        "This does not evaluate model quality."
-    )
-    if ui.button("Show pre-recorded offline demo", key="show_offline_demo", type="secondary"):
-        ui.session_state.pop(DEMO_SESSION_KEY, None)
-        try:
-            rendered_demo = _offline_demo_output()
-        except ValueError:
-            ui.error("The offline demo response could not be validated. No response was displayed.")
-        else:
-            ui.session_state[DEMO_SESSION_KEY] = rendered_demo
+    with ui.expander("Ver demo offline", expanded=False):
+        ui.info(
+            "Synthetic fixture and pre-recorded response only; no athlete data, Strava or OpenAI calls, or advice. "
+            "This does not evaluate model quality."
+        )
+        if ui.button("Show pre-recorded offline demo", key="show_offline_demo", type="secondary"):
+            ui.session_state.pop(DEMO_SESSION_KEY, None)
+            try:
+                rendered_demo = _offline_demo_output()
+            except ValueError:
+                ui.error("The offline demo response could not be validated. No response was displayed.")
+            else:
+                ui.session_state[DEMO_SESSION_KEY] = rendered_demo
 
-    demo_output = ui.session_state.get(DEMO_SESSION_KEY)
-    if demo_output is not None:
-        ui.subheader("Pre-recorded result")
-        ui.text(demo_output)
+        demo_output = ui.session_state.get(DEMO_SESSION_KEY)
+        if demo_output is not None:
+            ui.subheader("Pre-recorded result")
+            ui.text(demo_output)

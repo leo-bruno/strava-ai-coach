@@ -11,7 +11,11 @@ from streamlit.testing.v1 import AppTest
 
 from src.models.coach_request import CoachRequest
 from src.ui.coach_evidence_context import COACH_EVIDENCE_CONTEXT_KEY
-from src.ui.coach_request_form import DEMO_SESSION_KEY, REQUEST_SESSION_KEY
+from src.ui.coach_request_form import (
+    DEMO_SESSION_KEY,
+    GENERATED_COACH_OUTPUT_KEY,
+    REQUEST_SESSION_KEY,
+)
 from src.ui.strava_connection import (
     ACCESS_TOKEN_KEY,
     ACTIVITY_PREVIEW_KEY,
@@ -127,7 +131,7 @@ def test_entrypoint_initial_render_has_no_streamlit_exception(monkeypatch):
 
     assert not app.exception
     assert "Strava AI Coach" in visible_text(app)
-    assert "Validate a Coach request without generating advice or accessing Strava." in visible_text(app)
+    assert "Coach generation requires a separate explicit action." in visible_text(app)
     assert not app.session_state.get(REQUEST_SESSION_KEY)
     coach_timezone = app.selectbox(key="athlete_timezone")
     assert coach_timezone.value is None
@@ -211,19 +215,21 @@ def test_prepare_coach_evidence_context_uses_loaded_weekly_data_and_renders_only
     assert context.source_metadata.data_as_of == app.session_state[WEEKLY_AS_OF_KEY]
     assert context.reference_datetime.tzinfo is not None
     assert len(context.recent_weeks) <= 4
-    assert len(app.form[0].form_submit_button) == 4
+    assert len(app.form[0].form_submit_button) == 5
     assert app.form[0].form_submit_button[2].label == "Load seven completed local weeks"
     assert app.form[0].form_submit_button[3].label == "Prepare Coach evidence context"
+    assert app.form[0].form_submit_button[4].label == "Generate experimental Coach response"
     assert app.form[0].form_submit_button[0].proto.type == "primary"
     assert all(button.proto.type == "secondary" for button in app.form[0].form_submit_button[1:])
-    assert "a separate Validate request click is not required" in visible_text(app)
+    assert "Both actions use the current request and loaded weekly summary." in visible_text(app)
     text = visible_text(app)
     rendered_tables = " ".join(str(element.value) for element in app.table)
-    assert "Deterministic evidence for Coach; no advice was generated." in text
+    assert "Deterministic evidence context; this view adds no interpretation." in text
     assert "Evidence limitations:" in text
+    assert "No experimental response has been generated for this context yet." in text
     assert canary not in text
     assert canary not in rendered_tables
-    assert "no advice was generated" in text
+    assert "this view adds no interpretation" in text
     assert "Request validated and kept in this session." not in text
     subheaders = [element.value for element in app.subheader]
     weekly_output_index = max(
@@ -231,6 +237,75 @@ def test_prepare_coach_evidence_context_uses_loaded_weekly_data_and_renders_only
     )
     assert weekly_output_index < subheaders.index("Local Strava preview")
     assert subheaders.index("Local Strava preview") < subheaders.index("Optional activity detail")
+    client.assert_not_called()
+
+
+def test_experimental_generation_requires_click_uses_current_context_and_calls_once(monkeypatch):
+    client = Mock()
+    generator = Mock(return_value="Mocked, validated Coach response")
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    monkeypatch.setattr(
+        "src.ui.coach_request_form._generate_experimental_coach_output", generator
+    )
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    seed_valid_weekly_overview(app.session_state)
+    app.run(timeout=10)
+
+    assert not app.exception
+    assert generator.call_count == 0
+    assert "model has not been accepted" in visible_text(app)
+    assert "to OpenAI" in visible_text(app)
+    assert "provider charges may apply" in visible_text(app)
+    assert ".st-key-coach-panel" in visible_text(app)
+    assert "@media (max-width: 680px)" in visible_text(app)
+    assert "focus-visible" in visible_text(app)
+
+    private_context = "CURRENT FORM CONTEXT 28b3"
+    app.date_input(key="target_date").set_value(date.today() + timedelta(days=45))
+    app.number_input(key="available_training_days").set_value(4)
+    app.text_area(key="runner_context").set_value(private_context)
+    app.form[0].form_submit_button[4].click().run(timeout=10)
+
+    assert not app.exception
+    assert generator.call_count == 1
+    generated_context = generator.call_args.args[0]
+    assert generated_context.runner_context.runner_context == private_context
+    assert app.session_state[GENERATED_COACH_OUTPUT_KEY] == "Mocked, validated Coach response"
+    assert "Mocked, validated Coach response" in visible_text(app)
+    assert "This model is not accepted" in visible_text(app)
+    assert "The experimental response below was generated" in visible_text(app)
+    assert "No experimental response has been generated for this context yet." not in visible_text(app)
+    client.assert_not_called()
+
+
+def test_failed_experimental_generation_clears_old_output_and_hides_error_details(monkeypatch):
+    client = Mock()
+    generator = Mock(side_effect=RuntimeError("PRIVATE PROVIDER RESPONSE SECRET"))
+    monkeypatch.setattr("src.ui.strava_weekly_overview.StravaClient", client)
+    monkeypatch.setattr(
+        "src.ui.coach_request_form._generate_experimental_coach_output", generator
+    )
+    app = AppTest.from_file(APP_ENTRYPOINT)
+    app.session_state[ACCESS_TOKEN_KEY] = "session-token"
+    app.session_state[EXPIRES_AT_KEY] = 2_100_000_000
+    app.session_state[SCOPES_KEY] = ("read", "activity:read_all")
+    app.session_state[WEEKLY_TIMEZONE_KEY] = "Europe/Madrid"
+    app.session_state[GENERATED_COACH_OUTPUT_KEY] = "STALE PREVIOUS RESPONSE"
+    seed_valid_weekly_overview(app.session_state)
+    app.run(timeout=10)
+
+    app.form[0].form_submit_button[4].click().run(timeout=10)
+
+    assert not app.exception
+    assert generator.call_count == 1
+    assert GENERATED_COACH_OUTPUT_KEY not in app.session_state
+    assert "STALE PREVIOUS RESPONSE" not in visible_text(app)
+    assert "PRIVATE PROVIDER RESPONSE SECRET" not in visible_text(app)
+    assert "No response was displayed" in visible_text(app)
     client.assert_not_called()
 
 
@@ -463,6 +538,7 @@ def test_initial_render_makes_no_strava_requests(monkeypatch):
 def test_oauth_callback_completes_in_second_streamlit_session_and_clears_url(monkeypatch):
     get_oauth_state_store.clear()
     monkeypatch.setenv("STRAVA_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("STRAVA_CLIENT_SECRET", "test-client-secret")
     monkeypatch.setenv("STRAVA_REDIRECT_URI", "http://localhost:8501")
     exchange = Mock(return_value={
         "access_token": "short-lived-access-token",
@@ -892,6 +968,7 @@ def test_shared_timezone_change_clears_coach_request_and_weekly_output_before_lo
     app.session_state[WEEKLY_ANALYSES_KEY] = "stale-analysis"
     app.session_state[WEEKLY_ACTIVITIES_KEY] = "stale-activities"
     app.session_state[COACH_EVIDENCE_CONTEXT_KEY] = object()
+    app.session_state[GENERATED_COACH_OUTPUT_KEY] = "old response"
     app.selectbox(key=WEEKLY_TIMEZONE_KEY).set_value("UTC")
     app.form_submit_button[2].click().run(timeout=10)
 
@@ -901,6 +978,7 @@ def test_shared_timezone_change_clears_coach_request_and_weekly_output_before_lo
     assert WEEKLY_ANALYSES_KEY not in app.session_state
     assert WEEKLY_ACTIVITIES_KEY not in app.session_state
     assert COACH_EVIDENCE_CONTEXT_KEY not in app.session_state
+    assert GENERATED_COACH_OUTPUT_KEY not in app.session_state
     assert "Local interval:" not in visible_text(app)
     load_weekly.assert_called_once()
     assert load_weekly.call_args.args[1] == "UTC"

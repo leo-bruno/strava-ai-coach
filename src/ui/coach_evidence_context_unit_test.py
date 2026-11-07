@@ -160,7 +160,7 @@ def test_renderer_exposes_neutral_observations_without_user_report_or_context_du
     rendered = repr(ui.rendered)
     assert "PRIVATE CANARY" not in rendered
     assert "Coach evidence context" in rendered
-    assert "Deterministic evidence for Coach; no advice was generated." in rendered
+    assert "Deterministic evidence context; this view adds no interpretation." in rendered
     assert "coverage: incomplete" in rendered
     assert "Evidence limitations:" in rendered
     assert "Seven loaded weekly Run observations:" in rendered
