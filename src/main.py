@@ -1,6 +1,6 @@
 """Streamlit application entry point."""
 
-from src.ui.coach_request_form import render_request_page
+from src.ui.app import render_app
 
 
-render_request_page()
+render_app()
