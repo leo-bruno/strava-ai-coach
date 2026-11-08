@@ -60,7 +60,6 @@ def render_app(ui=None) -> None:
         )
     if callback_status is not None:
         set_dashboard_view(ui.session_state, "Estadísticas")
-    render_dashboard_styles(ui)
     current_view = ui.session_state.get(DASHBOARD_VIEW_KEY, "Inicio")
     if NAVIGATION_KEY not in ui.session_state:
         ui.session_state[NAVIGATION_KEY] = "Mi plan" if current_view == "Detalle" else current_view
@@ -76,6 +75,7 @@ def render_app(ui=None) -> None:
     ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
 
     if nav_view == "Inicio":
+        render_dashboard_styles(ui)
         render_dashboard_home(ui)
     elif nav_view == "Mi plan":
         ui.session_state[PLAN_OPEN_KEY] = True

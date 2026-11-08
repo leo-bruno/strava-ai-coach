@@ -12,6 +12,7 @@ DETAIL_SESSION_KEY = "dashboard_detail_session"
 RETURN_VIEW_KEY = "dashboard_return_view"
 
 NAVIGATION_VIEWS = ("Inicio", "Mi plan", "Estadísticas", "Coach")
+NAVIGATION_ICONS = {"Inicio": "▦", "Mi plan": "▤", "Estadísticas": "◉", "Coach": "✦"}
 WEEK_OPTIONS = ("previous", "current", "next")
 
 
@@ -42,12 +43,22 @@ def _return_to_plan(session_state, week: str) -> None:
 def render_sidebar(ui, *, view: str) -> str:
     """Render accessible navigation using Streamlit's keyboard-operable radio."""
     with ui.sidebar:
-        ui.markdown("### ↗ Strava AI Coach")
+        if view == "Inicio":
+            ui.markdown(
+                '<div class="dashboard-brand"><span aria-hidden="true">↗</span>'
+                '<strong>Strava AI Coach</strong></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            ui.markdown("### ↗ Strava AI Coach")
         ui.caption("Datos ficticios · solo demostración")
         selected_view = view if view in NAVIGATION_VIEWS else "Mi plan"
         return ui.radio(
             "Navegación principal",
             options=NAVIGATION_VIEWS,
+            format_func=lambda option: (
+                f"{NAVIGATION_ICONS[option]}  {option}" if view == "Inicio" else option
+            ),
             index=NAVIGATION_VIEWS.index(selected_view),
             key=NAVIGATION_KEY,
             label_visibility="collapsed",
@@ -125,49 +136,187 @@ def render_dashboard_styles(ui) -> None:
     ui.markdown(
         """<style>
         @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
-        .stApp { background: #e1e4e5; color: #171d1e; }
-        [data-testid="stSidebar"] { background: #f7f9f9; }
-        section.main > div[data-testid="stMainBlockContainer"] {
-            max-width: none !important; width: 100%; padding: 1.4rem 2rem 3rem;
+        .stApp:has(.st-key-dashboard-home) { background:#e1e4e5; color:#171d1e; }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] {
+            width:clamp(154px,16vw,250px) !important; min-width:clamp(154px,16vw,250px) !important;
+            background:#f7f9f9; border-radius:24px; margin:20px 0 20px 20px;
+            min-height:calc(100vh - 40px); box-shadow:0 1px 2px #17262820;
         }
-        .st-key-dashboard-progress, .st-key-dashboard-pace, .st-key-dashboard-training,
-        .st-key-dashboard-agenda, .st-key-dashboard-performance, .st-key-plan-panel,
-        .st-key-detail-panel {
-            background: #f7f9f9; border: 1px solid #fff; border-radius: 20px;
-            padding: 1rem 1.2rem; box-shadow: 0 1px 2px #17262818;
-            font-family: "Manrope", "Helvetica Neue", system-ui, sans-serif;
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] > div:first-child { background:transparent; }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stMainBlockContainer"] {
+            max-width:1800px; padding:44px 20px 48px;
         }
-        .st-key-dashboard-progress h2, .st-key-dashboard-pace h2,
-        .st-key-dashboard-training h2, .st-key-dashboard-agenda h2,
-        .st-key-plan-panel h2, .st-key-detail-panel h2 { color: #192629; }
-        .dashboard-kicker { color: #52666a; font-size: .72rem; font-weight: 700; letter-spacing: .06em; }
-        .dashboard-number { color: #192629; font-size: clamp(1.5rem, 3vw, 2.35rem); font-weight: 800; letter-spacing: -.05em; }
-        .dashboard-small { color: #52666a; font-size: .82rem; }
-        .dashboard-unit { display:inline-block; margin-left:.3em; letter-spacing:normal; font-size:.82rem; font-weight:600; }
-        .dashboard-mock-badge { display:inline-block; padding:.28rem .7rem; border-radius:999px; background:#fff; border:1px solid #cbd2d3; color:#344042; font-size:.75rem; font-weight:700; }
-        .dashboard-session { border-top:1px solid #e1e7e9; padding:.7rem 0; }
-        .dashboard-session-title { color:#263537; font-weight:700; }
-        .dashboard-session-detail { color:#53666b; font-size:.82rem; }
-        .dashboard-done { display:inline-grid; place-items:center; width:2rem; height:2rem; border-radius:.55rem; background:#d9f4eb; color:#09664f; font-weight:800; }
-        .dashboard-date { display:inline-grid; place-items:center; width:2.5rem; min-height:2rem; border-radius:.55rem; background:#e7f5f6; color:#08646a; font-weight:800; }
-        .st-key-coach-preview { background:radial-gradient(ellipse at 96% 95%,#8f3037,#351719 56%,#180f10); color:#fff; }
-        .st-key-coach-preview [data-testid="stMarkdownContainer"] p { color:#f2e9e9!important; }
-        .st-key-coach-preview button:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible {
-            outline:2px solid #00878f!important; outline-offset:2px;
+        .st-key-dashboard-home {
+            box-sizing:border-box; width:100%; max-width:1800px; margin:0 auto;
+            padding:0; color:#171d1e;
+            font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif;
+            font-size:16px;
         }
-        a { text-decoration:none; }
-        a:hover { text-decoration:none; }
-        @media(max-width: 900px) {
-            .st-key-dashboard-top [data-testid="stHorizontalBlock"],
-            .st-key-dashboard-bottom [data-testid="stHorizontalBlock"] { flex-direction:column; }
+        .st-key-dashboard-home *, .st-key-dashboard-home *::before, .st-key-dashboard-home *::after,
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] * {
+            font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif !important;
+        }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { margin:0; }
+        .stApp:has(.st-key-dashboard-home) .dashboard-brand { display:flex; align-items:center; gap:9px; font-size:1rem; font-weight:800; letter-spacing:-.045em; }
+        .stApp:has(.st-key-dashboard-home) .dashboard-brand span { display:grid; place-items:center; width:36px; height:36px; color:white; font-size:24px; border-radius:9px; background:linear-gradient(#fc382a,#ef0063); }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] [data-testid="stRadio"] > div { gap:8px; }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] label[data-testid="stRadioOption"] {
+            position:relative; display:flex; align-items:center; gap:8px;
+            min-height:40px; padding:8px 10px; border-radius:9px; color:#344042; font-weight:600;
+        }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] label[data-testid="stRadioOption"] > div > div:first-child { display:none; }
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] label[data-testid="stRadioOption"][data-selected="true"] { background:#171d1e; color:white; }
+        .st-key-dashboard-home .st-key-dashboard-progress,
+        .st-key-dashboard-home .st-key-dashboard-pace,
+        .st-key-dashboard-home .st-key-dashboard-training,
+        .st-key-dashboard-home .st-key-dashboard-agenda,
+        .st-key-dashboard-home .st-key-dashboard-performance,
+        .st-key-dashboard-home .st-key-coach-preview {
+            box-sizing: border-box; min-width: 0; height: 100%;
+            background:#f7f9f9; color:#171d1e;
+            border:1px solid #fff; border-radius:20px; padding:16px 20px;
+            box-shadow:0 1px 2px #17262818;
+            font-family: inherit;
+        }
+        .st-key-dashboard-home .st-key-dashboard-summary {
+            display: flex; flex-direction: column; gap: .8rem; min-width: 0;
+        }
+        .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            display: grid !important;
+            grid-template-columns:minmax(0, 30fr) minmax(0, 24fr) minmax(0, 46fr);
+            gap:14px;
+        }
+        .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+            box-sizing: border-box; width: auto !important; min-width: 0; flex: none !important;
+        }
+        .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            display:grid !important; grid-template-columns:minmax(0, 1.25fr) minmax(0, 1fr); gap:14px;
+        }
+        .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+            width: auto !important; min-width: 0; flex: none !important;
+        }
+        .st-key-dashboard-home .dashboard-kicker { color:#52666a; font-size:.72rem; font-weight:700; letter-spacing:.06em; }
+        .st-key-dashboard-home .dashboard-number { color:#192629; font-size:clamp(23px,2.5vw,38px); font-weight:700; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+        .st-key-dashboard-home .st-key-dashboard-progress .dashboard-number { font-size:clamp(22px,2.2vw,32px); white-space:nowrap; }
+        .st-key-dashboard-home .dashboard-small { color: var(--text-color, inherit); font-size: .82rem; letter-spacing: normal; }
+        .st-key-dashboard-home .dashboard-unit { display:inline-block; margin-left:.35em; letter-spacing:normal; font-size:.82rem; font-weight:600; }
+        .st-key-dashboard-home .dashboard-mock-badge { display:inline-block; padding:7px 12px; border-radius:999px; background:#fafcfc; border:1px solid #cbd2d3; color:#344042; font-size:.78rem; font-weight:700; white-space:nowrap; }
+        .st-key-dashboard-home .dashboard-session-title { color:var(--text-color, inherit); font-weight:700; }
+        .st-key-dashboard-home .dashboard-session-detail { color:var(--text-color, inherit); font-size:.88rem; }
+        .st-key-dashboard-home .dashboard-done { display:inline-grid; place-items:center; width:2rem; height:2rem; border-radius:.55rem; background:#d9f4eb; color:#09664f; font-weight:800; }
+        .st-key-dashboard-home .dashboard-date { display:inline-grid; place-items:center; width:2.5rem; min-height:2rem; border-radius:.55rem; background:#e7f5f6; color:#08646a; font-weight:800; }
+        .st-key-dashboard-home h1 { margin:4px 0; font-size:clamp(24px,2.6vw,38px); line-height:1.2; font-weight:600; letter-spacing:-.045em; }
+        .st-key-dashboard-home h2 { margin:0 0 12px; font-size:clamp(16px,1.4vw,23px); line-height:1.25; font-weight:600; letter-spacing:-.035em; }
+        .st-key-dashboard-home .st-key-dashboard-progress h2,
+        .st-key-dashboard-home .st-key-dashboard-pace h2 { font-size:1.12rem; margin:0 0 9px; }
+        .st-key-dashboard-home .st-key-dashboard-training h2,
+        .st-key-dashboard-home .st-key-dashboard-training h3,
+        .st-key-dashboard-home .st-key-dashboard-performance h3 { font-size:1.12rem; margin:0 0 12px; font-weight:600; letter-spacing:-.035em; }
+        .st-key-dashboard-home .st-key-dashboard-training h3 { font-size:1rem; white-space:nowrap; }
+        .st-key-dashboard-home .st-key-coach-preview h3 { font-size:1.2rem; margin:0 0 10px; }
+        .st-key-dashboard-home .st-key-dashboard-progress,
+        .st-key-dashboard-home .st-key-dashboard-pace { position:relative; overflow:hidden; min-height:138px; }
+        .st-key-dashboard-home .st-key-dashboard-summary { display:grid; grid-template-columns:1fr; gap:14px; }
+        .st-key-dashboard-home .st-key-dashboard-home-header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { align-items:center; }
+        .st-key-dashboard-home .dashboard-header-label { font-size:1.15rem; font-weight:600; letter-spacing:-.035em; }
+        .st-key-dashboard-home .st-key-dashboard-intro { margin:8px 0 20px; }
+        .st-key-dashboard-home .st-key-dashboard-intro p { margin:6px 0 0; color:#4c6166; font-size:.9rem; font-weight:500; }
+        .st-key-dashboard-home .dashboard-progress-row,
+        .st-key-dashboard-home .dashboard-pace-row { position:relative; min-height:62px; display:flex; align-items:center; }
+        .st-key-dashboard-home .dashboard-progress-copy { max-width:70%; position:relative; z-index:1; }
+        .st-key-dashboard-home .dashboard-progress-copy p { margin:5px 0 0; color:#52666a; font-size:.78rem; }
+        .st-key-dashboard-home .dashboard-arc { position:absolute; right:5px; bottom:3px; width:35%; max-width:130px; height:auto; }
+        .st-key-dashboard-home .dashboard-pace-bars { position:absolute; right:0; bottom:4px; width:43%; height:54px; display:flex; align-items:end; gap:5px; }
+        .st-key-dashboard-home .dashboard-pace-bars span { width:12%; height:var(--h); min-width:4px; border-radius:3px; background:repeating-linear-gradient(to top,#f5a7bb 0 6px,transparent 6px 8px); }
+        .st-key-dashboard-home .dashboard-pace-bars span:nth-child(4) { background:repeating-linear-gradient(to top,#f32c59 0 6px,transparent 6px 8px); }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] { padding:12px 0; border-bottom:1px solid #e5ecee; }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"]:last-child { border-bottom:0; padding-bottom:0; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-timeline-labels { display:flex; justify-content:space-between; gap:8px; margin:18px 0 8px; color:#52666a; font-size:.7rem; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; min-height:190px;
+            padding:8px; border-radius:10px; background:repeating-linear-gradient(90deg,#edf8f9 0 19.8%,#fff 19.8% 20%);
+        }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { width:auto !important; min-width:0; flex:none !important; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] > div {
+            min-height:74px; padding:0; background:transparent; border-radius:0; box-shadow:none;
+        }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { min-height:74px; padding:7px 9px; display:grid; align-content:start; gap:3px; background:#fff; border-radius:10px; box-shadow:0 2px 6px #24485014; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status { font-size:.75rem; color:#52666a; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done { color:#09664f; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done::before { content:"✓ "; font-weight:800; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-next { color:#08646a; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-next::before { content:"◷ "; font-weight:800; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(1) { grid-column:span 3; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(2) { grid-column:3 / 6; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(3) { grid-column:2 / 5; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-kicker { font-size:.7rem; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-session-title { font-size:.88rem; }
+        .st-key-dashboard-home .st-key-dashboard-agenda [data-testid="stCaptionContainer"] p { font-size:.75rem; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { align-items:center; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading h2 { margin:0; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading [data-testid="stSelectbox"] { min-width:150px; }
+        .st-key-dashboard-home .st-key-dashboard-agenda [data-testid="stSelectbox"] [role="combobox"] { border-radius:999px; font-size:.75rem; font-weight:600; }
+        .st-key-dashboard-home .st-key-dashboard-agenda [data-testid="stCaptionContainer"] p { color:#52666a; }
+        .st-key-dashboard-home .st-key-dashboard-performance { min-height:250px; }
+        .st-key-dashboard-home [data-testid="stExpander"] { background:#f7f9f9; border:1px solid #fff; border-radius:16px; box-shadow:0 1px 2px #17262818; }
+        .st-key-dashboard-home .st-key-dashboard-performance [data-testid="stAlertContainer"] { background:#eef7f7; border:1px solid #dce8ea; border-radius:10px; }
+        .st-key-dashboard-home .st-key-dashboard-performance [data-testid="stAlertContainer"] p { color:#52666a; }
+        .st-key-dashboard-home .st-key-coach-preview { background:radial-gradient(ellipse at 96% 95%,#a8272a,#351516 55%,#180f10); color:white; }
+        .st-key-dashboard-home .st-key-coach-preview h2,
+        .st-key-dashboard-home .st-key-coach-preview p { color:#fff; }
+        .st-key-dashboard-home .st-key-coach-preview [data-testid="stAlertContainer"] { background:#ffffff18; border:1px solid #ffffff38; border-radius:10px; }
+        .st-key-dashboard-home .st-key-coach-preview [data-testid="stAlertContainer"] p,
+        .st-key-dashboard-home .st-key-coach-preview [data-testid^="stAlertContent"] { color:#fff !important; }
+        .st-key-dashboard-home .st-key-coach-preview button { background:#ffffff24; color:#fff; border:1px solid #ffffff55; }
+        .st-key-dashboard-home [data-testid="stIconMaterial"],
+        .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] [data-testid="stIconMaterial"] { font-family:"Material Symbols Rounded" !important; }
+        .st-key-dashboard-home .st-key-coach-preview [data-testid="stMarkdownContainer"] p { color:var(--text-color, inherit); }
+        .st-key-dashboard-home button:focus-visible,
+        .st-key-dashboard-home a:focus-visible,
+        .st-key-dashboard-home input:focus-visible,
+        .st-key-dashboard-home [role="combobox"]:focus-visible {
+            outline: 2px solid var(--primary-color, currentColor) !important; outline-offset: 2px;
+        }
+        .st-key-dashboard-home .st-key-coach-preview button { margin-top:.25rem; }
+        .st-key-dashboard-home a, .st-key-dashboard-home a:hover { text-decoration:none; }
+        .st-key-dashboard-home h1 { overflow-wrap: normal; word-break: normal; hyphens: none; }
+        @media(max-width: 1000px) {
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+            }
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+                grid-column: 1 / -1;
+            }
         }
         @media(max-width: 680px) {
-            section.main > div[data-testid="stMainBlockContainer"] { padding-left:.7rem; padding-right:.7rem; }
-            .st-key-dashboard-progress, .st-key-dashboard-pace, .st-key-dashboard-training,
-            .st-key-dashboard-agenda, .st-key-dashboard-performance, .st-key-plan-panel,
-            .st-key-detail-panel { padding:.85rem; }
-            .st-key-dashboard-top [data-testid="stHorizontalBlock"] > div,
-            .st-key-dashboard-bottom [data-testid="stHorizontalBlock"] > div { width:100%!important; flex:1 1 100%!important; }
+            .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] { margin:6px; min-height:auto; }
+            .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] [data-testid="stRadio"] > div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .stApp:has(.st-key-dashboard-home) [data-testid="stMainBlockContainer"] { padding:60px 12px 32px; }
+            .st-key-dashboard-home { padding:0; }
+            .st-key-dashboard-home h1 { font-size:clamp(24px,7.5vw,32px); line-height:1.12; }
+            .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { grid-template-columns:minmax(0,1fr); }
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
+            .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+                grid-column: auto;
+            }
+            .st-key-dashboard-home .st-key-dashboard-progress,
+            .st-key-dashboard-home .st-key-dashboard-pace,
+            .st-key-dashboard-home .st-key-dashboard-training,
+            .st-key-dashboard-home .st-key-dashboard-agenda,
+            .st-key-dashboard-home .st-key-dashboard-performance,
+            .st-key-dashboard-home .st-key-coach-preview { padding:.9rem; }
+        }
+        @media(max-width:390px) {
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:minmax(0,1fr); gap:6px; padding:0; background:none;
+            }
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(n) { grid-column:auto; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { min-height:0; }
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { gap:6px; }
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading [data-testid="stSelectbox"] { min-width:0; }
         }
         </style>""",
         unsafe_allow_html=True,
@@ -176,36 +325,36 @@ def render_dashboard_styles(ui) -> None:
 
 def _progress_arc(percent: int) -> str:
     return (
-        '<svg viewBox="0 0 120 100" role="img" aria-label="'
-        f'{percent} % de la distancia prevista" style="width:118px;max-width:40%;float:right">'
-        '<path d="M20 75 A40 40 0 1 1 100 75" fill="none" stroke="#c4ced0" stroke-width="11" stroke-linecap="round"/>'
-        '<path d="M20 75 A40 40 0 1 1 100 75" pathLength="100" fill="none" stroke="#12afbc" stroke-width="11" stroke-linecap="round" '
-        f'stroke-dasharray="{percent} 100"/><text x="60" y="64" text-anchor="middle" font-size="21" font-weight="700" fill="#192527">{percent}%</text></svg>'
+        '<svg class="dashboard-arc" viewBox="0 0 110 94" role="img" aria-label="'
+        f'{percent} % de la distancia prevista">'
+        '<path d="M20.36 75 A40 40 0 1 1 89.64 75" fill="none" stroke="#c4ced0" stroke-width="12" stroke-linecap="round"/>'
+        '<path d="M20.36 75 A40 40 0 1 1 89.64 75" pathLength="100" fill="none" stroke="#12afbc" stroke-width="12" stroke-linecap="round" '
+        f'stroke-dasharray="{percent} 100"/><text x="55" y="63" text-anchor="middle" font-size="24" font-weight="700" fill="#192527">{percent}<tspan font-size="12">%</tspan></text></svg>'
     )
 
 
 def _render_progress_and_pace(ui) -> None:
-    with ui.container(border=True, key="dashboard-progress",):
-        ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
-        ui.subheader("Progreso semanal")
-        ui.markdown(_progress_arc(63), unsafe_allow_html=True)
-        ui.markdown(
-            '<div class="dashboard-number">11,4 km '
-            '<span class="dashboard-unit">/ 18 km</span></div>',
-            unsafe_allow_html=True,
-        )
-        ui.caption("2 de 3 entrenamientos completados")
-    with ui.container(border=True, key="dashboard-pace"):
-        ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
-        ui.subheader("Ritmo medio")
-        ui.markdown('<div class="dashboard-number">5:42 <span class="dashboard-small">/km</span></div>', unsafe_allow_html=True)
-        bars = (48, 73, 51, 92, 54, 74, 32)
-        ui.markdown(
-            '<div role="img" aria-label="Ritmos ficticios de ejemplo" style="height:44px;display:flex;align-items:end;gap:5px">'
-            + "".join(f'<span style="height:{height}%;width:10%;background:#f28ba6;border-radius:3px"></span>' for height in bars)
-            + '</div>',
-            unsafe_allow_html=True,
-        )
+    with ui.container(key="dashboard-summary"):
+        with ui.container(border=True, key="dashboard-progress"):
+            ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
+            ui.markdown(
+                '<h2>Progreso semanal</h2><div class="dashboard-progress-row">'
+                '<div class="dashboard-progress-copy"><div class="dashboard-number">11,4 km '
+                '<span class="dashboard-unit">/ 18 km</span></div>'
+                '<p>2 de 3 entrenamientos</p></div>' + _progress_arc(63) + '</div>',
+                unsafe_allow_html=True,
+            )
+        with ui.container(border=True, key="dashboard-pace"):
+            ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
+            bars = (48, 73, 51, 92, 54, 74, 32)
+            ui.markdown(
+                '<h2>Ritmo medio</h2><div class="dashboard-pace-row"><div class="dashboard-number">'
+                '5:42 <span class="dashboard-small">/km</span></div>'
+                '<div class="dashboard-pace-bars" role="img" aria-label="Ritmos ficticios de ejemplo">'
+                + "".join(f'<span style="--h:{height}%"></span>' for height in bars)
+                + '</div></div>',
+                unsafe_allow_html=True,
+            )
 
 
 def _render_training(ui) -> None:
@@ -232,29 +381,40 @@ def _render_training(ui) -> None:
 def _render_agenda(ui) -> None:
     ui.session_state.setdefault(AGENDA_WEEK_KEY, "current")
     with ui.container(border=True, key="dashboard-agenda"):
-        heading, week_select = ui.columns([2, 1])
-        with heading:
-            ui.subheader("Agenda semanal")
-        with week_select:
-            ui.selectbox(
-                "Semana de la agenda",
-                options=WEEK_OPTIONS,
-                format_func=_agenda_week_label,
-                key=AGENDA_WEEK_KEY,
-                label_visibility="collapsed",
-            )
+        with ui.container(key="agenda-heading"):
+            heading, week_select = ui.columns([1.4, 1], gap="small")
+            with heading:
+                ui.markdown('<h2>Agenda semanal</h2>', unsafe_allow_html=True)
+            with week_select:
+                ui.selectbox(
+                    "Semana de la agenda",
+                    options=WEEK_OPTIONS,
+                    format_func=_agenda_week_label,
+                    key=AGENDA_WEEK_KEY,
+                    label_visibility="collapsed",
+                )
         ui.caption("Agenda · datos ficticios")
+        ui.markdown(
+            '<div class="dashboard-timeline-labels"><span>Día</span><span>Sesión 01</span>'
+            '<span>Sesión 02</span><span>Sesión 03</span></div>',
+            unsafe_allow_html=True,
+        )
         _, end = _week_interval(ui.session_state.get(AGENDA_WEEK_KEY, "current"))
         selected_week = ui.session_state.get(AGENDA_WEEK_KEY, "current")
         sessions = _sample_sessions(selected_week)
-        columns = ui.columns([1] * len(sessions))
-        for column, session in zip(columns, sessions):
-            with column:
-                ui.markdown(f'<div class="dashboard-kicker">{_date_label(session["date"]).upper()}</div>', unsafe_allow_html=True)
-                ui.markdown(f'<div class="dashboard-session-title">{session["name"]}</div>', unsafe_allow_html=True)
-                target = session["actual"] or session["planned"]
-                status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= date.today() else "Sin actividad vinculada")
-                ui.caption(f"{target} · {status}")
+        with ui.container(key="agenda-items"):
+            columns = ui.columns([1] * len(sessions))
+            for column, session in zip(columns, sessions):
+                with column:
+                    target = session["actual"] or session["planned"]
+                    status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= date.today() else "Sin actividad vinculada")
+                    status_class = "done" if session["done"] else ("next" if session["date"] >= date.today() else "unlinked")
+                    ui.markdown(
+                        f'<div class="agenda-card"><div class="dashboard-kicker">{_date_label(session["date"]).upper()}</div>'
+                        f'<div class="dashboard-session-title">{session["name"]}</div>'
+                        f'<div class="agenda-status agenda-status-{status_class}">{target} · {status}</div></div>',
+                        unsafe_allow_html=True,
+                    )
         ui.caption(f"Semana de agenda: {end:%d %b}. El progreso semanal permanece en la semana actual.")
 
 
@@ -282,42 +442,28 @@ def _render_plan_sessions(ui, week: str) -> None:
             ui.markdown(f"**Realizado** · {actual}")
 
 
-def render_dashboard_home(ui) -> None:
+def _render_dashboard_home_content(ui) -> None:
     ui.session_state.setdefault(PLAN_WEEK_KEY, "current")
     ui.session_state.setdefault(AGENDA_WEEK_KEY, "current")
-    title, badge = ui.columns([3, 1])
-    with title:
-        ui.caption("Mi dashboard")
-        ui.title("Tu entrenamiento esta semana")
-    with badge:
-        ui.markdown('<span class="dashboard-mock-badge">Vista de ejemplo · datos ficticios</span>', unsafe_allow_html=True)
+    with ui.container(key="dashboard-home-header"):
+        title, badge = ui.columns([1, 0.7], gap="small")
+        with title:
+            ui.markdown('<div class="dashboard-header-label">Mi dashboard</div>', unsafe_allow_html=True)
+        with badge:
+            ui.markdown('<span class="dashboard-mock-badge">Vista de ejemplo · datos ficticios</span>', unsafe_allow_html=True)
     current_start, current_end = _week_interval("current")
-    ui.caption(f"Semana actual · {current_start:%-d}–{current_end:%-d %b}")
+    with ui.container(key="dashboard-intro",):
+        ui.title("Tu entrenamiento esta semana")
+        ui.markdown(f"<p>2 de 3 sesiones completadas · {current_start:%-d}–{current_end:%-d %b}</p>", unsafe_allow_html=True)
 
     with ui.container(key="dashboard-top"):
-        progress, training, agenda = ui.columns([1.0, .9, 1.45], gap="small")
+        progress, training, agenda = ui.columns([30, 24, 46], gap="small")
         with progress:
             _render_progress_and_pace(ui)
         with training:
             _render_training(ui)
         with agenda:
             _render_agenda(ui)
-
-    with ui.expander("Mi plan · ejemplo", expanded=False):
-        ui.caption("Plan ficticio. No se guarda ni se vincula con actividades reales.")
-        selected_week = ui.selectbox(
-            "Semana del plan",
-            options=WEEK_OPTIONS,
-            format_func=_week_label,
-            key=PLAN_WEEK_KEY,
-        )
-        _render_plan_sessions(ui, selected_week)
-        ui.button(
-            "Abrir Mi plan",
-            key="open-plan-from-dashboard",
-            on_click=set_dashboard_view,
-            args=(ui.session_state, "Mi plan"),
-        )
 
     with ui.container(key="dashboard-bottom"):
         performance, coach = ui.columns([1.25, 1], gap="small")
@@ -338,6 +484,27 @@ def render_dashboard_home(ui) -> None:
                     on_click=set_dashboard_view,
                     args=(ui.session_state, "Coach"),
                 )
+
+    with ui.expander("Mi plan · ejemplo", expanded=False):
+        ui.caption("Plan ficticio. No se guarda ni se vincula con actividades reales.")
+        selected_week = ui.selectbox(
+            "Semana del plan",
+            options=WEEK_OPTIONS,
+            format_func=_week_label,
+            key=PLAN_WEEK_KEY,
+        )
+        _render_plan_sessions(ui, selected_week)
+        ui.button(
+            "Abrir Mi plan",
+            key="open-plan-from-dashboard",
+            on_click=set_dashboard_view,
+            args=(ui.session_state, "Mi plan"),
+        )
+
+
+def render_dashboard_home(ui) -> None:
+    with ui.container(key="dashboard-home"):
+        _render_dashboard_home_content(ui)
 
 
 def render_training_plan(ui) -> None:

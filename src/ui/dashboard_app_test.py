@@ -37,10 +37,22 @@ def test_home_is_fictional_and_dashboard_plan_starts_collapsed():
     assert "datos ficticios" in text
     assert "Progreso semanal" in text
     assert 'class="dashboard-unit">/ 18 km' in text
+    assert ".stApp {" not in text
+    assert 'font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif' in text
+    assert ".stApp:has(.st-key-dashboard-home)" in text
+    assert "grid-template-columns:minmax(0, 30fr) minmax(0, 24fr) minmax(0, 46fr)" in text
+    assert "class=\"dashboard-mock-badge\"" in text
     assert app.session_state[AGENDA_WEEK_KEY] == "current"
     assert app.session_state[PLAN_WEEK_KEY] == "current"
     assert app.expander[0].proto.expanded is False
     assert "Rendimiento" in text or any("RENDIMIENTO" in str(x.value) for x in app.markdown)
+    assert app.selectbox(key=AGENDA_WEEK_KEY).label == "Semana de la agenda"
+
+
+def test_dashboard_styles_do_not_render_in_coach_section():
+    app = _app("Coach")
+    assert not app.exception
+    assert "st-key-dashboard-home" not in _text(app)
 
 
 def test_agenda_week_is_independent_from_current_week_progress():
