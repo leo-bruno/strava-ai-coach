@@ -219,11 +219,12 @@ The purpose of using AI coding tools is not only to generate code but also to he
 
 Multi-agent development workflow
 
-Development work may be coordinated through a multi-agent workflow with three distinct roles:
+Development work may be coordinated through a multi-agent workflow with these roles:
 
 * Orchestrator
 * Architect
 * Developer
+* UX/UI specialist (only for work that changes or reviews the user interface)
 
 The roles must remain separate. An agent must not silently take over responsibilities assigned to another role.
 
@@ -246,6 +247,23 @@ The Orchestrator must not:
 * Implement or modify production code or tests.
 * Perform the final technical review itself.
 * Resolve product or architectural ambiguity on behalf of the user.
+
+UX/UI specialist
+
+The UX/UI specialist is activated only for requests that change or review the user interface. The specialist uses the `strava-coach-ux` skill and is responsible for UI/UX decisions and evidence, including:
+
+* Visual composition, hierarchy, typography, spacing, charts and responsive behavior.
+* UI accessibility considerations and visual review findings.
+* Comparing plausible visual solutions and documenting the reason for the recommendation.
+* Reporting evidence, acceptance checks, pending device/browser checks and implementation scope to the Architect.
+
+The UX/UI specialist must not:
+
+* Implement or modify product code, tests, APIs, data, backend behavior or product-domain rules.
+* Approve or make structural architecture decisions.
+* Direct the Developer to implement recommendations before the Architect has incorporated or approved them in the implementation specification.
+
+If a visual recommendation would require a structural change, the UX/UI specialist must explain the affected components or dependencies, viable alternatives within the current architecture and their visual effects, then wait for the Architect's decision. The Architect retains responsibility for product scope, architecture, the implementation specification and independent review. The Developer implements only the resulting approved specification.
 
 Architect
 
@@ -319,26 +337,27 @@ For normal development work:
 
 1. The Orchestrator sends the user's request to the Architect.
 2. The Architect inspects PROJECT.md and the actual repository.
-3. The Architect determines the appropriate next step and designs the increment.
-4. If an important decision requires human judgment, the workflow stops and asks the user.
-5. Otherwise, the Architect produces:
+3. For UI changes or UI reviews, the Orchestrator also routes the UI/UX scope to the UX/UI specialist. The specialist returns visual decisions, evidence, acceptance checks, pending checks and scope boundaries to the Architect. For work outside the UI, this profile is not activated.
+4. The Architect determines the appropriate next step and designs the increment, incorporating or resolving the UX/UI recommendations where applicable.
+5. If an important decision requires human judgment, the workflow stops and asks the user.
+6. Otherwise, the Architect produces:
    * Goal
    * Current context
    * Proposed design
    * Acceptance criteria
    * Constraints
    * Required validation
-6. The Orchestrator sends the specification to the Developer.
-7. The Developer implements and validates the change.
-8. The Orchestrator returns the implementation result to the same Architect.
-9. The Architect independently inspects the actual implementation and returns ACCEPTED or REJECTED.
-10. If REJECTED, the Orchestrator sends the findings to the same Developer for correction.
-11. The corrected implementation returns to the same Architect for another independent review.
-12. The review loop may run a maximum of three times.
-13. If the implementation is still rejected after three review iterations, stop and ask the user.
-14. When ACCEPTED, ensure PROJECT.md is updated when required by the Project documentation rules.
-15. When ACCEPTED, create a Git checkpoint: return control to the user, summarize the completed increment and validation, and provide a recommended commit message.
-16. Do not begin another development increment until the user explicitly asks to continue.
+7. The Orchestrator sends the specification to the Developer.
+8. The Developer implements and validates the change.
+9. The Orchestrator returns the implementation result to the same Architect.
+10. The Architect independently inspects the actual implementation and returns ACCEPTED or REJECTED.
+11. If REJECTED, the Orchestrator sends the findings to the same Developer for correction.
+12. The corrected implementation returns to the same Architect for another independent review.
+13. The review loop may run a maximum of three times.
+14. If the implementation is still rejected after three review iterations, stop and ask the user.
+15. When ACCEPTED, ensure PROJECT.md is updated when required by the Project documentation rules.
+16. When ACCEPTED, create a Git checkpoint: return control to the user, summarize the completed increment and validation, and provide a recommended commit message.
+17. Do not begin another development increment until the user explicitly asks to continue.
 
 Human decisions
 
