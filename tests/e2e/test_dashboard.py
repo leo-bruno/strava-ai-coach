@@ -375,6 +375,79 @@ def test_dashboard_theme_surfaces_follow_light_and_dark(server, dark_server):
         browser.close()
 
 
+def _measure_agenda_grid(grid):
+    return grid.evaluate("""grid => {
+        const cards = [...grid.querySelectorAll('.agenda-card')];
+        const surfaces = cards.map(card => {
+            const rect = card.getBoundingClientRect();
+            const style = getComputedStyle(card);
+            return {
+                left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height,
+                scrollWidth: card.scrollWidth, clientWidth: card.clientWidth,
+                boxSizing: style.boxSizing, minWidth: style.minWidth, maxWidth: style.maxWidth,
+            };
+        });
+        const cardMetrics = cards.map((card, index) => {
+            const rect = card.getBoundingClientRect();
+            const surface = surfaces[index];
+            const kicker = card.querySelector('.dashboard-kicker');
+            const title = card.querySelector('.dashboard-session-title');
+            const status = card.querySelector('.agenda-status');
+            const descendants = [kicker, title, status];
+            const within = node => {
+                const bounds = node.getBoundingClientRect();
+                return bounds.left >= surface.left - 1 && bounds.right <= surface.right + 1
+                    && bounds.top >= surface.top - 1 && bounds.bottom <= surface.bottom + 1;
+            };
+            const statusStyle = getComputedStyle(status);
+            const cardStyle = getComputedStyle(card);
+            return {
+                scrollWidth: card.scrollWidth, clientWidth: card.clientWidth,
+                scrollHeight: card.scrollHeight, clientHeight: card.clientHeight,
+                contentInside: descendants.every(within),
+                statusScrollWidth: status.scrollWidth, statusClientWidth: status.clientWidth,
+                statusScrollHeight: status.scrollHeight, statusClientHeight: status.clientHeight,
+                statusFits: status.scrollWidth <= status.clientWidth + 1
+                    && status.scrollHeight <= status.clientHeight + 1
+                    && statusStyle.boxSizing === 'border-box' && statusStyle.minWidth === '0px'
+                    && statusStyle.maxWidth !== 'none' && statusStyle.overflowWrap !== 'normal',
+                cardFits: card.scrollWidth <= card.clientWidth + 1
+                    && card.scrollHeight <= card.clientHeight + 1
+                    && cardStyle.boxSizing === 'border-box' && cardStyle.minWidth === '0px'
+                    && cardStyle.maxWidth !== 'none' && cardStyle.height !== '0px',
+            };
+        });
+        const overlaps = [], rowGaps = [], columnGaps = [], sameRowHeightDiffs = [];
+        for (let first = 0; first < surfaces.length; first++) {
+            for (let second = first + 1; second < surfaces.length; second++) {
+                const a = surfaces[first], b = surfaces[second];
+                if (a.left < b.right - 1 && b.left < a.right - 1
+                    && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps.push([first, second]);
+                const sameRow = Math.abs(a.top - b.top) < 1;
+                const sameColumn = Math.abs(a.left - b.left) < 1;
+                if (sameRow) {
+                    sameRowHeightDiffs.push(Math.abs(a.height - b.height));
+                    columnGaps.push(Math.max(0, b.left - a.right, a.left - b.right));
+                }
+                if (sameColumn) rowGaps.push(Math.max(0, b.top - a.bottom, a.top - b.bottom));
+            }
+        }
+        return {
+            columns: getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
+            columnGap: parseFloat(getComputedStyle(grid).columnGap),
+            rowGap: parseFloat(getComputedStyle(grid).rowGap),
+            domKickers: cards.map(card => card.querySelector('.dashboard-kicker').textContent.trim()),
+            statuses: cards.map(card => card.querySelector('.agenda-status').textContent.trim().split(' · ').at(-1)),
+            overlaps, rowGaps, columnGaps, sameRowHeightDiffs,
+            surfacesFit: surfaces.every(surface => surface.scrollWidth <= surface.clientWidth + 1
+                && surface.boxSizing === 'border-box' && surface.minWidth === '0px'
+                && surface.maxWidth !== 'none'),
+            contentFits: cardMetrics.every(card => card.contentInside && card.cardFits && card.statusFits),
+            gridFits: grid.scrollWidth <= grid.clientWidth + 1,
+        };
+    }""")
+
+
 @pytest.mark.parametrize("width", [1728, 1440, 1024, 681, 680, 391, 390, 320])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_agenda_cards_reflow_without_overlap_clipping_or_overflow(server, dark_server, width, theme):
@@ -385,83 +458,55 @@ def test_agenda_cards_reflow_without_overlap_clipping_or_overflow(server, dark_s
         page = browser.new_page(viewport={"width": width, "height": 1600}, device_scale_factor=1)
         page.goto(address)
         page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
-        cards_grid = page.locator(
-            ".st-key-dashboard-agenda .st-key-agenda-items "
-            "> [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]"
-        )
-        layout = cards_grid.evaluate("""grid => {
-            const cards = [...grid.querySelectorAll('.agenda-card')];
-            const rects = cards.map(card => {
-                const rect = card.getBoundingClientRect();
-                const cardContent = [...card.querySelectorAll('.dashboard-kicker, .dashboard-session-title, .agenda-status')];
-                return {
-                    left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
-                    scrollWidth: card.scrollWidth, clientWidth: card.clientWidth,
-                    scrollHeight: card.scrollHeight, clientHeight: card.clientHeight,
-                    overflowX: getComputedStyle(card).overflowX,
-                    overflowY: getComputedStyle(card).overflowY,
-                    contentInside: cardContent.every(node => {
-                        const child = node.getBoundingClientRect();
-                        return child.left >= rect.left - 1 && child.right <= rect.right + 1
-                            && child.top >= rect.top - 1 && child.bottom <= rect.bottom + 1;
-                    }),
-                };
-            });
-            const overlaps = [];
-                const cardBoxes = [...grid.querySelectorAll('[data-testid="stColumn"]')].map(column => {
-                    const rect = column.getBoundingClientRect();
-                    return {left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom};
-                });
-            for (let first = 0; first < rects.length; first++) {
-                    for (let second = first + 1; second < cardBoxes.length; second++) {
-                        const a = cardBoxes[first], b = cardBoxes[second];
-                    if (a.left < b.right - 1 && b.left < a.right - 1
-                        && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps.push([first, second]);
-                }
+        cards_grid = page.locator(".st-key-dashboard-agenda .agenda-grid")
+        observed_statuses = set()
+        for week in ("current", "previous"):
+            if week == "previous":
+                _select_option(page, "Semana de la agenda", "Anterior")
+            expected_end = _week_interval(week)[1]
+            page.locator(".st-key-dashboard-agenda [data-testid=stCaptionContainer]").last.get_by_text(
+                re.compile(f"Semana de agenda: {expected_end:%d %b}"), exact=False
+            ).wait_for()
+            sessions = _sample_sessions(week)
+            layout = _measure_agenda_grid(cards_grid)
+            expected_kickers = [
+                f"SESIÓN {index:02d} · {_date_label(session['date']).upper()}"
+                for index, session in enumerate(sessions, start=1)
+            ]
+            expected_statuses = [
+                "Realizado" if session["done"] else (
+                    "Próxima" if session["date"] >= date.today() else "Sin actividad vinculada"
+                )
+                for session in sessions
+            ]
+            assert layout["columns"] == expected_columns, {"width": width, "theme": theme, "week": week, **layout}
+            assert layout["domKickers"] == expected_kickers, {"width": width, "theme": theme, "week": week, **layout}
+            assert layout["statuses"] == expected_statuses, {"width": width, "theme": theme, "week": week, **layout}
+            assert not layout["overlaps"], {"width": width, "theme": theme, "week": week, **layout}
+            assert layout["columnGap"] >= 6 and layout["rowGap"] >= 6, {
+                "width": width, "theme": theme, "week": week, **layout
             }
-            const rowGaps = [];
-            const columnGaps = [];
-                for (let first = 0; first < cardBoxes.length; first++) {
-                    for (let second = first + 1; second < cardBoxes.length; second++) {
-                        const a = cardBoxes[first], b = cardBoxes[second];
-                    const sameRow = Math.abs(a.top - b.top) < 1;
-                    const sameColumn = Math.abs(a.left - b.left) < 1;
-                    if (sameRow) columnGaps.push(Math.max(0, b.left - a.right, a.left - b.right));
-                    if (sameColumn) rowGaps.push(Math.max(0, b.top - a.bottom, a.top - b.bottom));
-                }
+            assert all(gap >= 6 for gap in layout["columnGaps"] + layout["rowGaps"]), {
+                "width": width, "theme": theme, "week": week, **layout
             }
-            return {
-                columns: getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
-                columnGap: parseFloat(getComputedStyle(grid).columnGap),
-                rowGap: parseFloat(getComputedStyle(grid).rowGap),
-                domKickers: cards.map(card => card.querySelector('.dashboard-kicker').textContent.trim()),
-                overlaps, rowGaps, columnGaps,
-                cardsFit: rects.every(card => card.scrollWidth <= card.clientWidth + 1
-                    && card.scrollHeight <= card.clientHeight + 1
-                    && card.overflowX === 'visible' && card.overflowY === 'visible'
-                    && card.contentInside),
-                gridFits: grid.scrollWidth <= grid.clientWidth + 1,
-            };
-        }""")
-        expected_dates = [
-            f"SESIÓN {index:02d} · {_date_label(session['date']).upper()}"
-            for index, session in enumerate(_sample_sessions("current"), start=1)
-        ]
-        assert layout["columns"] == expected_columns, {"width": width, "theme": theme, **layout}
-        assert layout["domKickers"] == expected_dates, {"width": width, "theme": theme, **layout}
-        assert not layout["overlaps"], {"width": width, "theme": theme, **layout}
-        assert layout["columnGap"] >= 6 and layout["rowGap"] >= 6, {"width": width, "theme": theme, **layout}
-        assert all(gap >= 6 for gap in layout["columnGaps"] + layout["rowGaps"]), {
-            "width": width, "theme": theme, **layout
+            assert all(diff <= 2 for diff in layout["sameRowHeightDiffs"]), {
+                "width": width, "theme": theme, "week": week, **layout
+            }
+            assert layout["contentFits"] and layout["surfacesFit"] and layout["gridFits"], {
+                "width": width, "theme": theme, "week": week, **layout
+            }
+            observed_statuses.update(layout["statuses"])
+            assert "SEMANA ACTUAL" in page.locator(".st-key-dashboard-progress").inner_text()
+            _assert_no_horizontal_overflow(page)
+
+            if week == "current" and width in (1440, 1024, 681, 391, 390):
+                capture_dir = Path("test-results/ui-captures/after")
+                capture_dir.mkdir(parents=True, exist_ok=True)
+                page.screenshot(path=str(capture_dir / f"agenda-{theme}-{width}.png"), full_page=True)
+
+        assert {"Próxima", "Realizado", "Sin actividad vinculada"} <= observed_statuses, {
+            "width": width, "theme": theme, "statuses": observed_statuses
         }
-        assert layout["cardsFit"] and layout["gridFits"], {"width": width, "theme": theme, **layout}
-        _assert_no_horizontal_overflow(page)
-
-        if width in (1440, 1024, 681, 391, 390):
-            capture_dir = Path("test-results/ui-captures/after")
-            capture_dir.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(capture_dir / f"agenda-{theme}-{width}.png"), full_page=True)
-
         _select_option(page, "Semana de la agenda", "Siguiente")
         expected_end = _week_interval("next")[1]
         page.locator(".st-key-dashboard-agenda [data-testid=stCaptionContainer]").last.get_by_text(

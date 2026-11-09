@@ -1,6 +1,7 @@
 """Fictional dashboard, plan navigation and session detail UI."""
 
 from datetime import date, timedelta
+from html import escape
 
 
 DASHBOARD_VIEW_KEY = "dashboard_view"
@@ -259,20 +260,21 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stColumn"] {
             box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-            display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:max-content;
-            align-items:start; gap:8px; min-width:0;
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
+            box-sizing:border-box; display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+            align-items:stretch; grid-auto-rows:auto; gap:8px; width:100%; max-width:100%; min-width:0;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] {
-            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
-            grid-column:auto !important; grid-row:auto !important; padding:8px;
-            background:#fff; border-radius:10px; box-shadow:0 2px 6px #24485014;
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card {
+            box-sizing:border-box; display:grid; align-content:start; gap:4px;
+            width:100%; max-width:100%; min-width:0; height:auto; padding:8px;
+            overflow-wrap:anywhere; background:#fff; border-radius:10px; box-shadow:0 2px 6px #24485014;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] > div {
-            min-height:0; padding:0; background:transparent; border-radius:0; box-shadow:none;
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card > * {
+            box-sizing:border-box; width:100%; max-width:100%; min-width:0; overflow-wrap:anywhere;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { box-sizing:border-box; min-width:0; display:grid; align-content:start; gap:4px; overflow-wrap:anywhere; background:transparent; }
-        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status { font-size:.75rem; color:#52666a; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status {
+            font-size:.75rem; color:#52666a; min-width:0; max-width:100%; overflow-wrap:anywhere;
+        }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done { color:#09664f; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done::before { content:"✓ "; font-weight:800; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-next { color:#08646a; }
@@ -326,20 +328,18 @@ def render_dashboard_styles(ui) -> None:
             .st-key-dashboard-home .st-key-coach-preview { padding:.9rem; }
         }
         @media(max-width:680px) {
-            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
                 grid-template-columns:repeat(2,minmax(0,1fr));
             }
-            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { grid-column:auto !important; grid-row:auto !important; }
             .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
                 grid-template-columns:minmax(0,1fr);
             }
             .st-key-dashboard-home .dashboard-pace-bars { bottom:14px; }
         }
         @media(max-width:390px) {
-            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
                 grid-template-columns:minmax(0,1fr);
             }
-            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { grid-column:auto !important; grid-row:auto !important; }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { gap:6px; }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading [data-testid="stSelectbox"] { min-width:0; }
         }
@@ -455,18 +455,27 @@ def _render_agenda(ui, reference_date: date) -> None:
         selected_week = ui.session_state.get(AGENDA_WEEK_KEY, "current")
         sessions = _sample_sessions(selected_week, reference_date)
         with ui.container(key="agenda-items"):
-            columns = ui.columns([1] * len(sessions))
-            for index, (column, session) in enumerate(zip(columns, sessions), start=1):
-                with column:
-                    target = session["actual"] or session["planned"]
-                    status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= reference_date else "Sin actividad vinculada")
-                    status_class = "done" if session["done"] else ("next" if session["date"] >= reference_date else "unlinked")
-                    ui.markdown(
-                        f'<div class="agenda-card"><div class="dashboard-kicker">SESIÓN {index:02d} · {_date_label(session["date"]).upper()}</div>'
-                        f'<div class="dashboard-session-title">{session["name"]}</div>'
-                        f'<div class="agenda-status agenda-status-{status_class}">{target} · {status}</div></div>',
-                        unsafe_allow_html=True,
-                    )
+            cards = []
+            for index, session in enumerate(sessions, start=1):
+                target = session["actual"] or session["planned"]
+                status = "Realizado" if session["done"] else (
+                    "Próxima" if session["date"] >= reference_date else "Sin actividad vinculada"
+                )
+                status_class = "done" if session["done"] else (
+                    "next" if session["date"] >= reference_date else "unlinked"
+                )
+                kicker = escape(f"SESIÓN {index:02d} · {_date_label(session['date']).upper()}")
+                name = escape(str(session["name"]))
+                status_text = escape(f"{target} · {status}")
+                cards.append(
+                    f'<article class="agenda-card"><div class="dashboard-kicker">{kicker}</div>'
+                    f'<div class="dashboard-session-title">{name}</div>'
+                    f'<div class="agenda-status agenda-status-{status_class}">{status_text}</div></article>'
+                )
+            ui.markdown(
+                f'<div class="agenda-grid">{"".join(cards)}</div>',
+                unsafe_allow_html=True,
+            )
         ui.caption(f"Semana de agenda: {end:%d %b}. El progreso semanal permanece en la semana actual.")
 
 
