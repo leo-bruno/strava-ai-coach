@@ -105,11 +105,18 @@ def _assert_dashboard_card_geometry(page):
         const lowerGrid = lower.querySelector(':scope > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"]');
         const agenda = document.querySelector('.st-key-dashboard-agenda');
         const agendaGrid = agenda.querySelector('.agenda-grid');
-        const topCards = ['.st-key-dashboard-progress', '.st-key-dashboard-pace',
-            '.st-key-dashboard-training', '.st-key-dashboard-agenda'].map(selector => {
+        const topCards = ['.st-key-dashboard-metrics', '.st-key-dashboard-training',
+            '.st-key-dashboard-agenda'].map(selector => {
                 const bounds = rect(selector);
                 return {left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom};
             });
+        const progress = rect('.st-key-dashboard-progress');
+        const pace = rect('.st-key-dashboard-pace');
+        const progressNumber = rect('.st-key-dashboard-progress .dashboard-number');
+        const progressCount = rect('.st-key-dashboard-progress .dashboard-progress-copy p');
+        const progressArc = rect('.st-key-dashboard-progress .dashboard-arc');
+        const metricsContainer = document.querySelector('.st-key-dashboard-metrics');
+        const metricGrid = metricsContainer;
         const trainingRows = [...document.querySelectorAll('.dashboard-training-row')];
         const nextRows = trainingRows.filter(row => row.classList.contains('dashboard-training-row-next'));
         const recentRows = trainingRows.filter(row => row.classList.contains('dashboard-training-row-recent'));
@@ -130,6 +137,11 @@ def _assert_dashboard_card_geometry(page):
                 agendaContainerName: getComputedStyle(agenda).containerName,
             agendaColumns: getComputedStyle(agendaGrid).gridTemplateColumns.split(' ').filter(Boolean).length,
             topCards,
+            progressCard: {left:progress.left, right:progress.right, top:progress.top, bottom:progress.bottom, width:progress.width, height:progress.height},
+            paceCard: {left:pace.left, right:pace.right, top:pace.top, bottom:pace.bottom, width:pace.width, height:pace.height},
+            progressContent: {number:progressNumber, count:progressCount, arc:progressArc},
+            progressOverflow: getComputedStyle(document.querySelector('.st-key-dashboard-progress')).overflow,
+            metricGridRows: getComputedStyle(metricGrid).gridTemplateRows,
             performanceTop: rect('.st-key-dashboard-performance').top,
             coachTop: rect('.st-key-coach-preview').top,
             planTop: plan.top,
@@ -151,7 +163,7 @@ def _assert_dashboard_card_geometry(page):
             })(),
         };
     }""")
-    expected_top_columns = 4 if geometry["topWidth"] >= 1052 else (2 if geometry["topWidth"] >= 710 else 1)
+    expected_top_columns = 3 if geometry["topWidth"] >= 980 else (2 if geometry["topWidth"] >= 710 else 1)
     expected_lower_columns = 2 if geometry["lowerWidth"] >= 710 else 1
     assert geometry["topColumns"] == expected_top_columns, geometry
     assert geometry["lowerColumns"] == expected_lower_columns, geometry
@@ -168,18 +180,27 @@ def _assert_dashboard_card_geometry(page):
     assert geometry["nextRowBackground"] == "rgb(238, 247, 247)", geometry
     assert geometry["nextRowBorder"] == "rgb(18, 175, 188)", geometry
     assert geometry["planTop"] >= geometry["lowerBottom"], geometry
+    assert geometry["progressOverflow"] != "hidden", geometry
+    assert abs(geometry["progressCard"]["width"] - geometry["topWidths"][0]) <= 2, geometry
+    assert abs(geometry["progressCard"]["width"] - geometry["paceCard"]["width"]) <= 2, geometry
+    assert abs(geometry["progressCard"]["height"] - geometry["paceCard"]["height"]) <= 2, geometry
+    assert geometry["paceCard"]["top"] - geometry["progressCard"]["bottom"] == pytest.approx(12, abs=2), geometry
+    for child in geometry["progressContent"].values():
+        assert child["left"] >= geometry["progressCard"]["left"] - 2 and child["right"] <= geometry["progressCard"]["right"] + 2, geometry
+        assert child["top"] >= geometry["progressCard"]["top"] - 2 and child["bottom"] <= geometry["progressCard"]["bottom"] + 2, geometry
     cards = geometry["topCards"]
-    if expected_top_columns == 4:
+    if expected_top_columns == 3:
         assert max(card["top"] for card in cards) - min(card["top"] for card in cards) <= 1, geometry
         assert [card["left"] for card in cards] == sorted(card["left"] for card in cards), geometry
-        assert all(width >= minimum - 1 for width, minimum in zip(geometry["topWidths"], (200, 165, 270, 380))), geometry
+        assert all(width >= minimum - 1 for width, minimum in zip(geometry["topWidths"], (245, 320, 390))), geometry
         assert all(gap == pytest.approx(12, abs=1) for gap in geometry["topGaps"]), geometry
     elif expected_top_columns == 2:
         assert abs(cards[0]["top"] - cards[1]["top"]) <= 1, geometry
-        assert abs(cards[2]["top"] - cards[3]["top"]) <= 1, geometry
         assert cards[2]["top"] > cards[0]["top"], geometry
+        assert abs(cards[2]["left"] - cards[0]["left"]) <= 1, geometry
+        assert abs(cards[2]["right"] - cards[2]["left"] - geometry["topWidth"]) <= 2, geometry
     else:
-        assert all(cards[index + 1]["top"] > cards[index]["top"] for index in range(3)), geometry
+        assert all(cards[index + 1]["top"] > cards[index]["top"] for index in range(len(cards) - 1)), geometry
     assert geometry["performanceTop"] >= max(card["bottom"] for card in cards), geometry
 
 
@@ -187,8 +208,8 @@ def _assert_dashboard_card_geometry(page):
 def test_dashboard_content_width_breakpoints_and_visual_captures(server, dark_server, theme):
     address = dark_server if theme == "dark" else server
     viewports = [
-        (1728, 1117), (1440, 1000), (1024, 1000), (1052, 950), (1051, 950),
-        (710, 900), (709, 900), (393, 844), (390, 844), (320, 844),
+        (1728, 1117), (1440, 1000), (1024, 1000), (980, 950), (979, 950),
+        (710, 900), (709, 900), (393, 844), (320, 844),
     ]
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -218,9 +239,7 @@ def test_dashboard_content_width_breakpoints_and_visual_captures(server, dark_se
         threshold_page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
         top = threshold_page.locator(".st-key-dashboard-top")
         lower = threshold_page.locator(".st-key-dashboard-lower")
-        for content_width, expected_top_columns in (
-            (1052, 4), (1051, 2), (1050, 2), (1049, 2), (710, 2), (709, 1)
-        ):
+        for content_width, expected_top_columns in ((980, 3), (979, 2), (710, 2), (709, 1)):
             top.evaluate("(el, width) => el.style.width = width + 'px'", content_width)
             lower.evaluate("(el, width) => el.style.width = width + 'px'", content_width)
             top_columns = top.locator(
@@ -362,7 +381,9 @@ def test_dashboard_responsive_navigation_and_agenda(server):
         top_row = page.locator(".st-key-dashboard-top [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]").first
         assert top_row.count() == 1
         assert len(top_row.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean)")) == (
-            4 if page.locator(".st-key-dashboard-top").evaluate("el => el.getBoundingClientRect().width") >= 1052 else 2
+            3 if page.locator(".st-key-dashboard-top").evaluate("el => el.getBoundingClientRect().width") >= 980 else (
+                2 if page.locator(".st-key-dashboard-top").evaluate("el => el.getBoundingClientRect().width") >= 710 else 1
+            )
         )
         _assert_dashboard_card_geometry(page)
         _assert_no_horizontal_overflow(page)
@@ -377,8 +398,7 @@ def test_dashboard_responsive_navigation_and_agenda(server):
         )
         desktop_16_layout = desktop_16.evaluate("""() => ({
             viewportHeight: window.innerHeight,
-            cards: ['.st-key-dashboard-progress', '.st-key-dashboard-pace',
-                '.st-key-dashboard-training', '.st-key-dashboard-agenda',
+            cards: ['.st-key-dashboard-metrics', '.st-key-dashboard-training', '.st-key-dashboard-agenda',
                 '.st-key-dashboard-performance', '.st-key-coach-preview', '.st-key-dashboard-plan'].map(selector => {
                 const rect = document.querySelector(selector).getBoundingClientRect();
                 return [selector, rect.top, rect.bottom, rect.height];

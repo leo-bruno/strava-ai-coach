@@ -54,7 +54,8 @@ def test_home_is_fictional_and_dashboard_plan_starts_collapsed():
     assert 'font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif' in text
     assert ".stApp:has(.st-key-dashboard-home)" in text
     assert "container:dashboard-top / inline-size" in text
-    assert "minmax(200px,20fr) minmax(165px,16fr) minmax(270px,27fr) minmax(380px,37fr)" in text
+    assert "minmax(245px,24fr) minmax(320px,34fr) minmax(390px,42fr)" in text
+    assert "grid-template-rows:repeat(2,minmax(160px,1fr))" in text
     assert "container:dashboard-lower / inline-size" in text
     assert "class=\"dashboard-mock-badge\"" in text
     assert app.session_state[AGENDA_WEEK_KEY] == "current"

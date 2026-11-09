@@ -224,10 +224,16 @@ def render_dashboard_styles(ui) -> None:
             .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
                 grid-template-columns:repeat(2,minmax(0,1fr));
             }
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+                grid-column:1 / -1;
+            }
         }
-        @container dashboard-top (min-width:1052px) {
+        @container dashboard-top (min-width:980px) {
             .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-                grid-template-columns:minmax(200px,20fr) minmax(165px,16fr) minmax(270px,27fr) minmax(380px,37fr);
+                grid-template-columns:minmax(245px,24fr) minmax(320px,34fr) minmax(390px,42fr);
+            }
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+                grid-column:auto;
             }
         }
         @container dashboard-lower (min-width:710px) {
@@ -258,17 +264,27 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-dashboard-performance h3 { font-size:1.12rem; margin:0 0 12px; font-weight:600; letter-spacing:-.035em; }
         .st-key-dashboard-home .st-key-dashboard-training h3 { font-size:1rem; white-space:nowrap; }
         .st-key-dashboard-home .st-key-coach-preview h3 { font-size:1.2rem; margin:0 0 10px; }
+        .st-key-dashboard-home .st-key-dashboard-metrics {
+            display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(2,minmax(160px,1fr)); gap:12px;
+            align-content:stretch; min-width:0; height:100%;
+        }
+        .st-key-dashboard-home .st-key-dashboard-metrics > [data-testid="stLayoutWrapper"] {
+            box-sizing:border-box; display:flex; width:100%; max-width:100%; min-width:0; height:100%;
+        }
+        .st-key-dashboard-home .st-key-dashboard-metrics .st-key-dashboard-progress,
+        .st-key-dashboard-home .st-key-dashboard-metrics .st-key-dashboard-pace {
+            box-sizing:border-box; flex:1 1 auto; width:100%; max-width:100%; min-width:0;
+        }
         .st-key-dashboard-home .st-key-dashboard-progress,
-        .st-key-dashboard-home .st-key-dashboard-pace { position:relative; overflow:hidden; min-height:138px; }
+        .st-key-dashboard-home .st-key-dashboard-pace { position:relative; overflow:visible; min-height:160px; height:100%; }
         .st-key-dashboard-home .st-key-dashboard-home-header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { align-items:center; }
         .st-key-dashboard-home .dashboard-header-label { font-size:1.15rem; font-weight:600; letter-spacing:-.035em; }
         .st-key-dashboard-home .st-key-dashboard-intro { margin:8px 0 20px; }
         .st-key-dashboard-home .st-key-dashboard-intro p { margin:6px 0 0; color:#4c6166; font-size:.9rem; font-weight:500; }
-        .st-key-dashboard-home .dashboard-progress-row { position:relative; min-height:62px; display:flex; align-items:center; }
-        .st-key-dashboard-home .dashboard-progress-row { padding-bottom:10px; }
-        .st-key-dashboard-home .dashboard-progress-copy { max-width:70%; position:relative; z-index:1; }
+        .st-key-dashboard-home .dashboard-progress-row { position:relative; display:grid; grid-template-columns:minmax(0,1fr); gap:2px; min-width:0; }
+        .st-key-dashboard-home .dashboard-progress-copy { max-width:100%; min-width:0; position:relative; z-index:1; }
         .st-key-dashboard-home .dashboard-progress-copy p { margin:5px 0 0; color:#52666a; font-size:.78rem; }
-        .st-key-dashboard-home .dashboard-arc { position:absolute; right:5px; bottom:3px; width:35%; max-width:130px; height:auto; }
+        .st-key-dashboard-home .dashboard-arc { position:static; display:block; width:100px; max-width:100%; height:auto; margin:-5px 0 0 auto; }
         .st-key-dashboard-home .dashboard-pace-row { display:grid; grid-template-rows:auto 54px; gap:5px; min-width:0; }
         .st-key-dashboard-home .dashboard-pace-value { display:flex; align-items:baseline; gap:5px; min-width:0; }
         .st-key-dashboard-home .dashboard-pace-bars { position:relative; width:100%; height:54px; display:flex; align-items:end; gap:5px; }
@@ -597,11 +613,11 @@ def _render_dashboard_home_content(ui) -> None:
         ui.markdown(f"<p>{summary['completed_sessions']} de {summary['planned_sessions']} sesiones completadas · {current_start:%-d}–{current_end:%-d %b}</p>", unsafe_allow_html=True)
 
     with ui.container(key="dashboard-top"):
-        progress, pace, training, agenda = ui.columns([20, 16, 27, 37], gap="small")
-        with progress:
-            _render_progress(ui, reference_date)
-        with pace:
-            _render_pace(ui)
+        metrics, training, agenda = ui.columns([24, 34, 42], gap="small")
+        with metrics:
+            with ui.container(key="dashboard-metrics"):
+                _render_progress(ui, reference_date)
+                _render_pace(ui)
         with training:
             _render_training(ui, reference_date)
         with agenda:
