@@ -1,0 +1,198 @@
+- generic:
+  - generic [ref=f4e883]:
+    - log
+    - log
+  - generic [ref=f4e2]:
+    - link "Skip to main content" [ref=f4e920] [cursor=pointer]:
+      - /url: "#stMain"
+    - region "Sidebar":
+      - generic [ref=f4e12]:
+        - generic [ref=f4e922]:
+          - text: ↗
+          - strong [ref=f4e923]: Strava AI Coach
+        - paragraph [ref=f4e24]: Datos ficticios · solo demostración
+        - radiogroup "Navegación principal" [ref=f4e924]:
+          - generic [ref=f4e29] [cursor=pointer]:
+            - radio "▦ Inicio" [ref=f4e925]
+            - paragraph [ref=f4e34]: ▦ Inicio
+          - generic [ref=f4e36] [cursor=pointer]:
+            - radio "▤ Mi plan" [ref=f4e926]
+            - paragraph [ref=f4e41]: ▤ Mi plan
+          - generic [ref=f4e43] [cursor=pointer]:
+            - radio "◉ Estadísticas" [ref=f4e927]
+            - paragraph [ref=f4e48]: ◉ Estadísticas
+          - generic [ref=f4e50] [cursor=pointer]:
+            - radio "✦ Coach" [ref=f4e928]
+            - paragraph [ref=f4e55]: ✦ Coach
+    - generic [ref=f4e4]:
+      - banner [ref=f4e58]:
+        - generic [ref=f4e60]:
+          - button "Expand sidebar" [ref=f4e1206] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f4e1208]: keyboard_double_arrow_right
+          - generic [ref=f4e61]:
+            - button "Deploy" [ref=f4e929] [cursor=pointer]
+            - button "Main menu" [ref=f4e930] [cursor=pointer]
+      - main [ref=f4e5]:
+        - generic [ref=f4e71]:
+          - heading "Coach" [level=1] [ref=f4e935]:
+            - text: Coach
+            - generic [ref=f4e936]:
+              - link "Link to heading":
+                - /url: "#coach"
+          - paragraph [ref=f4e941]: Valida una solicitud o prepara una respuesta experimental tras una acción explícita. No se consulta Strava desde esta pantalla.
+          - status [ref=f4e944]:
+            - paragraph [ref=f4e948]: Conecta Strava y carga un resumen semanal desde Estadísticas para preparar evidencia y generar una respuesta.
+          - button [ref=f4e951] [cursor=pointer]:
+            - paragraph [ref=f4e956]: Abrir Estadísticas
+          - generic [ref=f4e959]:
+            - generic [ref=f4e961]:
+              - paragraph [ref=f4e965]: Goal
+              - textbox "Goal" [disabled] [ref=f4e968]:
+                - /placeholder: ""
+                - text: Half marathon
+            - generic [ref=f4e970]:
+              - paragraph [ref=f4e974]: Your time zone
+              - group [ref=f4e976]:
+                - combobox "Your time zone" [ref=f4e977]: Europe/Madrid
+                - button "Open" [ref=f4e978] [cursor=pointer]
+            - generic [ref=f4e983]:
+              - paragraph [ref=f4e987]: Target date
+              - generic [ref=f4e989]:
+                - generic [ref=f4e991]:
+                  - group "Target date" [ref=f4e993]:
+                    - spinbutton "year, Target date" [ref=f4e994]: "2026"
+                    - generic [aria-hidden] [ref=f4e995]: /
+                    - spinbutton "month, Target date" [ref=f4e996]: "12"
+                    - generic [aria-hidden] [ref=f4e997]: /
+                    - spinbutton "day, Target date" [active] [ref=f4e998]: "09"
+                  - textbox [ref=f4e1000]: 2026-12-09
+                - button "Choose date" [ref=f4e1002] [cursor=pointer]
+            - generic [ref=f4e1007]:
+              - paragraph [ref=f4e1011]: Available training days per week
+              - generic [ref=f4e1013]:
+                - spinbutton "Available training days per week" [ref=f4e1014]: "0"
+                - generic [ref=f4e1015]:
+                  - button "Decrement" [disabled] [ref=f4e1016]
+                  - button "Increment" [ref=f4e1019] [cursor=pointer]
+            - generic [ref=f4e1023]:
+              - generic [ref=f4e1024]:
+                - paragraph [ref=f4e1027]: Optional context for the Coach
+                - button "Help for Optional context for the Coach" [ref=f4e1031] [cursor=pointer]
+              - textbox "Optional context for the Coach" [ref=f4e1036]:
+                - /placeholder: ""
+            - button [ref=f4e1040] [cursor=pointer]:
+              - paragraph [ref=f4e1045]: Validate request
+            - generic [ref=f4e1047]:
+              - heading "Evidence context" [level=3] [ref=f4e1052]:
+                - text: Evidence context
+                - generic [ref=f4e1053]:
+                  - link "Link to heading":
+                    - /url: "#evidence-context"
+              - paragraph [ref=f4e1058]: Prepare deterministic evidence or generate a response. Both actions use the current request and loaded weekly summary.
+              - paragraph [ref=f4e1063]: Connect Strava to prepare Coach evidence context, then load the weekly overview.
+          - button [ref=f4e1066] [cursor=pointer]:
+            - paragraph [ref=f4e1071]: Clear Coach request, evidence and demo
+          - group [ref=f4e1074]:
+            - generic [ref=f4e1076] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f4e1078]: keyboard_arrow_right
+              - paragraph [ref=f4e1081]: Demo offline sintética
+  - application "Choose date, December 2026" [ref=f4e1083]:
+    - heading "Choose date, December 2026" [level=2] [ref=f4e1085]
+    - banner [ref=f4e1086]:
+      - button "Previous month" [ref=f4e1087] [cursor=pointer]
+      - generic [ref=f4e1091]:
+        - generic [ref=f4e1092]:
+          - button "month" [ref=f4e1093] [cursor=pointer]: December
+          - combobox [ref=f4e1100]
+        - generic [ref=f4e1101]:
+          - button "year" [ref=f4e1102] [cursor=pointer]: "2026"
+          - combobox [ref=f4e1109]
+        - heading [level=2] [aria-hidden] [ref=f4e1111]: December 2026
+      - button "Next month" [ref=f4e1112] [cursor=pointer]
+    - grid "Choose date, December 2026" [ref=f4e1116]:
+      - rowgroup [aria-hidden] [ref=f4e1117]:
+        - row [ref=f4e1118]:
+          - columnheader [ref=f4e1119]: S
+          - columnheader [ref=f4e1120]: M
+          - columnheader [ref=f4e1121]: T
+          - columnheader [ref=f4e1122]: W
+          - columnheader [ref=f4e1123]: T
+          - columnheader [ref=f4e1124]: F
+          - columnheader [ref=f4e1125]: S
+      - rowgroup [ref=f4e1126]:
+        - row [ref=f4e1127]:
+          - gridcell [disabled] [ref=f4e1128]:
+            - button "Sunday, November 29, 2026" [disabled] [ref=f4e1129]: "29"
+          - gridcell [disabled] [ref=f4e1130]:
+            - button "Monday, November 30, 2026" [disabled] [ref=f4e1131]: "30"
+          - gridcell [ref=f4e1132]:
+            - button "Tuesday, December 1, 2026" [ref=f4e1133] [cursor=pointer]: "1"
+          - gridcell [ref=f4e1134]:
+            - button "Wednesday, December 2, 2026" [ref=f4e1135] [cursor=pointer]: "2"
+          - gridcell [ref=f4e1136]:
+            - button "Thursday, December 3, 2026" [ref=f4e1137] [cursor=pointer]: "3"
+          - gridcell [ref=f4e1138]:
+            - button "Friday, December 4, 2026" [ref=f4e1139] [cursor=pointer]: "4"
+          - gridcell [ref=f4e1140]:
+            - button "Saturday, December 5, 2026" [ref=f4e1141] [cursor=pointer]: "5"
+        - row [ref=f4e1142]:
+          - gridcell [ref=f4e1143]:
+            - button "Sunday, December 6, 2026" [ref=f4e1144] [cursor=pointer]: "6"
+          - gridcell [ref=f4e1145]:
+            - button "Monday, December 7, 2026" [ref=f4e1146] [cursor=pointer]: "7"
+          - gridcell [ref=f4e1147]:
+            - button "Tuesday, December 8, 2026" [ref=f4e1148] [cursor=pointer]: "8"
+          - gridcell [selected] [ref=f4e1149]:
+            - button "Wednesday, December 9, 2026 selected" [ref=f4e1150] [cursor=pointer]: "9"
+          - gridcell [ref=f4e1151]:
+            - button "Thursday, December 10, 2026" [ref=f4e1152] [cursor=pointer]: "10"
+          - gridcell [ref=f4e1153]:
+            - button "Friday, December 11, 2026" [ref=f4e1154] [cursor=pointer]: "11"
+          - gridcell [ref=f4e1155]:
+            - button "Saturday, December 12, 2026" [ref=f4e1156] [cursor=pointer]: "12"
+        - row [ref=f4e1157]:
+          - gridcell [ref=f4e1158]:
+            - button "Sunday, December 13, 2026" [ref=f4e1159] [cursor=pointer]: "13"
+          - gridcell [ref=f4e1160]:
+            - button "Monday, December 14, 2026" [ref=f4e1161] [cursor=pointer]: "14"
+          - gridcell [ref=f4e1162]:
+            - button "Tuesday, December 15, 2026" [ref=f4e1163] [cursor=pointer]: "15"
+          - gridcell [ref=f4e1164]:
+            - button "Wednesday, December 16, 2026" [ref=f4e1165] [cursor=pointer]: "16"
+          - gridcell [ref=f4e1166]:
+            - button "Thursday, December 17, 2026" [ref=f4e1167] [cursor=pointer]: "17"
+          - gridcell [ref=f4e1168]:
+            - button "Friday, December 18, 2026" [ref=f4e1169] [cursor=pointer]: "18"
+          - gridcell [ref=f4e1170]:
+            - button "Saturday, December 19, 2026" [ref=f4e1171] [cursor=pointer]: "19"
+        - row [ref=f4e1172]:
+          - gridcell [ref=f4e1173]:
+            - button "Sunday, December 20, 2026" [ref=f4e1174] [cursor=pointer]: "20"
+          - gridcell [ref=f4e1175]:
+            - button "Monday, December 21, 2026" [ref=f4e1176] [cursor=pointer]: "21"
+          - gridcell [ref=f4e1177]:
+            - button "Tuesday, December 22, 2026" [ref=f4e1178] [cursor=pointer]: "22"
+          - gridcell [ref=f4e1179]:
+            - button "Wednesday, December 23, 2026" [ref=f4e1180] [cursor=pointer]: "23"
+          - gridcell [ref=f4e1181]:
+            - button "Thursday, December 24, 2026" [ref=f4e1182] [cursor=pointer]: "24"
+          - gridcell [ref=f4e1183]:
+            - button "Friday, December 25, 2026" [ref=f4e1184] [cursor=pointer]: "25"
+          - gridcell [ref=f4e1185]:
+            - button "Saturday, December 26, 2026" [ref=f4e1186] [cursor=pointer]: "26"
+        - row [ref=f4e1187]:
+          - gridcell [ref=f4e1188]:
+            - button "Sunday, December 27, 2026" [ref=f4e1189] [cursor=pointer]: "27"
+          - gridcell [ref=f4e1190]:
+            - button "Monday, December 28, 2026" [ref=f4e1191] [cursor=pointer]: "28"
+          - gridcell [ref=f4e1192]:
+            - button "Tuesday, December 29, 2026" [ref=f4e1193] [cursor=pointer]: "29"
+          - gridcell [ref=f4e1194]:
+            - button "Wednesday, December 30, 2026" [ref=f4e1195] [cursor=pointer]: "30"
+          - gridcell [ref=f4e1196]:
+            - button "Thursday, December 31, 2026" [ref=f4e1197] [cursor=pointer]: "31"
+          - gridcell [disabled] [ref=f4e1198]:
+            - button "Friday, January 1, 2027" [disabled] [ref=f4e1199]: "1"
+          - gridcell [disabled] [ref=f4e1200]:
+            - button "Saturday, January 2, 2027" [disabled] [ref=f4e1201]: "2"
+    - button "Next" [ref=f4e1203] [cursor=pointer]

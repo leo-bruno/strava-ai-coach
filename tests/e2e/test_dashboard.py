@@ -373,3 +373,172 @@ def test_dashboard_theme_surfaces_follow_light_and_dark(server, dark_server):
         assert themes[0]["appBackground"] == themes[1]["appBackground"]
         assert themes[0]["appText"] == themes[1]["appText"]
         browser.close()
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1440, "height": 1000}, {"width": 390, "height": 844}])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_shared_control_focus_is_single_visible_and_keyboard_usable(server, dark_server, viewport, theme):
+    address = dark_server if theme == "dark" else server
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport=viewport)
+        page.goto(address)
+        combo = page.get_by_label("Semana de la agenda")
+        if viewport["width"] <= 680:
+            combo.click()
+            pointer_focus = combo.evaluate("""el => ({
+                shadow: getComputedStyle(el.closest('[role=group]')).boxShadow,
+                border: getComputedStyle(el.closest('[role=group]')).borderColor,
+                outline: parseFloat(getComputedStyle(el).outlineWidth),
+                focusVisible: el.matches(':focus-visible'),
+                focusVisibleData: el.getAttribute('data-focus-visible'),
+                groupFocusVisibleData: el.closest('[role=group]').getAttribute('data-focus-visible'),
+            })""")
+            assert pointer_focus["shadow"] == "none", pointer_focus
+            assert pointer_focus["border"] not in ("rgb(255, 75, 75)", "rgb(255, 0, 0)"), pointer_focus
+            assert float(pointer_focus["outline"]) == 0, pointer_focus
+            assert pointer_focus["focusVisibleData"] is None, pointer_focus
+            assert pointer_focus["groupFocusVisibleData"] is None, pointer_focus
+            combo.press("Tab")
+            page.keyboard.press("Shift+Tab")
+        else:
+            for _ in range(40):
+                if combo.evaluate("el => el === document.activeElement"):
+                    break
+                page.keyboard.press("Tab")
+            assert combo.evaluate("el => el === document.activeElement && el.matches(':focus-visible')")
+            page.keyboard.press("Shift+Tab")
+            assert page.evaluate("document.activeElement.matches(':focus-visible')")
+            page.keyboard.press("Tab")
+            assert combo.evaluate("el => el === document.activeElement && el.matches(':focus-visible')")
+        assert combo.get_attribute("data-focus-visible") == "true"
+        combo_style = combo.evaluate("""el => {
+            const group = el.closest('[role=group]');
+            const outer = getComputedStyle(group);
+            const inner = getComputedStyle(el);
+            return {
+                boxShadow: outer.boxShadow,
+                borderColor: outer.borderColor,
+                outlineStyle: inner.outlineStyle,
+                outlineWidth: parseFloat(inner.outlineWidth),
+                outlineColor: inner.outlineColor,
+                focusVisibleData: el.getAttribute('data-focus-visible'),
+                focusVisible: el.matches(':focus-visible'),
+            };
+        }""")
+        assert combo_style["boxShadow"] == "none", combo_style
+        assert combo_style["borderColor"] not in ("rgb(255, 75, 75)", "rgb(255, 0, 0)"), combo_style
+        assert combo_style["outlineStyle"] == "solid" and combo_style["outlineWidth"] >= 2, combo_style
+        assert combo_style["focusVisible"], combo_style
+        assert _contrast_ratio(combo_style["outlineColor"], _effective_background(combo)) >= 3, combo_style
+        assert combo_style["focusVisibleData"] == "true", combo_style
+        combo.press("ArrowDown")
+        if viewport["width"] > 680:
+            assert combo.evaluate("el => el.getAttribute('aria-expanded')") == "true"
+            page.keyboard.press("Escape")
+            assert combo.evaluate("el => el.getAttribute('aria-expanded')") == "false"
+            combo.press("ArrowDown")
+            combo.press("Enter")
+            page.get_by_text("Semana de agenda:", exact=False).wait_for()
+
+        if viewport["width"] <= 680:
+            page.set_viewport_size({"width": 1440, "height": 1000})
+        page.locator("[data-testid=stSidebar] label").filter(has_text="Coach").click()
+        page.get_by_label("Your time zone").wait_for()
+        page.set_viewport_size(viewport)
+        timezone = page.get_by_label("Your time zone")
+        timezone.focus()
+        timezone.press("ArrowDown")
+        assert timezone.evaluate("el => el.getAttribute('aria-expanded')") == "true"
+        page.keyboard.press("Escape")
+        timezone.fill("Europe/London")
+        timezone.press("ArrowDown")
+        timezone.press("Enter")
+        assert timezone.input_value() == "Europe/London"
+
+        date_group = page.get_by_role("group", name="Target date")
+        date_group.click()
+        page.get_by_role("grid").wait_for()
+        page.keyboard.press("Escape")
+        spinbutton = page.locator('[data-testid="stDateInput"] [role="spinbutton"]').first
+        spinbutton.wait_for()
+        date_value = date_group.locator('[role="spinbutton"]').evaluate_all(
+            "els => els.map(el => el.getAttribute('aria-valuenow'))"
+        )
+        spinbutton.focus()
+        date_focus = spinbutton.evaluate("""el => {
+            const field = el.closest('[data-testid="stDateInputField"]');
+            const wrapper = getComputedStyle(field);
+            const active = getComputedStyle(el);
+            return {
+                boxShadow: wrapper.boxShadow,
+                borderColor: wrapper.borderColor,
+                outlineStyle: active.outlineStyle,
+                outlineWidth: parseFloat(active.outlineWidth),
+                outlineColor: active.outlineColor,
+                appText: getComputedStyle(document.querySelector('.stApp')).color,
+                focusVisible: el.matches(':focus-visible'),
+            };
+        }""")
+        assert date_focus["boxShadow"] == "none", date_focus
+        assert date_focus["borderColor"] not in ("rgb(255, 75, 75)", "rgb(255, 0, 0)"), date_focus
+        assert date_focus["outlineStyle"] == "solid" and date_focus["outlineWidth"] >= 2, date_focus
+        assert date_focus["focusVisible"], date_focus
+        assert _contrast_ratio(date_focus["outlineColor"], _effective_background(spinbutton)) >= 3, date_focus
+        assert date_group.locator('[role="spinbutton"]').evaluate_all(
+            "els => els.map(el => el.getAttribute('aria-valuenow'))"
+        ) == date_value
+        assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
+        browser.close()
+
+
+def _contrast_ratio(foreground, background):
+    def luminance(value):
+        channels = [int(part) / 255 for part in re.findall(r"\d+", value)[:3]]
+        linear = [channel / 12.92 if channel <= .04045 else ((channel + .055) / 1.055) ** 2.4 for channel in channels]
+        return sum(channel * weight for channel, weight in zip(linear, (.2126, .7152, .0722)))
+
+    first, second = luminance(foreground), luminance(background)
+    return (max(first, second) + .05) / (min(first, second) + .05)
+
+
+def _effective_background(locator):
+    return locator.evaluate("""element => {
+        const parseColor = value => {
+            const channels = value.match(/[\\d.]+/g).map(Number);
+            return [channels[0], channels[1], channels[2], value.startsWith('rgba') ? channels[3] : 1];
+        };
+        const layers = [];
+        for (let node = element; node; node = node.parentElement) {
+            layers.push(parseColor(getComputedStyle(node).backgroundColor));
+        }
+        let background = [0, 0, 0, 0];
+        for (const layer of layers.reverse()) {
+            const alpha = layer[3];
+            background = [
+                layer[0] * alpha + background[0] * (1 - alpha),
+                layer[1] * alpha + background[1] * (1 - alpha),
+                layer[2] * alpha + background[2] * (1 - alpha),
+                alpha + background[3] * (1 - alpha),
+            ];
+        }
+        if (background[3] < 0.999) {
+            const canvas = parseColor(getComputedStyle(document.documentElement).backgroundColor);
+            const alpha = canvas[3];
+            background = [
+                canvas[0] * alpha + background[0] * (1 - alpha),
+                canvas[1] * alpha + background[1] * (1 - alpha),
+                canvas[2] * alpha + background[2] * (1 - alpha),
+                alpha + background[3] * (1 - alpha),
+            ];
+        }
+        if (background[3] < 0.999) {
+            background = [
+                background[0] + 255 * (1 - background[3]),
+                background[1] + 255 * (1 - background[3]),
+                background[2] + 255 * (1 - background[3]),
+                1,
+            ];
+        }
+        return `rgb(${background.slice(0, 3).map(channel => Math.round(channel)).join(', ')})`;
+    }""")

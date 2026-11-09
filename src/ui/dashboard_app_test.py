@@ -85,7 +85,13 @@ def test_pending_training_date_shows_abbreviated_weekday_and_zero_padded_day():
 def test_dashboard_styles_do_not_render_in_coach_section():
     app = _app("Coach")
     assert not app.exception
-    assert "st-key-dashboard-home" not in _text(app)
+    text = _text(app)
+    text += "\n" + "\n".join(str(item.value) for item in app.html)
+    assert ".st-key-dashboard-home button:focus-visible" not in text
+    assert '[data-testid="stSelectbox"] [role="group"]:focus-within' in text
+    assert '[data-testid="stSelectbox"] [role="combobox"][data-focus-visible="true"]:focus-visible' in text
+    assert '[data-testid="stDateInputField"]:focus-within' in text
+    assert '[role="spinbutton"]:focus-visible' in text
 
 
 def test_agenda_week_is_independent_from_current_week_progress():

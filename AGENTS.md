@@ -370,6 +370,12 @@ read-only browser inspection (including `browser_evaluate`), screenshots,
 and starting or stopping a temporary app instance on a loopback port.
 Use the execution environment's approval prompt when it requires approval.
 
+The user has explicitly authorized running `.venv/bin/python -m pytest` and
+its arguments for relevant local validation without asking for permission in
+chat. This authorization applies only to that local pytest command; use the
+execution environment's approval prompt if the environment itself requires
+approval.
+
 Stop and ask the user when a decision materially affects:
 
 * Product behavior.

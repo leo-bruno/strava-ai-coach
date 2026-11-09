@@ -1,0 +1,98 @@
+- generic:
+  - generic [ref=f4e883]:
+    - log
+    - log
+  - generic [ref=f4e2]:
+    - link "Skip to main content" [ref=f4e920] [cursor=pointer]:
+      - /url: "#stMain"
+    - region "Sidebar" [ref=f4e921]:
+      - generic [ref=f4e8]:
+        - button "Collapse sidebar" [expanded] [ref=f4e396] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f4e398]: keyboard_double_arrow_left
+        - generic [ref=f4e12]:
+          - generic [ref=f4e922]:
+            - text: ↗
+            - strong [ref=f4e923]: Strava AI Coach
+          - paragraph [ref=f4e24]: Datos ficticios · solo demostración
+          - radiogroup "Navegación principal" [ref=f4e924]:
+            - generic [ref=f4e29] [cursor=pointer]:
+              - radio "▦ Inicio" [ref=f4e925]
+              - paragraph [ref=f4e34]: ▦ Inicio
+            - generic [ref=f4e36] [cursor=pointer]:
+              - radio "▤ Mi plan" [ref=f4e926]
+              - paragraph [ref=f4e41]: ▤ Mi plan
+            - generic [ref=f4e43] [cursor=pointer]:
+              - radio "◉ Estadísticas" [ref=f4e927]
+              - paragraph [ref=f4e48]: ◉ Estadísticas
+            - generic [ref=f4e50] [cursor=pointer]:
+              - radio "✦ Coach" [active] [ref=f4e928]
+              - paragraph [ref=f4e55]: ✦ Coach
+    - generic [ref=f4e4]:
+      - banner [ref=f4e58]:
+        - generic [ref=f4e61]:
+          - button "Deploy" [ref=f4e929] [cursor=pointer]
+          - button "Main menu" [ref=f4e930] [cursor=pointer]
+      - main [ref=f4e5]:
+        - generic [ref=f4e71]:
+          - heading "Coach" [level=1] [ref=f4e935]:
+            - text: Coach
+            - generic [ref=f4e936]:
+              - link "Link to heading":
+                - /url: "#coach"
+          - paragraph [ref=f4e941]: Valida una solicitud o prepara una respuesta experimental tras una acción explícita. No se consulta Strava desde esta pantalla.
+          - status [ref=f4e944]:
+            - paragraph [ref=f4e948]: Conecta Strava y carga un resumen semanal desde Estadísticas para preparar evidencia y generar una respuesta.
+          - button [ref=f4e951] [cursor=pointer]:
+            - paragraph [ref=f4e956]: Abrir Estadísticas
+          - generic [ref=f4e959]:
+            - generic [ref=f4e961]:
+              - paragraph [ref=f4e965]: Goal
+              - textbox "Goal" [disabled] [ref=f4e968]:
+                - /placeholder: ""
+                - text: Half marathon
+            - generic [ref=f4e970]:
+              - paragraph [ref=f4e974]: Your time zone
+              - group [ref=f4e976]:
+                - combobox "Your time zone" [ref=f4e977]: Europe/Madrid
+                - button "Open" [ref=f4e978] [cursor=pointer]
+            - generic [ref=f4e983]:
+              - paragraph [ref=f4e987]: Target date
+              - generic [ref=f4e989]:
+                - generic [ref=f4e991]:
+                  - group "Target date" [ref=f4e993]:
+                    - spinbutton "year, Target date" [ref=f4e994]: "2026"
+                    - generic [aria-hidden] [ref=f4e995]: /
+                    - spinbutton "month, Target date" [ref=f4e996]: "12"
+                    - generic [aria-hidden] [ref=f4e997]: /
+                    - spinbutton "day, Target date" [ref=f4e998]: "09"
+                  - textbox [ref=f4e1000]: 2026-12-09
+                - button "Choose date" [ref=f4e1002] [cursor=pointer]
+            - generic [ref=f4e1007]:
+              - paragraph [ref=f4e1011]: Available training days per week
+              - generic [ref=f4e1013]:
+                - spinbutton "Available training days per week" [ref=f4e1014]: "0"
+                - generic [ref=f4e1015]:
+                  - button "Decrement" [disabled] [ref=f4e1016]
+                  - button "Increment" [ref=f4e1019] [cursor=pointer]
+            - generic [ref=f4e1023]:
+              - generic [ref=f4e1024]:
+                - paragraph [ref=f4e1027]: Optional context for the Coach
+                - button "Help for Optional context for the Coach" [ref=f4e1031] [cursor=pointer]
+              - textbox "Optional context for the Coach" [ref=f4e1036]:
+                - /placeholder: ""
+            - button [ref=f4e1040] [cursor=pointer]:
+              - paragraph [ref=f4e1045]: Validate request
+            - generic [ref=f4e1047]:
+              - heading "Evidence context" [level=3] [ref=f4e1052]:
+                - text: Evidence context
+                - generic [ref=f4e1053]:
+                  - link "Link to heading":
+                    - /url: "#evidence-context"
+              - paragraph [ref=f4e1058]: Prepare deterministic evidence or generate a response. Both actions use the current request and loaded weekly summary.
+              - paragraph [ref=f4e1063]: Connect Strava to prepare Coach evidence context, then load the weekly overview.
+          - button [ref=f4e1066] [cursor=pointer]:
+            - paragraph [ref=f4e1071]: Clear Coach request, evidence and demo
+          - group [ref=f4e1074]:
+            - generic [ref=f4e1076] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f4e1078]: keyboard_arrow_right
+              - paragraph [ref=f4e1081]: Demo offline sintética

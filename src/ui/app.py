@@ -31,6 +31,7 @@ def render_app(ui=None) -> None:
         import streamlit as ui
 
     ui.set_page_config(page_title="Strava AI Coach", layout="wide")
+    _render_accessible_control_focus_styles(ui)
 
     query_params = getattr(ui, "query_params", None)
     callback_status = (
@@ -87,3 +88,31 @@ def render_app(ui=None) -> None:
     else:
         set_dashboard_view(ui.session_state, "Inicio")
         render_dashboard_home(ui)
+
+
+def _render_accessible_control_focus_styles(ui) -> None:
+    """Keep one high-contrast keyboard focus cue on shared Streamlit controls."""
+    ui.html(
+        """<style>
+        .stApp { --coach-focus-ring: CanvasText; }
+        .st-key-dashboard-home {
+            --coach-focus-ring: var(--primary-color, CanvasText);
+        }
+        .stApp [data-testid="stSelectbox"] [role="group"]:focus-within {
+            border-color: var(--border-color, #9aa7a9) !important;
+            box-shadow: none !important;
+        }
+        .stApp [data-testid="stSelectbox"] [role="combobox"][data-focus-visible="true"]:focus-visible {
+            outline: 2px solid var(--coach-focus-ring) !important;
+            outline-offset: 2px;
+        }
+        .stApp [data-testid="stDateInput"] [data-testid="stDateInputField"]:focus-within {
+            border-color: var(--border-color, #9aa7a9) !important;
+            box-shadow: none !important;
+        }
+        .stApp [data-testid="stDateInput"] [role="spinbutton"]:focus-visible {
+            outline: 2px solid var(--coach-focus-ring) !important;
+            outline-offset: 1px;
+        }
+        </style>""",
+    )

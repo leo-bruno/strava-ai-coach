@@ -301,8 +301,7 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-coach-preview [data-testid="stMarkdownContainer"] p { color:var(--text-color, inherit); }
         .st-key-dashboard-home button:focus-visible,
         .st-key-dashboard-home a:focus-visible,
-        .st-key-dashboard-home input:focus-visible,
-        .st-key-dashboard-home [role="combobox"]:focus-visible {
+        .st-key-dashboard-home input:not([role="combobox"]):focus-visible {
             outline: 2px solid var(--primary-color, currentColor) !important; outline-offset: 2px;
         }
         .st-key-dashboard-home .st-key-coach-preview button { margin-top:.25rem; }
