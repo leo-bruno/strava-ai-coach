@@ -11,6 +11,7 @@ from src.ui.dashboard import (
     PLAN_OPEN_KEY,
     PLAN_WEEK_KEY,
     _dashboard_summary,
+    _format_derived_pace,
     _format_kilometers,
     _date_label,
     _sample_sessions,
@@ -52,8 +53,9 @@ def test_home_is_fictional_and_dashboard_plan_starts_collapsed():
     assert ".stApp {" not in text
     assert 'font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif' in text
     assert ".stApp:has(.st-key-dashboard-home)" in text
-    assert "grid-template-columns:minmax(0, 54fr) minmax(0, 46fr)" in text
-    assert "grid-template-columns:minmax(0, 30fr) minmax(0, 24fr)" in text
+    assert "container:dashboard-top / inline-size" in text
+    assert "minmax(200px,20fr) minmax(165px,16fr) minmax(270px,27fr) minmax(380px,37fr)" in text
+    assert "container:dashboard-lower / inline-size" in text
     assert "class=\"dashboard-mock-badge\"" in text
     assert app.session_state[AGENDA_WEEK_KEY] == "current"
     assert app.session_state[PLAN_WEEK_KEY] == "current"
@@ -70,7 +72,7 @@ def test_dashboard_summary_uses_the_same_reference_date_for_sessions_distance_an
     assert (monday["completed_sessions"], monday["completed_distance_km"], monday["progress_percent"]) == (0, 0, 0)
     assert (midweek["completed_sessions"], midweek["completed_distance_km"], midweek["progress_percent"]) == (1, 6.8, 38)
     assert (sunday["completed_sessions"], sunday["completed_distance_km"], sunday["progress_percent"]) == (2, 11.4, 63)
-    assert all(summary["planned_sessions"] == 3 and summary["planned_distance_km"] == 18 for summary in (monday, midweek, sunday))
+    assert all(summary["planned_sessions"] == 4 and summary["planned_distance_km"] == 18 for summary in (monday, midweek, sunday))
     assert _format_kilometers(sunday["completed_distance_km"]) == "11,4"
 
 
@@ -91,9 +93,41 @@ def test_agenda_cards_keep_chronological_session_ordinals_and_dates():
         kicker = f"SESIÓN {ordinal:02d} · {_date_label(session['date']).upper()}"
         assert kicker in markup
         assert session["name"] in markup
-    assert [markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 4)] == sorted(
-        markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 4)
+    assert [markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 5)] == sorted(
+        markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 5)
     )
+
+
+def test_technique_fixture_has_time_only_and_no_invented_distance_or_pace():
+    reference_date = date(2026, 11, 4)
+    previous = next(
+        session for session in _sample_sessions("previous", reference_date)
+        if session["name"] == "Técnica de carrera"
+    )
+    current = next(
+        session for session in _sample_sessions("current", reference_date)
+        if session["name"] == "Técnica de carrera"
+    )
+    following = next(
+        session for session in _sample_sessions("next", reference_date)
+        if session["name"] == "Técnica de carrera"
+    )
+    assert (previous["planned"], previous["actual"], previous["actual_distance_km"]) == (
+        "20 min de técnica", "18 min", None
+    )
+    assert previous["actual_duration_min"] == 18
+    assert current["actual"] is None and current["planned_distance_km"] is None
+    assert following["actual"] is None and following["planned_distance_km"] is None
+    assert _format_derived_pace(previous) is None
+    completed_run = next(
+        session for session in _sample_sessions("current", reference_date)
+        if session["name"] == "Rodaje suave"
+    )
+    assert _format_derived_pace(completed_run) == "6:02 min/km"
+
+    markup = "\n".join(str(item.value) for item in _app(reference_date=reference_date).markdown)
+    assert "6:02 min/km · derivado" in markup
+    assert "Técnica de carrera" in markup
 
 
 def test_dashboard_styles_do_not_render_in_coach_section():

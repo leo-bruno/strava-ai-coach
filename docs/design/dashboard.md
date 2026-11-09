@@ -4,10 +4,11 @@ Diseño del boceto aprobado por el usuario el 7 de noviembre de 2026. [Abrir el 
 
 ## Inicio
 
-- En escritorio, barra lateral plegable con un botón junto a la marca. La primera fila reúne progreso y ritmo medio a la izquierda, entrenamientos al centro y agenda a la derecha. En pantallas estrechas los paneles se apilan.
+- En escritorio, barra lateral plegable con un botón junto a la marca. La fila principal muestra Progreso, Ritmo medio, Entrenamientos y Agenda en ese orden cuando el ancho útil alcanza 1052 px. Las proporciones son 20:16:27:37, con anchos mínimos de 200/165/270/380 px y 12 px entre módulos. Entre 710 y 1051 px la fila se divide en dos: Progreso/Ritmo y Entrenamientos/Agenda. Por debajo de 710 px se apila. Rendimiento y Coach ocupan dos columnas desde 710 px y una por debajo; Mi plan aparece al final a ancho completo.
 - El progreso semanal muestra número de semana o rango de fechas, sesiones realizadas frente a las previstas y kilómetros realizados frente a los previstos. El indicador utiliza un arco abierto de 240°. La parte turquesa representa el porcentaje del arco visible y el resto queda gris. Las sesiones pautadas por tiempo se presentan en minutos cuando no tienen distancia objetivo.
-- En Entrenamientos, un tick verde identifica las sesiones completadas. Las pendientes muestran una ficha con día y fecha, como «Dom 08».
-- La Agenda semanal tiene un selector para consultar semanas pasadas y futuras. Cambiar la semana de la agenda permite explorar otras sesiones mientras el progreso del inicio sigue mostrando la semana actual.
+- Entrenamientos presenta cuatro sesiones en filas compactas, con fecha y tick verde para las realizadas. Una sola fila destaca la siguiente sesión pendiente con un fondo pastel e indicador fino; la sesión realizada más reciente se atenúa cuando hay una. La segunda línea solo muestra distancia y ritmo cuando los datos existen. El ritmo derivado se rotula como tal; una sesión basada solo en tiempo no recibe distancia ni ritmo inventados.
+- La Agenda semanal tiene un selector para consultar semanas pasadas y futuras. Las cuatro sesiones se muestran en una cuadrícula 2×2 cuando el ancho interior alcanza 360 px; de lo contrario, se presentan en una lista. Cambiar la semana permite explorar otras sesiones mientras el progreso del inicio sigue mostrando la semana actual.
+- Los datos ficticios comparten una misma fuente para Entrenamientos, Agenda, Mi plan y el resumen. El objetivo semanal sigue en 18 km: la sesión de técnica del sábado dura 20 min y no añade distancia al objetivo. En la semana anterior figura con 18 min realizados y distancia desconocida.
 - Rendimiento ocupa un panel ancho junto al Coach. La composición se conserva como referencia. Las métricas y el diseño detallado de Rendimiento quedan pendientes.
 
 ## Mi plan y detalle

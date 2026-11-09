@@ -16,6 +16,16 @@ DASHBOARD_REFERENCE_DATE_KEY = "dashboard_reference_date"
 NAVIGATION_VIEWS = ("Inicio", "Mi plan", "Estadísticas", "Coach")
 NAVIGATION_ICONS = {"Inicio": "▦", "Mi plan": "▤", "Estadísticas": "◉", "Coach": "✦"}
 WEEK_OPTIONS = ("previous", "current", "next")
+DISTANCE_ICON = (
+    '<svg class="dashboard-training-metric-icon" viewBox="0 0 18 18" aria-hidden="true" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M2.5 5.5h13v7h-13zM5 5.5v3M8 5.5v2M11 5.5v3M14 5.5v2"/></svg>'
+)
+PACE_ICON = (
+    '<svg class="dashboard-training-metric-icon" viewBox="0 0 18 18" aria-hidden="true" '
+    'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M2.5 12a6.5 6.5 0 1 1 13 0"/><path d="m9 9 3.4-3.2"/><circle cx="9" cy="9" r="1"/></svg>'
+)
 
 
 def set_dashboard_view(session_state, view: str) -> None:
@@ -101,24 +111,29 @@ def _sample_sessions(week: str, reference_date: date | None = None) -> list[dict
     start, _ = _week_interval(week, reference_date)
     definitions = {
         "previous": (
-            (1, "Rodaje suave", "6 km suaves", "6,4 km en 38 min"),
-            (3, "Series", "5 × 800 m con 2 min de recuperación", None),
-            (6, "Tirada larga", "10 km suaves", "10,2 km en 59 min"),
+            (1, "Rodaje suave", "6 km suaves", "6,4 km en 38 min", 6.4, 38),
+            (3, "Series", "5 × 800 m con 2 min de recuperación", None, None, None),
+            (5, "Técnica de carrera", "20 min de técnica", "18 min", None, 18),
+            (6, "Tirada larga", "10 km suaves", "10,2 km en 59 min", 10.2, 59),
         ),
         "current": (
-            (1, "Rodaje suave", "7 km suaves", "6,8 km en 41 min"),
-            (3, "Carrera continua", "25 min a ritmo sostenido", "24 min · 4,6 km"),
-            (6, "Tirada larga", "11 km suaves", None),
+            (1, "Rodaje suave", "7 km suaves", "6,8 km en 41 min", 6.8, 41),
+            (3, "Carrera continua", "25 min a ritmo sostenido", "24 min · 4,6 km", 4.6, 24),
+            (5, "Técnica de carrera", "20 min de técnica", None, None, None),
+            (6, "Tirada larga", "11 km suaves", None, None, None),
         ),
         "next": (
-            (1, "Rodaje suave", "7 km suaves", None),
-            (3, "Series", "6 × 800 m con 2 min de recuperación", None),
-            (6, "Tirada larga", "12 km suaves", None),
+            (1, "Rodaje suave", "7 km suaves", None, None, None),
+            (3, "Series", "6 × 800 m con 2 min de recuperación", None, None, None),
+            (5, "Técnica de carrera", "20 min de técnica", None, None, None),
+            (6, "Tirada larga", "12 km suaves", None, None, None),
         ),
     }
     rows = []
     today = reference_date if reference_date is not None else date.today()
-    for day_offset, name, planned, actual in definitions.get(week, definitions["current"]):
+    for day_offset, name, planned, actual, actual_distance, actual_duration in definitions.get(
+        week, definitions["current"]
+    ):
         session_date = start + timedelta(days=day_offset)
         done = actual is not None and session_date <= today
         rows.append({
@@ -128,7 +143,8 @@ def _sample_sessions(week: str, reference_date: date | None = None) -> list[dict
             "planned": planned,
             "actual": actual if done else None,
             "planned_distance_km": {"Rodaje suave": 7.0, "Tirada larga": 11.0}.get(name),
-            "actual_distance_km": (6.8 if name == "Rodaje suave" else 10.2 if name == "Tirada larga" else 4.6) if done else None,
+            "actual_distance_km": actual_distance if done else None,
+            "actual_duration_min": actual_duration if done else None,
             "done": done,
         })
     return rows
@@ -188,30 +204,36 @@ def render_dashboard_styles(ui) -> None:
             box-shadow:0 1px 2px #17262818;
             font-family: inherit;
         }
-        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
-            display:grid !important; grid-template-columns:minmax(0, 30fr) minmax(0, 24fr);
-            align-items:stretch; gap:14px; min-width:0;
-        }
-        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] {
-            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
-        }
-        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] > div {
-            display:flex; flex-direction:column; height:100%; min-height:0;
-        }
-        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {
-            flex:1; height:100%; min-height:0;
-        }
+        .st-key-dashboard-home .st-key-dashboard-top { container:dashboard-top / inline-size; }
         .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-            display: grid !important;
-            grid-template-columns:minmax(0, 54fr) minmax(0, 46fr);
-            gap:14px;
+            display:grid !important; grid-template-columns:minmax(0,1fr);
+            align-items:stretch; gap:12px; min-width:0;
         }
         .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-            box-sizing: border-box; width: auto !important; min-width: 0; flex: none !important;
+            box-sizing:border-box; width:auto !important; min-width:0; max-width:100%; flex:none !important;
         }
-        .st-key-dashboard-home .st-key-dashboard-left-pile > [data-testid="stVerticalBlock"],
-        .st-key-dashboard-home .st-key-dashboard-right-pile > [data-testid="stVerticalBlock"] {
-            gap:16px;
+        .st-key-dashboard-home .st-key-dashboard-lower { container:dashboard-lower / inline-size; }
+        .st-key-dashboard-home .st-key-dashboard-lower > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+            display:grid !important; grid-template-columns:minmax(0,1fr);
+            align-items:stretch; gap:12px; min-width:0;
+        }
+        .st-key-dashboard-home .st-key-dashboard-lower > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+            box-sizing:border-box; width:auto !important; min-width:0; max-width:100%; flex:none !important;
+        }
+        @container dashboard-top (min-width:710px) {
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
+        }
+        @container dashboard-top (min-width:1052px) {
+            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:minmax(200px,20fr) minmax(165px,16fr) minmax(270px,27fr) minmax(380px,37fr);
+            }
+        }
+        @container dashboard-lower (min-width:710px) {
+            .st-key-dashboard-home .st-key-dashboard-lower > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
         }
         .st-key-dashboard-home .dashboard-kicker { color:#52666a; font-size:.72rem; font-weight:700; letter-spacing:.06em; }
         .st-key-dashboard-home .dashboard-number { color:#192629; font-size:clamp(23px,2.5vw,38px); font-weight:700; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
@@ -238,30 +260,47 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-coach-preview h3 { font-size:1.2rem; margin:0 0 10px; }
         .st-key-dashboard-home .st-key-dashboard-progress,
         .st-key-dashboard-home .st-key-dashboard-pace { position:relative; overflow:hidden; min-height:138px; }
-        .st-key-dashboard-home .st-key-dashboard-summary { min-width:0; }
         .st-key-dashboard-home .st-key-dashboard-home-header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { align-items:center; }
         .st-key-dashboard-home .dashboard-header-label { font-size:1.15rem; font-weight:600; letter-spacing:-.035em; }
         .st-key-dashboard-home .st-key-dashboard-intro { margin:8px 0 20px; }
         .st-key-dashboard-home .st-key-dashboard-intro p { margin:6px 0 0; color:#4c6166; font-size:.9rem; font-weight:500; }
-        .st-key-dashboard-home .dashboard-progress-row,
-        .st-key-dashboard-home .dashboard-pace-row { position:relative; min-height:62px; display:flex; align-items:center; }
+        .st-key-dashboard-home .dashboard-progress-row { position:relative; min-height:62px; display:flex; align-items:center; }
         .st-key-dashboard-home .dashboard-progress-row { padding-bottom:10px; }
         .st-key-dashboard-home .dashboard-progress-copy { max-width:70%; position:relative; z-index:1; }
         .st-key-dashboard-home .dashboard-progress-copy p { margin:5px 0 0; color:#52666a; font-size:.78rem; }
         .st-key-dashboard-home .dashboard-arc { position:absolute; right:5px; bottom:3px; width:35%; max-width:130px; height:auto; }
-        .st-key-dashboard-home .dashboard-pace-bars { position:absolute; right:0; bottom:-6px; width:43%; height:54px; display:flex; align-items:end; gap:5px; }
+        .st-key-dashboard-home .dashboard-pace-row { display:grid; grid-template-rows:auto 54px; gap:5px; min-width:0; }
+        .st-key-dashboard-home .dashboard-pace-value { display:flex; align-items:baseline; gap:5px; min-width:0; }
+        .st-key-dashboard-home .dashboard-pace-bars { position:relative; width:100%; height:54px; display:flex; align-items:end; gap:5px; }
         .st-key-dashboard-home .dashboard-pace-bars span { width:12%; height:var(--h); min-width:4px; border-radius:3px; background:repeating-linear-gradient(to top,#f5a7bb 0 6px,transparent 6px 8px); }
         .st-key-dashboard-home .dashboard-pace-bars span:nth-child(4) { background:repeating-linear-gradient(to top,#f32c59 0 6px,transparent 6px 8px); }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] { padding:12px 8px; border-bottom:1px solid #e5ecee; }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"]:last-child { border-bottom:0; padding-bottom:16px; }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stHorizontalBlock"] {
-            display:grid !important; grid-template-columns:minmax(68px,1fr) minmax(0,5fr); align-items:center; gap:8px;
+        .st-key-dashboard-home .dashboard-training-list { display:grid; min-width:0; }
+        .st-key-dashboard-home .dashboard-training-row {
+            box-sizing:border-box; display:grid; grid-template-columns:92px minmax(0,1fr);
+            align-items:center; gap:10px; min-width:0; padding:8px 6px;
+            border-bottom:1px solid #e5ecee; border-radius:7px;
         }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stColumn"] {
-            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
+        .st-key-dashboard-home .dashboard-training-row:last-child { border-bottom:0; }
+        .st-key-dashboard-home .dashboard-training-row-next {
+            background:#eef7f7; border-left:3px solid #12afbc; padding-left:3px;
         }
+        .st-key-dashboard-home .dashboard-training-row-recent { background:#f4f6f6; }
+        .st-key-dashboard-home .dashboard-training-identity { display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; }
+        .st-key-dashboard-home .dashboard-training-copy { min-width:0; }
+        .st-key-dashboard-home .dashboard-training-copy .dashboard-session-title { display:block; overflow-wrap:anywhere; }
+        .st-key-dashboard-home .dashboard-training-metrics {
+            display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px;
+            min-width:0; color:#52666a; font-size:.76rem; line-height:1.35;
+        }
+        .st-key-dashboard-home .dashboard-training-metric {
+            display:inline-flex; align-items:center; gap:3px; min-width:0; overflow-wrap:anywhere;
+        }
+        .st-key-dashboard-home .dashboard-training-metric-icon {
+            display:block; flex:none; width:16px; height:16px;
+        }
+        .st-key-dashboard-home .st-key-dashboard-agenda { container:dashboard-agenda / inline-size; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
-            box-sizing:border-box; display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+            box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr);
             align-items:stretch; grid-auto-rows:auto; gap:8px; width:100%; max-width:100%; min-width:0;
         }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card {
@@ -274,6 +313,11 @@ def render_dashboard_styles(ui) -> None:
         }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status {
             font-size:.75rem; color:#52666a; min-width:0; max-width:100%; overflow-wrap:anywhere;
+        }
+        @container dashboard-agenda (min-width:360px) {
+            .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
         }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done { color:#09664f; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done::before { content:"✓ "; font-weight:800; }
@@ -309,11 +353,6 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-coach-preview button { margin-top:.25rem; }
         .st-key-dashboard-home a, .st-key-dashboard-home a:hover { text-decoration:none; }
         .st-key-dashboard-home h1 { overflow-wrap: normal; word-break: normal; hyphens: none; }
-        @media(max-width: 1000px) {
-            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-                grid-template-columns:minmax(0,1fr);
-            }
-        }
         @media(max-width: 680px) {
             .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] { margin:6px; min-height:auto; }
             .stApp:has(.st-key-dashboard-home) [data-testid="stSidebar"] [data-testid="stRadio"] > div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -327,19 +366,7 @@ def render_dashboard_styles(ui) -> None:
             .st-key-dashboard-home .st-key-dashboard-performance,
             .st-key-dashboard-home .st-key-coach-preview { padding:.9rem; }
         }
-        @media(max-width:680px) {
-            .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
-                grid-template-columns:repeat(2,minmax(0,1fr));
-            }
-            .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
-                grid-template-columns:minmax(0,1fr);
-            }
-            .st-key-dashboard-home .dashboard-pace-bars { bottom:14px; }
-        }
         @media(max-width:390px) {
-            .st-key-dashboard-home .st-key-dashboard-agenda .agenda-grid {
-                grid-template-columns:minmax(0,1fr);
-            }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { gap:6px; }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading [data-testid="stSelectbox"] { min-width:0; }
         }
@@ -385,54 +412,104 @@ def _format_kilometers(distance: float) -> str:
     return f"{distance:.1f}".replace(".", ",")
 
 
-def _render_progress_and_pace(ui, reference_date: date) -> None:
+def _format_derived_pace(session: dict[str, object]) -> str | None:
+    distance = session["actual_distance_km"]
+    duration = session["actual_duration_min"]
+    if distance is None or duration is None or float(distance) <= 0:
+        return None
+    minutes, seconds = divmod(round(float(duration) * 60 / float(distance)), 60)
+    return f"{minutes}:{seconds:02d} min/km"
+
+
+def _render_progress(ui, reference_date: date) -> None:
     summary = _dashboard_summary(reference_date)
-    with ui.container(key="dashboard-summary"):
-        progress, pace = ui.columns([30, 24], gap="small")
-        with progress:
-            with ui.container(border=True, key="dashboard-progress"):
-                ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
-                ui.markdown(
-                    '<h2>Progreso semanal</h2><div class="dashboard-progress-row">'
-                    f'<div class="dashboard-progress-copy"><div class="dashboard-number">{_format_kilometers(summary["completed_distance_km"])} km '
-                    f'<span class="dashboard-unit">/ {summary["planned_distance_km"]:g} km</span></div>'
-                    f'<p>{summary["completed_sessions"]} de {summary["planned_sessions"]} entrenamientos</p></div>'
-                    + _progress_arc(int(summary["progress_percent"])) + '</div>',
-                    unsafe_allow_html=True,
-                )
-        with pace:
-            with ui.container(border=True, key="dashboard-pace"):
-                ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
-                bars = (48, 73, 51, 92, 54, 74, 32)
-                ui.markdown(
-                    '<h2>Ritmo medio</h2><div class="dashboard-pace-row"><div class="dashboard-number">'
-                    '5:42 <span class="dashboard-small">/km</span></div>'
-                    '<div class="dashboard-pace-bars" role="img" aria-label="Ritmos ficticios de ejemplo">'
-                    + "".join(f'<span style="--h:{height}%"></span>' for height in bars)
-                    + '</div></div>',
-                    unsafe_allow_html=True,
-                )
+    with ui.container(border=True, key="dashboard-progress"):
+        ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
+        ui.markdown(
+            '<h2>Progreso semanal</h2><div class="dashboard-progress-row">'
+            f'<div class="dashboard-progress-copy"><div class="dashboard-number">{_format_kilometers(summary["completed_distance_km"])} km '
+            f'<span class="dashboard-unit">/ {summary["planned_distance_km"]:g} km</span></div>'
+            f'<p>{summary["completed_sessions"]} de {summary["planned_sessions"]} entrenamientos</p></div>'
+            + _progress_arc(int(summary["progress_percent"])) + '</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def _render_pace(ui) -> None:
+    with ui.container(border=True, key="dashboard-pace"):
+        ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
+        bars = (48, 73, 51, 92, 54, 74, 32)
+        ui.markdown(
+            '<h2>Ritmo medio</h2><div class="dashboard-pace-row">'
+            '<div class="dashboard-pace-value"><span class="dashboard-number">5:42</span>'
+            '<span class="dashboard-small">/km</span></div>'
+            '<div class="dashboard-pace-bars" role="img" aria-label="Ritmos ficticios de ejemplo">'
+            + "".join(f'<span style="--h:{height}%"></span>' for height in bars)
+            + '</div></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _render_training(ui, reference_date: date) -> None:
     with ui.container(border=True, key="dashboard-training"):
         ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
         ui.subheader("Entrenamientos")
-        for session in _sample_sessions("current", reference_date):
-            with ui.container(key=f"training-{session['id']}"):
-                first, second = ui.columns([1, 5])
-                with first:
-                    if session["done"]:
-                        ui.markdown('<span class="dashboard-done" aria-label="Completado">✓</span>', unsafe_allow_html=True)
-                    else:
-                        ui.markdown(f'<span class="dashboard-date">{_date_label(session["date"], compact=True)}</span>', unsafe_allow_html=True)
-                with second:
-                    ui.markdown(f'<span class="dashboard-session-title">{session["name"]}</span>', unsafe_allow_html=True)
-                    if session["done"]:
-                        detail = f"{session['planned']} previstos · {session['actual']} hechos"
-                    else:
-                        detail = f"{session['planned']} previstos · Próxima"
-                    ui.markdown(f'<div class="dashboard-session-detail">{detail}</div>', unsafe_allow_html=True)
+        sessions = _sample_sessions("current", reference_date)
+        upcoming = next((session for session in sessions if not session["done"]), None)
+        recent = max(
+            (session for session in sessions if session["done"]),
+            key=lambda session: session["date"],
+            default=None,
+        )
+        rows = []
+        for session in sessions:
+            classes = ["dashboard-training-row"]
+            if session is upcoming:
+                classes.append("dashboard-training-row-next")
+            if session is recent:
+                classes.append("dashboard-training-row-recent")
+            date_label = escape(_date_label(session["date"], compact=True))
+            completion = (
+                '<span class="dashboard-done" aria-label="Completado">✓</span>'
+                if session["done"] else ""
+            )
+            if session["done"] and session["actual_distance_km"] is not None:
+                distance = escape(f'{_format_kilometers(float(session["actual_distance_km"]))} km hechos')
+                metrics = [
+                    '<span class="dashboard-training-metric">'
+                    f'{DISTANCE_ICON}'
+                    f'{distance}</span>'
+                ]
+                pace = _format_derived_pace(session)
+                if pace is not None:
+                    metrics.append(
+                        '<span class="dashboard-training-metric" aria-label="Ritmo derivado">'
+                        f'{PACE_ICON}'
+                        f'{escape(pace)} · derivado</span>'
+                    )
+                detail_markup = f'<div class="dashboard-training-metrics">{"".join(metrics)}</div>'
+            else:
+                if session["done"]:
+                    detail = f'{session["planned"]} previstos · {session["actual"]} realizados'
+                else:
+                    detail = f'{session["planned"]} · Próxima'
+                planned_distance = session["planned_distance_km"]
+                if not session["done"] and planned_distance is not None:
+                    distance = escape(f'{_format_kilometers(float(planned_distance))} km previstos')
+                    detail_markup = (
+                        '<div class="dashboard-training-metrics"><span class="dashboard-training-metric">'
+                        f'{DISTANCE_ICON}'
+                        f'{distance}</span><span class="dashboard-session-detail">Próxima</span></div>'
+                    )
+                else:
+                    detail_markup = f'<div class="dashboard-session-detail">{escape(detail)}</div>'
+            rows.append(
+                f'<article class="{" ".join(classes)}"><div class="dashboard-training-identity">'
+                f'<span class="dashboard-date">{date_label}</span>{completion}</div>'
+                f'<div class="dashboard-training-copy"><div class="dashboard-session-title">'
+                f'{escape(str(session["name"]))}</div>{detail_markup}</div></article>'
+            )
+        ui.markdown(f'<div class="dashboard-training-list">{"".join(rows)}</div>', unsafe_allow_html=True)
 
 
 def _render_agenda(ui, reference_date: date) -> None:
@@ -520,45 +597,52 @@ def _render_dashboard_home_content(ui) -> None:
         ui.markdown(f"<p>{summary['completed_sessions']} de {summary['planned_sessions']} sesiones completadas · {current_start:%-d}–{current_end:%-d %b}</p>", unsafe_allow_html=True)
 
     with ui.container(key="dashboard-top"):
-        left_pile, right_pile = ui.columns([54, 46], gap="small")
-        with left_pile:
-            with ui.container(key="dashboard-left-pile"):
-                _render_progress_and_pace(ui, reference_date)
-                _render_training(ui, reference_date)
-                with ui.container(border=True, key="dashboard-performance"):
-                    ui.markdown('<div class="dashboard-kicker">RENDIMIENTO</div>', unsafe_allow_html=True)
-                    ui.subheader("En preparación")
-                    ui.info("Las métricas de rendimiento todavía no están definidas; aquí no se muestran datos del atleta.")
-        with right_pile:
-            with ui.container(key="dashboard-right-pile"):
-                _render_agenda(ui, reference_date)
-                with ui.container(border=True, key="coach-preview"):
-                    ui.subheader("Coach")
-                    ui.caption("Interpreta tu contexto y las observaciones semanales cargadas.")
-                    ui.warning("Generación experimental · modelo no aceptado. No se generan respuestas automáticamente.")
-                    ui.button(
-                        "Abrir Coach",
-                        key="open-coach-from-dashboard",
-                        type="primary",
-                        on_click=set_dashboard_view,
-                        args=(ui.session_state, "Coach"),
-                    )
+        progress, pace, training, agenda = ui.columns([20, 16, 27, 37], gap="small")
+        with progress:
+            _render_progress(ui, reference_date)
+        with pace:
+            _render_pace(ui)
+        with training:
+            _render_training(ui, reference_date)
+        with agenda:
+            _render_agenda(ui, reference_date)
 
-    with ui.expander("Mi plan · ejemplo", expanded=False):
-        ui.caption("Plan ficticio. No se guarda ni se vincula con actividades reales.")
-        selected_week = ui.selectbox(
-            "Semana del plan",
-            options=WEEK_OPTIONS,
-            format_func=lambda week: _week_label(week, reference_date),
-            key=PLAN_WEEK_KEY,
-        )
-        _render_plan_sessions(ui, selected_week, reference_date)
-        ui.button(
-            "Abrir Mi plan",
-            key="open-plan-from-dashboard",
-            on_click=set_dashboard_view,
-            args=(ui.session_state, "Mi plan"),
-        )
+    with ui.container(key="dashboard-lower"):
+        performance, coach = ui.columns([1, 1], gap="small")
+        with performance:
+            with ui.container(border=True, key="dashboard-performance"):
+                ui.markdown('<div class="dashboard-kicker">RENDIMIENTO</div>', unsafe_allow_html=True)
+                ui.subheader("En preparación")
+                ui.info("Las métricas de rendimiento todavía no están definidas; aquí no se muestran datos del atleta.")
+        with coach:
+            with ui.container(border=True, key="coach-preview"):
+                ui.subheader("Coach")
+                ui.caption("Interpreta tu contexto y las observaciones semanales cargadas.")
+                ui.warning("Generación experimental · modelo no aceptado. No se generan respuestas automáticamente.")
+                ui.button(
+                    "Abrir Coach",
+                    key="open-coach-from-dashboard",
+                    type="primary",
+                    on_click=set_dashboard_view,
+                    args=(ui.session_state, "Coach"),
+                )
+
+    with ui.container(key="dashboard-plan"):
+        with ui.expander("Mi plan · ejemplo", expanded=False):
+            ui.caption("Plan ficticio. No se guarda ni se vincula con actividades reales.")
+            selected_week = ui.selectbox(
+                "Semana del plan",
+                options=WEEK_OPTIONS,
+                format_func=lambda week: _week_label(week, reference_date),
+                key=PLAN_WEEK_KEY,
+            )
+            _render_plan_sessions(ui, selected_week, reference_date)
+            ui.button(
+                "Abrir Mi plan",
+                key="open-plan-from-dashboard",
+                on_click=set_dashboard_view,
+                args=(ui.session_state, "Mi plan"),
+            )
 
 
 def render_dashboard_home(ui) -> None:

@@ -12,9 +12,9 @@ from playwright.sync_api import sync_playwright
 from src.ui.dashboard import _dashboard_summary, _date_label, _format_kilometers, _sample_sessions, _week_interval
 
 
-def _start_server(port: int, *theme_options: str):
+def _start_server(port: int, *theme_options: str, script_path: str = "src/main.py"):
     command = [
-        ".venv/bin/python", "-m", "streamlit", "run", "src/main.py",
+        ".venv/bin/python", "-m", "streamlit", "run", script_path,
         "--server.headless=true", f"--server.port={port}", *theme_options,
     ]
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -53,6 +53,27 @@ def dark_server():
     _stop_server(process)
 
 
+@pytest.fixture(scope="module")
+def completed_dashboard_servers(tmp_path_factory):
+    launcher_dir = tmp_path_factory.mktemp("dashboard-completed")
+    launcher = launcher_dir / "app.py"
+    project_root = Path(__file__).resolve().parents[2]
+    launcher.write_text(
+        "import sys\n"
+        "from datetime import date\n"
+        f"sys.path.insert(0, {str(project_root)!r})\n"
+        "import streamlit as st\n"
+        "st.session_state['dashboard_reference_date'] = date(2026, 11, 6)\n"
+        "from src.ui.app import render_app\n"
+        "render_app()\n"
+    )
+    light_process, light_address = _start_server(8772, script_path=str(launcher))
+    dark_process, dark_address = _start_server(8773, "--theme.base=dark", script_path=str(launcher))
+    yield {"light": light_address, "dark": dark_address}
+    _stop_server(light_process)
+    _stop_server(dark_process)
+
+
 def _select_option(page, label: str, option_name: str) -> None:
     selector = page.get_by_label(label)
     selector.fill(option_name)
@@ -66,87 +87,211 @@ def _assert_no_horizontal_overflow(page):
     )
 
 
+def _assert_pace_chart_below_unit(page):
+    bounds = page.evaluate("""() => {
+        const unit = document.querySelector('.dashboard-pace-value .dashboard-small').getBoundingClientRect();
+        const bars = document.querySelector('.dashboard-pace-bars').getBoundingClientRect();
+        return {unitBottom: unit.bottom, barsTop: bars.top};
+    }""")
+    assert bounds["barsTop"] >= bounds["unitBottom"], bounds
+
+
 def _assert_dashboard_card_geometry(page):
     geometry = page.evaluate("""() => {
-        const cardSelectors = [
-            '.st-key-dashboard-progress', '.st-key-dashboard-pace',
-            '.st-key-dashboard-training', '.st-key-dashboard-agenda',
-            '.st-key-dashboard-performance', '.st-key-coach-preview'
-        ];
-        const paddings = cardSelectors.map(selector => {
-            const style = getComputedStyle(document.querySelector(selector));
-            return [parseFloat(style.paddingTop), parseFloat(style.paddingBottom)];
-        });
-        const bottom = selector => document.querySelector(selector).getBoundingClientRect().bottom;
-        const top = selector => document.querySelector(selector).getBoundingClientRect().top;
-        const date = document.querySelector('.st-key-dashboard-training .dashboard-date');
-        const dateStyle = getComputedStyle(date);
-        const dateRect = date.getBoundingClientRect();
-        const columnRect = date.closest('[data-testid="stColumn"]').getBoundingClientRect();
-        const row = date.closest('[class*="st-key-training-"]');
-        const rowStyle = getComputedStyle(row);
-        const title = row.querySelector('.dashboard-session-title').getBoundingClientRect();
-        const trainingCard = document.querySelector('.st-key-dashboard-training');
-        const trainingRows = [...trainingCard.querySelectorAll('[class*="st-key-training-"]')];
-        const lastRow = trainingRows[trainingRows.length - 1];
-        const lastDetailBottom = lastRow.querySelector('.dashboard-session-detail').getBoundingClientRect().bottom;
-        const progressRect = document.querySelector('.st-key-dashboard-progress').getBoundingClientRect();
-        const paceRect = document.querySelector('.st-key-dashboard-pace').getBoundingClientRect();
-        const trainingRect = trainingCard.getBoundingClientRect();
-        const paceKicker = document.querySelector('.st-key-dashboard-pace .dashboard-kicker').getBoundingClientRect();
-        const paceBars = document.querySelector('.st-key-dashboard-pace .dashboard-pace-bars').getBoundingClientRect();
-        const trainingKicker = trainingCard.querySelector('.dashboard-kicker').getBoundingClientRect();
-        const range = document.createRange();
-        range.selectNodeContents(date);
+        const rect = selector => document.querySelector(selector).getBoundingClientRect();
+        const top = document.querySelector('.st-key-dashboard-top');
+        const topGrid = top.querySelector(':scope > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"]');
+        const lower = document.querySelector('.st-key-dashboard-lower');
+        const lowerGrid = lower.querySelector(':scope > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"]');
+        const agenda = document.querySelector('.st-key-dashboard-agenda');
+        const agendaGrid = agenda.querySelector('.agenda-grid');
+        const topCards = ['.st-key-dashboard-progress', '.st-key-dashboard-pace',
+            '.st-key-dashboard-training', '.st-key-dashboard-agenda'].map(selector => {
+                const bounds = rect(selector);
+                return {left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom};
+            });
+        const trainingRows = [...document.querySelectorAll('.dashboard-training-row')];
+        const nextRows = trainingRows.filter(row => row.classList.contains('dashboard-training-row-next'));
+        const recentRows = trainingRows.filter(row => row.classList.contains('dashboard-training-row-recent'));
+        const plan = rect('.st-key-dashboard-plan');
         return {
-            viewportWidth: window.innerWidth,
-            paddings,
-            progressCopyBottomGap: bottom('.st-key-dashboard-progress')
-                - document.querySelector('.st-key-dashboard-progress .dashboard-progress-copy').getBoundingClientRect().bottom,
-            trainingToPerformanceGap: top('.st-key-dashboard-performance') - bottom('.st-key-dashboard-training'),
-            agendaToCoachGap: top('.st-key-coach-preview') - bottom('.st-key-dashboard-agenda'),
-            dateTextRectCount: range.getClientRects().length,
-            dateFontFamily: dateStyle.fontFamily,
-            dateFontSize: parseFloat(dateStyle.fontSize),
-            dateFontWeight: dateStyle.fontWeight,
-            dateWhiteSpace: dateStyle.whiteSpace,
-            dateMinWidth: parseFloat(dateStyle.minWidth),
-            dateCenterOffset: Math.abs((dateRect.left + dateRect.right) / 2 - (columnRect.left + columnRect.right) / 2),
-            rowPadding: [parseFloat(rowStyle.paddingLeft), parseFloat(rowStyle.paddingRight)],
-            dateBeforeTitle: dateRect.right <= title.left,
-            trainingKickerTopInset: trainingKicker.top - trainingRect.top,
-            trainingLastDetailBottomInset: trainingRect.bottom - lastDetailBottom,
-            lastRowPaddingBottom: parseFloat(getComputedStyle(lastRow).paddingBottom),
-            paceKickerTopInset: paceKicker.top - paceRect.top,
-            paceBarsBottomInset: paceRect.bottom - paceBars.bottom,
-            progressToTrainingGap: trainingRect.top - progressRect.bottom,
-            paceToTrainingGap: trainingRect.top - paceRect.bottom,
-            summaryCardHeightDifference: Math.abs(progressRect.height - paceRect.height),
+            topWidth: top.getBoundingClientRect().width,
+            topColumns: getComputedStyle(topGrid).gridTemplateColumns.split(' ').filter(Boolean).length,
+            lowerWidth: lower.getBoundingClientRect().width,
+            lowerColumns: getComputedStyle(lowerGrid).gridTemplateColumns.split(' ').filter(Boolean).length,
+            agendaWidth: agenda.getBoundingClientRect().width,
+            agendaContentWidth: (() => {
+                const style = getComputedStyle(agenda);
+                return agenda.getBoundingClientRect().width
+                    - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+                    - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+            })(),
+                agendaContainerType: getComputedStyle(agenda).containerType,
+                agendaContainerName: getComputedStyle(agenda).containerName,
+            agendaColumns: getComputedStyle(agendaGrid).gridTemplateColumns.split(' ').filter(Boolean).length,
+            topCards,
+            performanceTop: rect('.st-key-dashboard-performance').top,
+            coachTop: rect('.st-key-coach-preview').top,
+            planTop: plan.top,
+            lowerBottom: Math.max(rect('.st-key-dashboard-performance').bottom, rect('.st-key-coach-preview').bottom),
+            trainingRows: trainingRows.map(row => row.innerText),
+            nextRowCount: nextRows.length,
+            nextRowText: nextRows[0]?.innerText,
+            nextRowBackground: nextRows[0] ? getComputedStyle(nextRows[0]).backgroundColor : null,
+            nextRowBorder: nextRows[0] ? getComputedStyle(nextRows[0]).borderLeftColor : null,
+            recentRowCount: recentRows.length,
+            recentRowText: recentRows[0]?.innerText,
+            recentRowBackground: recentRows[0] ? getComputedStyle(recentRows[0]).backgroundColor : null,
+            topWidths: topCards.map(card => card.right - card.left),
+            topGaps: topCards.slice(1).map((card, index) => card.left - topCards[index].right),
+            firstRowDateTextCount: (() => {
+                const range = document.createRange();
+                range.selectNodeContents(document.querySelector('.dashboard-training-row .dashboard-date'));
+                return range.getClientRects().length;
+            })(),
         };
     }""")
-    assert all(abs(top - bottom) < 0.1 for top, bottom in geometry["paddings"]), geometry
-    assert geometry["progressCopyBottomGap"] >= 8, geometry
-    assert geometry["trainingToPerformanceGap"] == pytest.approx(16, abs=1), geometry
-    assert geometry["agendaToCoachGap"] == pytest.approx(16, abs=1), geometry
-    assert geometry["dateTextRectCount"] == 1, geometry
-    assert geometry["dateFontFamily"].startswith("system-ui"), geometry
-    assert 12 <= geometry["dateFontSize"] <= 13, geometry
-    assert geometry["dateFontWeight"] == "700", geometry
-    assert geometry["dateWhiteSpace"] == "nowrap", geometry
-    assert geometry["dateMinWidth"] >= 52, geometry
-    assert geometry["dateCenterOffset"] <= 1, geometry
-    assert min(geometry["rowPadding"]) >= 8, geometry
-    assert geometry["dateBeforeTitle"], geometry
-    assert geometry["trainingKickerTopInset"] >= (14 if geometry["viewportWidth"] <= 680 else 16), geometry
-    assert geometry["trainingLastDetailBottomInset"] >= (14 if geometry["viewportWidth"] <= 680 else 16), geometry
-    assert geometry["lastRowPaddingBottom"] >= 12, geometry
-    assert geometry["paceKickerTopInset"] >= (14 if geometry["viewportWidth"] <= 680 else 16), geometry
-    assert geometry["paceBarsBottomInset"] >= 12, geometry
-    if geometry["viewportWidth"] > 680:
-        assert abs(geometry["paceKickerTopInset"] - geometry["paceBarsBottomInset"]) <= 6, geometry
-        assert geometry["summaryCardHeightDifference"] <= 1, geometry
-        assert geometry["progressToTrainingGap"] == pytest.approx(16, abs=1), geometry
-    assert geometry["paceToTrainingGap"] == pytest.approx(16, abs=1), geometry
+    expected_top_columns = 4 if geometry["topWidth"] >= 1052 else (2 if geometry["topWidth"] >= 710 else 1)
+    expected_lower_columns = 2 if geometry["lowerWidth"] >= 710 else 1
+    assert geometry["topColumns"] == expected_top_columns, geometry
+    assert geometry["lowerColumns"] == expected_lower_columns, geometry
+    assert geometry["agendaColumns"] == (2 if geometry["agendaContentWidth"] >= 360 else 1), (
+        geometry["agendaContentWidth"], geometry["agendaContainerType"], geometry["agendaContainerName"],
+        geometry["agendaColumns"]
+    )
+    assert geometry["firstRowDateTextCount"] == 1, geometry
+    assert len(geometry["trainingRows"]) == 4, geometry
+    assert geometry["nextRowCount"] == 1 and geometry["recentRowCount"] <= 1, geometry
+    if geometry["recentRowCount"]:
+        assert "Carrera continua" in geometry["recentRowText"], geometry
+        assert geometry["recentRowBackground"] == "rgb(244, 246, 246)", geometry
+    assert geometry["nextRowBackground"] == "rgb(238, 247, 247)", geometry
+    assert geometry["nextRowBorder"] == "rgb(18, 175, 188)", geometry
+    assert geometry["planTop"] >= geometry["lowerBottom"], geometry
+    cards = geometry["topCards"]
+    if expected_top_columns == 4:
+        assert max(card["top"] for card in cards) - min(card["top"] for card in cards) <= 1, geometry
+        assert [card["left"] for card in cards] == sorted(card["left"] for card in cards), geometry
+        assert all(width >= minimum - 1 for width, minimum in zip(geometry["topWidths"], (200, 165, 270, 380))), geometry
+        assert all(gap == pytest.approx(12, abs=1) for gap in geometry["topGaps"]), geometry
+    elif expected_top_columns == 2:
+        assert abs(cards[0]["top"] - cards[1]["top"]) <= 1, geometry
+        assert abs(cards[2]["top"] - cards[3]["top"]) <= 1, geometry
+        assert cards[2]["top"] > cards[0]["top"], geometry
+    else:
+        assert all(cards[index + 1]["top"] > cards[index]["top"] for index in range(3)), geometry
+    assert geometry["performanceTop"] >= max(card["bottom"] for card in cards), geometry
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_dashboard_content_width_breakpoints_and_visual_captures(server, dark_server, theme):
+    address = dark_server if theme == "dark" else server
+    viewports = [
+        (1728, 1117), (1440, 1000), (1024, 1000), (1052, 950), (1051, 950),
+        (710, 900), (709, 900), (393, 844), (390, 844), (320, 844),
+    ]
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        for width, height in viewports:
+            page = browser.new_page(
+                viewport={"width": width, "height": height}, device_scale_factor=1
+            )
+            page.goto(address)
+            page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
+            assert page.evaluate("window.devicePixelRatio") == 1
+            _assert_dashboard_card_geometry(page)
+            if width in (1440, 1728):
+                _assert_pace_chart_below_unit(page)
+            _assert_no_horizontal_overflow(page)
+            capture_dir = Path("test-results/ui-captures/after")
+            capture_dir.mkdir(parents=True, exist_ok=True)
+            page.screenshot(
+                path=str(capture_dir / f"dashboard-redesign-{theme}-{width}.png"),
+                full_page=True,
+            )
+            page.close()
+
+        threshold_page = browser.new_page(
+            viewport={"width": 1728, "height": 1117}, device_scale_factor=1
+        )
+        threshold_page.goto(address)
+        threshold_page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
+        top = threshold_page.locator(".st-key-dashboard-top")
+        lower = threshold_page.locator(".st-key-dashboard-lower")
+        for content_width, expected_top_columns in (
+            (1052, 4), (1051, 2), (1050, 2), (1049, 2), (710, 2), (709, 1)
+        ):
+            top.evaluate("(el, width) => el.style.width = width + 'px'", content_width)
+            lower.evaluate("(el, width) => el.style.width = width + 'px'", content_width)
+            top_columns = top.locator(
+                ":scope > [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]"
+            ).evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length")
+            lower_columns = lower.locator(
+                ":scope > [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]"
+            ).evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length")
+            assert top_columns == expected_top_columns, {
+                "theme": theme, "content_width": content_width, "top_columns": top_columns
+            }
+            assert lower_columns == (2 if content_width >= 710 else 1), {
+                "theme": theme, "content_width": content_width, "lower_columns": lower_columns
+            }
+        threshold_page.close()
+        browser.close()
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("width", [1440, 1024, 393])
+def test_completed_training_identity_geometry_and_captures(completed_dashboard_servers, theme, width):
+    address = completed_dashboard_servers[theme]
+    height = 844 if width == 393 else 1000
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
+        page.goto(address)
+        page.get_by_text("2 de 4 sesiones completadas · 2–8 Nov").wait_for()
+        rows = page.locator(".dashboard-training-row")
+        assert rows.count() == 4
+        for index, expected_date in ((0, "Mar 03"), (1, "Jue 05")):
+            row = rows.nth(index)
+            identity = row.locator(".dashboard-training-identity")
+            date_badge = identity.locator(".dashboard-date")
+            completion = identity.locator(".dashboard-done")
+            bounds = row.evaluate("""row => {
+                const rect = el => {
+                    const r = el.getBoundingClientRect();
+                    return {left:r.left, right:r.right, top:r.top, bottom:r.bottom};
+                };
+                return {
+                    identity:rect(row.querySelector('.dashboard-training-identity')),
+                    date:rect(row.querySelector('.dashboard-date')),
+                    check:rect(row.querySelector('.dashboard-done')),
+                    title:rect(row.querySelector('.dashboard-session-title')),
+                };
+            }""")
+            assert date_badge.inner_text() == expected_date
+            assert date_badge.is_visible() and completion.is_visible(), bounds
+            assert bounds["date"]["left"] >= bounds["identity"]["left"]
+            assert bounds["date"]["right"] <= bounds["identity"]["right"]
+            assert bounds["check"]["left"] >= bounds["identity"]["left"]
+            assert bounds["check"]["right"] <= bounds["identity"]["right"]
+            assert bounds["date"]["right"] <= bounds["check"]["left"], bounds
+            assert bounds["check"]["right"] < bounds["title"]["left"], bounds
+        assert "6:02 min/km · derivado" in rows.nth(0).inner_text()
+        assert "5:13 min/km · derivado" in rows.nth(1).inner_text()
+        assert rows.nth(2).locator(".dashboard-date").inner_text() == "Sáb 07"
+        assert "Próxima" in rows.nth(2).inner_text()
+        assert page.locator(".dashboard-training-copy").evaluate_all(
+            "els => els.every(el => el.scrollWidth <= el.clientWidth + 1)"
+        )
+        assert page.locator(".dashboard-training-metrics").evaluate_all(
+            "els => els.every(el => el.scrollWidth <= el.clientWidth + 1)"
+        )
+        _assert_no_horizontal_overflow(page)
+        page.screenshot(
+            path=f"test-results/ui-captures/after/dashboard-completed-{theme}-{width}.png",
+            full_page=True,
+        )
+        browser.close()
 
 
 def test_dashboard_responsive_navigation_and_agenda(server):
@@ -184,10 +329,26 @@ def test_dashboard_responsive_navigation_and_agenda(server):
         progress_copy = page.locator(".st-key-dashboard-progress .dashboard-progress-copy")
         assert f"{_format_kilometers(summary['completed_distance_km'])} km" in progress_copy.inner_text()
         assert f"{summary['completed_sessions']} de {summary['planned_sessions']} entrenamientos" in progress_copy.inner_text()
+        assert summary["planned_sessions"] == 4 and summary["planned_distance_km"] == 18
         assert page.locator(".st-key-dashboard-progress .dashboard-arc").get_attribute("aria-label") == (
             f"{summary['progress_percent']} % de la distancia prevista"
         )
         assert re.search(r"(?:Lun|Mar|Mié|Jue|Vie|Sáb|Dom) \d{2}", page.locator(".st-key-dashboard-training").inner_text())
+        training_rows = page.locator(".dashboard-training-row")
+        assert training_rows.count() == 4
+        assert training_rows.all_inner_texts()[2].find("Técnica de carrera") >= 0
+        for row in training_rows.all():
+            assert row.locator(".dashboard-session-title").is_visible()
+        technique_row = training_rows.filter(has_text="Técnica de carrera")
+        assert "20 min de técnica" in technique_row.inner_text()
+        assert "km" not in technique_row.inner_text() and "derivado" not in technique_row.inner_text()
+        metric_text = page.locator(".st-key-dashboard-training").inner_text()
+        if summary["completed_sessions"]:
+            assert "derivado" in metric_text.lower()
+        next_session = next(
+            session for session in _sample_sessions("current", date.today()) if not session["done"]
+        )
+        assert next_session["name"] in page.locator(".dashboard-training-row-next").inner_text()
 
         wrapper = page.locator(".st-key-dashboard-home")
         assert wrapper.evaluate("el => el.getBoundingClientRect().width") <= 1800
@@ -200,7 +361,9 @@ def test_dashboard_responsive_navigation_and_agenda(server):
 
         top_row = page.locator(".st-key-dashboard-top [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]").first
         assert top_row.count() == 1
-        assert len(top_row.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean)")) == 2
+        assert len(top_row.evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean)")) == (
+            4 if page.locator(".st-key-dashboard-top").evaluate("el => el.getBoundingClientRect().width") >= 1052 else 2
+        )
         _assert_dashboard_card_geometry(page)
         _assert_no_horizontal_overflow(page)
 
@@ -214,9 +377,9 @@ def test_dashboard_responsive_navigation_and_agenda(server):
         )
         desktop_16_layout = desktop_16.evaluate("""() => ({
             viewportHeight: window.innerHeight,
-            cards: ['.st-key-dashboard-summary', '.st-key-dashboard-progress', '.st-key-dashboard-pace',
-                '.st-key-dashboard-training', '.st-key-dashboard-performance', '.st-key-dashboard-agenda',
-                '.st-key-coach-preview'].map(selector => {
+            cards: ['.st-key-dashboard-progress', '.st-key-dashboard-pace',
+                '.st-key-dashboard-training', '.st-key-dashboard-agenda',
+                '.st-key-dashboard-performance', '.st-key-coach-preview', '.st-key-dashboard-plan'].map(selector => {
                 const rect = document.querySelector(selector).getBoundingClientRect();
                 return [selector, rect.top, rect.bottom, rect.height];
             }),
@@ -448,16 +611,25 @@ def _measure_agenda_grid(grid):
     }""")
 
 
+def _agenda_content_width(page):
+    return page.locator(".st-key-dashboard-agenda").evaluate("""agenda => {
+        const style = getComputedStyle(agenda);
+        const rect = agenda.getBoundingClientRect();
+        return rect.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+            - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+    }""")
+
+
 @pytest.mark.parametrize("width", [1728, 1440, 1024, 681, 680, 391, 390, 320])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_agenda_cards_reflow_without_overlap_clipping_or_overflow(server, dark_server, width, theme):
     address = dark_server if theme == "dark" else server
-    expected_columns = 3 if width > 680 else (2 if width > 390 else 1)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": width, "height": 1600}, device_scale_factor=1)
         page.goto(address)
         page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
+        expected_columns = 2 if _agenda_content_width(page) >= 360 else 1
         cards_grid = page.locator(".st-key-dashboard-agenda .agenda-grid")
         observed_statuses = set()
         for week in ("current", "previous"):
