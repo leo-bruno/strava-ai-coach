@@ -82,6 +82,20 @@ def test_pending_training_date_shows_abbreviated_weekday_and_zero_padded_day():
     assert "Dom 08" in _text(_app(reference_date=date(2026, 11, 4)))
 
 
+def test_agenda_cards_keep_chronological_session_ordinals_and_dates():
+    reference_date = date(2026, 11, 4)
+    app = _app(reference_date=reference_date)
+    markup = "\n".join(str(item.value) for item in app.markdown)
+    sessions = _sample_sessions("current", reference_date)
+    for ordinal, session in enumerate(sessions, start=1):
+        kicker = f"SESIÓN {ordinal:02d} · {_date_label(session['date']).upper()}"
+        assert kicker in markup
+        assert session["name"] in markup
+    assert [markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 4)] == sorted(
+        markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 4)
+    )
+
+
 def test_dashboard_styles_do_not_render_in_coach_section():
     app = _app("Coach")
     assert not app.exception

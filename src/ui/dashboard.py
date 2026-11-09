@@ -259,24 +259,24 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stColumn"] {
             box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-timeline-labels { display:flex; justify-content:space-between; gap:8px; margin:18px 0 8px; color:#52666a; font-size:.7rem; }
         .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-            display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; min-height:190px;
-            padding:8px; border-radius:10px; background:repeating-linear-gradient(90deg,#edf8f9 0 19.8%,#fff 19.8% 20%);
+            display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:max-content;
+            align-items:start; gap:8px; min-width:0;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { width:auto !important; min-width:0; flex:none !important; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] {
+            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
+            grid-column:auto !important; grid-row:auto !important; padding:8px;
+            background:#fff; border-radius:10px; box-shadow:0 2px 6px #24485014;
+        }
         .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] > div {
-            min-height:74px; padding:0; background:transparent; border-radius:0; box-shadow:none;
+            min-height:0; padding:0; background:transparent; border-radius:0; box-shadow:none;
         }
-        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { min-height:74px; padding:7px 9px; display:grid; align-content:start; gap:3px; background:#fff; border-radius:10px; box-shadow:0 2px 6px #24485014; }
+        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { box-sizing:border-box; min-width:0; display:grid; align-content:start; gap:4px; overflow-wrap:anywhere; background:transparent; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status { font-size:.75rem; color:#52666a; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done { color:#09664f; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-done::before { content:"✓ "; font-weight:800; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-next { color:#08646a; }
         .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card .agenda-status-next::before { content:"◷ "; font-weight:800; }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(1) { grid-column:span 3; }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(2) { grid-column:3 / 6; }
-        .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(3) { grid-column:2 / 5; }
         .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-kicker { font-size:.7rem; }
         .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-session-title { font-size:.88rem; }
         .st-key-dashboard-home .st-key-dashboard-agenda [data-testid="stCaptionContainer"] p { font-size:.75rem; }
@@ -326,6 +326,10 @@ def render_dashboard_styles(ui) -> None:
             .st-key-dashboard-home .st-key-coach-preview { padding:.9rem; }
         }
         @media(max-width:680px) {
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { grid-column:auto !important; grid-row:auto !important; }
             .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
                 grid-template-columns:minmax(0,1fr);
             }
@@ -333,10 +337,9 @@ def render_dashboard_styles(ui) -> None:
         }
         @media(max-width:390px) {
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-                grid-template-columns:minmax(0,1fr); gap:6px; padding:0; background:none;
+                grid-template-columns:minmax(0,1fr);
             }
-            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"]:nth-child(n) { grid-column:auto; }
-        .st-key-dashboard-home .st-key-dashboard-agenda .agenda-card { min-height:0; }
+            .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items [data-testid="stColumn"] { grid-column:auto !important; grid-row:auto !important; }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { gap:6px; }
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-heading [data-testid="stSelectbox"] { min-width:0; }
         }
@@ -448,23 +451,18 @@ def _render_agenda(ui, reference_date: date) -> None:
                     label_visibility="collapsed",
                 )
         ui.caption("Agenda · datos ficticios")
-        ui.markdown(
-            '<div class="dashboard-timeline-labels"><span>Día</span><span>Sesión 01</span>'
-            '<span>Sesión 02</span><span>Sesión 03</span></div>',
-            unsafe_allow_html=True,
-        )
         _, end = _week_interval(ui.session_state.get(AGENDA_WEEK_KEY, "current"), reference_date)
         selected_week = ui.session_state.get(AGENDA_WEEK_KEY, "current")
         sessions = _sample_sessions(selected_week, reference_date)
         with ui.container(key="agenda-items"):
             columns = ui.columns([1] * len(sessions))
-            for column, session in zip(columns, sessions):
+            for index, (column, session) in enumerate(zip(columns, sessions), start=1):
                 with column:
                     target = session["actual"] or session["planned"]
                     status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= reference_date else "Sin actividad vinculada")
                     status_class = "done" if session["done"] else ("next" if session["date"] >= reference_date else "unlinked")
                     ui.markdown(
-                        f'<div class="agenda-card"><div class="dashboard-kicker">{_date_label(session["date"]).upper()}</div>'
+                        f'<div class="agenda-card"><div class="dashboard-kicker">SESIÓN {index:02d} · {_date_label(session["date"]).upper()}</div>'
                         f'<div class="dashboard-session-title">{session["name"]}</div>'
                         f'<div class="agenda-status agenda-status-{status_class}">{target} · {status}</div></div>',
                         unsafe_allow_html=True,

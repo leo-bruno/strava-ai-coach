@@ -375,6 +375,102 @@ def test_dashboard_theme_surfaces_follow_light_and_dark(server, dark_server):
         browser.close()
 
 
+@pytest.mark.parametrize("width", [1728, 1440, 1024, 681, 680, 391, 390, 320])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_agenda_cards_reflow_without_overlap_clipping_or_overflow(server, dark_server, width, theme):
+    address = dark_server if theme == "dark" else server
+    expected_columns = 3 if width > 680 else (2 if width > 390 else 1)
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": width, "height": 1600}, device_scale_factor=1)
+        page.goto(address)
+        page.get_by_text("Cómo está tu entrenamiento esta semana").wait_for()
+        cards_grid = page.locator(
+            ".st-key-dashboard-agenda .st-key-agenda-items "
+            "> [data-testid=stLayoutWrapper] > [data-testid=stHorizontalBlock]"
+        )
+        layout = cards_grid.evaluate("""grid => {
+            const cards = [...grid.querySelectorAll('.agenda-card')];
+            const rects = cards.map(card => {
+                const rect = card.getBoundingClientRect();
+                const cardContent = [...card.querySelectorAll('.dashboard-kicker, .dashboard-session-title, .agenda-status')];
+                return {
+                    left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+                    scrollWidth: card.scrollWidth, clientWidth: card.clientWidth,
+                    scrollHeight: card.scrollHeight, clientHeight: card.clientHeight,
+                    overflowX: getComputedStyle(card).overflowX,
+                    overflowY: getComputedStyle(card).overflowY,
+                    contentInside: cardContent.every(node => {
+                        const child = node.getBoundingClientRect();
+                        return child.left >= rect.left - 1 && child.right <= rect.right + 1
+                            && child.top >= rect.top - 1 && child.bottom <= rect.bottom + 1;
+                    }),
+                };
+            });
+            const overlaps = [];
+                const cardBoxes = [...grid.querySelectorAll('[data-testid="stColumn"]')].map(column => {
+                    const rect = column.getBoundingClientRect();
+                    return {left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom};
+                });
+            for (let first = 0; first < rects.length; first++) {
+                    for (let second = first + 1; second < cardBoxes.length; second++) {
+                        const a = cardBoxes[first], b = cardBoxes[second];
+                    if (a.left < b.right - 1 && b.left < a.right - 1
+                        && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps.push([first, second]);
+                }
+            }
+            const rowGaps = [];
+            const columnGaps = [];
+                for (let first = 0; first < cardBoxes.length; first++) {
+                    for (let second = first + 1; second < cardBoxes.length; second++) {
+                        const a = cardBoxes[first], b = cardBoxes[second];
+                    const sameRow = Math.abs(a.top - b.top) < 1;
+                    const sameColumn = Math.abs(a.left - b.left) < 1;
+                    if (sameRow) columnGaps.push(Math.max(0, b.left - a.right, a.left - b.right));
+                    if (sameColumn) rowGaps.push(Math.max(0, b.top - a.bottom, a.top - b.bottom));
+                }
+            }
+            return {
+                columns: getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
+                columnGap: parseFloat(getComputedStyle(grid).columnGap),
+                rowGap: parseFloat(getComputedStyle(grid).rowGap),
+                domKickers: cards.map(card => card.querySelector('.dashboard-kicker').textContent.trim()),
+                overlaps, rowGaps, columnGaps,
+                cardsFit: rects.every(card => card.scrollWidth <= card.clientWidth + 1
+                    && card.scrollHeight <= card.clientHeight + 1
+                    && card.overflowX === 'visible' && card.overflowY === 'visible'
+                    && card.contentInside),
+                gridFits: grid.scrollWidth <= grid.clientWidth + 1,
+            };
+        }""")
+        expected_dates = [
+            f"SESIÓN {index:02d} · {_date_label(session['date']).upper()}"
+            for index, session in enumerate(_sample_sessions("current"), start=1)
+        ]
+        assert layout["columns"] == expected_columns, {"width": width, "theme": theme, **layout}
+        assert layout["domKickers"] == expected_dates, {"width": width, "theme": theme, **layout}
+        assert not layout["overlaps"], {"width": width, "theme": theme, **layout}
+        assert layout["columnGap"] >= 6 and layout["rowGap"] >= 6, {"width": width, "theme": theme, **layout}
+        assert all(gap >= 6 for gap in layout["columnGaps"] + layout["rowGaps"]), {
+            "width": width, "theme": theme, **layout
+        }
+        assert layout["cardsFit"] and layout["gridFits"], {"width": width, "theme": theme, **layout}
+        _assert_no_horizontal_overflow(page)
+
+        if width in (1440, 1024, 681, 391, 390):
+            capture_dir = Path("test-results/ui-captures/after")
+            capture_dir.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=str(capture_dir / f"agenda-{theme}-{width}.png"), full_page=True)
+
+        _select_option(page, "Semana de la agenda", "Siguiente")
+        expected_end = _week_interval("next")[1]
+        page.locator(".st-key-dashboard-agenda [data-testid=stCaptionContainer]").last.get_by_text(
+            re.compile(f"Semana de agenda: {expected_end:%d %b}"), exact=False
+        ).wait_for()
+        assert "SEMANA ACTUAL" in page.locator(".st-key-dashboard-progress").inner_text()
+        browser.close()
+
+
 @pytest.mark.parametrize("viewport", [{"width": 1440, "height": 1000}, {"width": 390, "height": 844}])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_shared_control_focus_is_single_visible_and_keyboard_usable(server, dark_server, viewport, theme):
