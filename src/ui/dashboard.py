@@ -10,6 +10,7 @@ PLAN_WEEK_KEY = "dashboard_plan_week"
 PLAN_OPEN_KEY = "dashboard_plan_open"
 DETAIL_SESSION_KEY = "dashboard_detail_session"
 RETURN_VIEW_KEY = "dashboard_return_view"
+DASHBOARD_REFERENCE_DATE_KEY = "dashboard_reference_date"
 
 NAVIGATION_VIEWS = ("Inicio", "Mi plan", "Estadísticas", "Coach")
 NAVIGATION_ICONS = {"Inicio": "▦", "Mi plan": "▤", "Estadísticas": "◉", "Coach": "✦"}
@@ -65,8 +66,14 @@ def render_sidebar(ui, *, view: str) -> str:
         )
 
 
+def _reference_date(session_state) -> date:
+    """Return one stable date anchor for all fictional dashboard calculations."""
+    value = session_state.setdefault(DASHBOARD_REFERENCE_DATE_KEY, date.today())
+    return value if isinstance(value, date) else date.today()
+
+
 def _week_start(reference: date | None = None) -> date:
-    current = reference or date.today()
+    current = reference if reference is not None else date.today()
     return current - timedelta(days=current.weekday())
 
 
@@ -77,20 +84,20 @@ def _week_interval(week: str, reference: date | None = None) -> tuple[date, date
     return start, start + timedelta(days=6)
 
 
-def _week_label(week: str) -> str:
-    start, end = _week_interval(week)
+def _week_label(week: str, reference_date: date | None = None) -> str:
+    start, end = _week_interval(week, reference_date)
     labels = {"previous": "Semana anterior", "current": "Semana actual", "next": "Semana siguiente"}
     return f"{labels.get(week, labels['current'])} · {start:%-d %b}–{end:%-d %b}"
 
 
-def _agenda_week_label(week: str) -> str:
-    start, end = _week_interval(week)
+def _agenda_week_label(week: str, reference_date: date | None = None) -> str:
+    start, end = _week_interval(week, reference_date)
     labels = {"previous": "Anterior", "current": "Actual", "next": "Siguiente"}
     return f"{labels.get(week, labels['current'])} · {start:%-d}–{end:%-d %b}"
 
 
-def _sample_sessions(week: str) -> list[dict[str, object]]:
-    start, _ = _week_interval(week)
+def _sample_sessions(week: str, reference_date: date | None = None) -> list[dict[str, object]]:
+    start, _ = _week_interval(week, reference_date)
     definitions = {
         "previous": (
             (1, "Rodaje suave", "6 km suaves", "6,4 km en 38 min"),
@@ -109,7 +116,7 @@ def _sample_sessions(week: str) -> list[dict[str, object]]:
         ),
     }
     rows = []
-    today = date.today()
+    today = reference_date if reference_date is not None else date.today()
     for day_offset, name, planned, actual in definitions.get(week, definitions["current"]):
         session_date = start + timedelta(days=day_offset)
         done = actual is not None and session_date <= today
@@ -119,6 +126,8 @@ def _sample_sessions(week: str) -> list[dict[str, object]]:
             "name": name,
             "planned": planned,
             "actual": actual if done else None,
+            "planned_distance_km": {"Rodaje suave": 7.0, "Tirada larga": 11.0}.get(name),
+            "actual_distance_km": (6.8 if name == "Rodaje suave" else 10.2 if name == "Tirada larga" else 4.6) if done else None,
             "done": done,
         })
     return rows
@@ -178,22 +187,30 @@ def render_dashboard_styles(ui) -> None:
             box-shadow:0 1px 2px #17262818;
             font-family: inherit;
         }
-        .st-key-dashboard-home .st-key-dashboard-summary {
-            display: flex; flex-direction: column; gap: .8rem; min-width: 0;
+        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
+            display:grid !important; grid-template-columns:minmax(0, 30fr) minmax(0, 24fr);
+            align-items:stretch; gap:14px; min-width:0;
+        }
+        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] {
+            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
+        }
+        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] > div {
+            display:flex; flex-direction:column; height:100%; min-height:0;
+        }
+        .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {
+            flex:1; height:100%; min-height:0;
         }
         .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
             display: grid !important;
-            grid-template-columns:minmax(0, 30fr) minmax(0, 24fr) minmax(0, 46fr);
+            grid-template-columns:minmax(0, 54fr) minmax(0, 46fr);
             gap:14px;
         }
         .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
             box-sizing: border-box; width: auto !important; min-width: 0; flex: none !important;
         }
-        .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-            display:grid !important; grid-template-columns:minmax(0, 1.25fr) minmax(0, 1fr); gap:14px;
-        }
-        .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-            width: auto !important; min-width: 0; flex: none !important;
+        .st-key-dashboard-home .st-key-dashboard-left-pile > [data-testid="stVerticalBlock"],
+        .st-key-dashboard-home .st-key-dashboard-right-pile > [data-testid="stVerticalBlock"] {
+            gap:16px;
         }
         .st-key-dashboard-home .dashboard-kicker { color:#52666a; font-size:.72rem; font-weight:700; letter-spacing:.06em; }
         .st-key-dashboard-home .dashboard-number { color:#192629; font-size:clamp(23px,2.5vw,38px); font-weight:700; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
@@ -204,7 +221,11 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .dashboard-session-title { color:var(--text-color, inherit); font-weight:700; }
         .st-key-dashboard-home .dashboard-session-detail { color:var(--text-color, inherit); font-size:.88rem; }
         .st-key-dashboard-home .dashboard-done { display:inline-grid; place-items:center; width:2rem; height:2rem; border-radius:.55rem; background:#d9f4eb; color:#09664f; font-weight:800; }
-        .st-key-dashboard-home .dashboard-date { display:inline-grid; place-items:center; width:2.5rem; min-height:2rem; border-radius:.55rem; background:#e7f5f6; color:#08646a; font-weight:800; }
+        .st-key-dashboard-home .dashboard-date {
+            box-sizing:border-box; display:grid; place-items:center; width:max-content; min-width:52px; min-height:2rem;
+            margin-inline:auto; padding:0 4px; border-radius:.55rem; background:#e7f5f6; color:#08646a;
+            font-family:system-ui, sans-serif !important; font-size:12.5px; font-weight:700; line-height:1.1; white-space:nowrap;
+        }
         .st-key-dashboard-home h1 { margin:4px 0; font-size:clamp(24px,2.6vw,38px); line-height:1.2; font-weight:600; letter-spacing:-.045em; }
         .st-key-dashboard-home h2 { margin:0 0 12px; font-size:clamp(16px,1.4vw,23px); line-height:1.25; font-weight:600; letter-spacing:-.035em; }
         .st-key-dashboard-home .st-key-dashboard-progress h2,
@@ -216,21 +237,28 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home .st-key-coach-preview h3 { font-size:1.2rem; margin:0 0 10px; }
         .st-key-dashboard-home .st-key-dashboard-progress,
         .st-key-dashboard-home .st-key-dashboard-pace { position:relative; overflow:hidden; min-height:138px; }
-        .st-key-dashboard-home .st-key-dashboard-summary { display:grid; grid-template-columns:1fr; gap:14px; }
+        .st-key-dashboard-home .st-key-dashboard-summary { min-width:0; }
         .st-key-dashboard-home .st-key-dashboard-home-header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { align-items:center; }
         .st-key-dashboard-home .dashboard-header-label { font-size:1.15rem; font-weight:600; letter-spacing:-.035em; }
         .st-key-dashboard-home .st-key-dashboard-intro { margin:8px 0 20px; }
         .st-key-dashboard-home .st-key-dashboard-intro p { margin:6px 0 0; color:#4c6166; font-size:.9rem; font-weight:500; }
         .st-key-dashboard-home .dashboard-progress-row,
         .st-key-dashboard-home .dashboard-pace-row { position:relative; min-height:62px; display:flex; align-items:center; }
+        .st-key-dashboard-home .dashboard-progress-row { padding-bottom:10px; }
         .st-key-dashboard-home .dashboard-progress-copy { max-width:70%; position:relative; z-index:1; }
         .st-key-dashboard-home .dashboard-progress-copy p { margin:5px 0 0; color:#52666a; font-size:.78rem; }
         .st-key-dashboard-home .dashboard-arc { position:absolute; right:5px; bottom:3px; width:35%; max-width:130px; height:auto; }
-        .st-key-dashboard-home .dashboard-pace-bars { position:absolute; right:0; bottom:4px; width:43%; height:54px; display:flex; align-items:end; gap:5px; }
+        .st-key-dashboard-home .dashboard-pace-bars { position:absolute; right:0; bottom:-6px; width:43%; height:54px; display:flex; align-items:end; gap:5px; }
         .st-key-dashboard-home .dashboard-pace-bars span { width:12%; height:var(--h); min-width:4px; border-radius:3px; background:repeating-linear-gradient(to top,#f5a7bb 0 6px,transparent 6px 8px); }
         .st-key-dashboard-home .dashboard-pace-bars span:nth-child(4) { background:repeating-linear-gradient(to top,#f32c59 0 6px,transparent 6px 8px); }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] { padding:12px 0; border-bottom:1px solid #e5ecee; }
-        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"]:last-child { border-bottom:0; padding-bottom:0; }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] { padding:12px 8px; border-bottom:1px solid #e5ecee; }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"]:last-child { border-bottom:0; padding-bottom:16px; }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stHorizontalBlock"] {
+            display:grid !important; grid-template-columns:minmax(68px,1fr) minmax(0,5fr); align-items:center; gap:8px;
+        }
+        .st-key-dashboard-home .st-key-dashboard-training [class*="st-key-training-"] [data-testid="stColumn"] {
+            box-sizing:border-box; width:auto !important; min-width:0; flex:none !important;
+        }
         .st-key-dashboard-home .st-key-dashboard-agenda .dashboard-timeline-labels { display:flex; justify-content:space-between; gap:8px; margin:18px 0 8px; color:#52666a; font-size:.7rem; }
         .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
             display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; min-height:190px;
@@ -282,10 +310,7 @@ def render_dashboard_styles(ui) -> None:
         .st-key-dashboard-home h1 { overflow-wrap: normal; word-break: normal; hyphens: none; }
         @media(max-width: 1000px) {
             .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-                grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-            }
-            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
-                grid-column: 1 / -1;
+                grid-template-columns:minmax(0,1fr);
             }
         }
         @media(max-width: 680px) {
@@ -294,20 +319,18 @@ def render_dashboard_styles(ui) -> None:
             .stApp:has(.st-key-dashboard-home) [data-testid="stMainBlockContainer"] { padding:60px 12px 32px; }
             .st-key-dashboard-home { padding:0; }
             .st-key-dashboard-home h1 { font-size:clamp(24px,7.5vw,32px); line-height:1.12; }
-            .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { grid-template-columns:minmax(0,1fr); }
-            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
-            .st-key-dashboard-home .st-key-dashboard-bottom > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
-                grid-template-columns: minmax(0, 1fr);
-            }
-            .st-key-dashboard-home .st-key-dashboard-top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
-                grid-column: auto;
-            }
             .st-key-dashboard-home .st-key-dashboard-progress,
             .st-key-dashboard-home .st-key-dashboard-pace,
             .st-key-dashboard-home .st-key-dashboard-training,
             .st-key-dashboard-home .st-key-dashboard-agenda,
             .st-key-dashboard-home .st-key-dashboard-performance,
             .st-key-dashboard-home .st-key-coach-preview { padding:.9rem; }
+        }
+        @media(max-width:680px) {
+            .st-key-dashboard-home .st-key-dashboard-summary [data-testid="stHorizontalBlock"] {
+                grid-template-columns:minmax(0,1fr);
+            }
+            .st-key-dashboard-home .dashboard-pace-bars { bottom:14px; }
         }
         @media(max-width:390px) {
             .st-key-dashboard-home .st-key-dashboard-agenda .st-key-agenda-items > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
@@ -333,42 +356,74 @@ def _progress_arc(percent: int) -> str:
     )
 
 
-def _render_progress_and_pace(ui) -> None:
+def _dashboard_summary(reference_date: date) -> dict[str, float | int]:
+    sessions = _sample_sessions("current", reference_date)
+    completed = [session for session in sessions if session["done"]]
+    planned_distance = sum(
+        float(session["planned_distance_km"])
+        for session in sessions
+        if session["planned_distance_km"] is not None
+    )
+    completed_distance = sum(
+        float(session["actual_distance_km"])
+        for session in completed
+        if session["actual_distance_km"] is not None
+    )
+    return {
+        "completed_sessions": len(completed),
+        "planned_sessions": len(sessions),
+        "completed_distance_km": round(completed_distance, 1),
+        "planned_distance_km": planned_distance,
+        "progress_percent": round(completed_distance / planned_distance * 100) if planned_distance else 0,
+    }
+
+
+def _format_kilometers(distance: float) -> str:
+    """Format fictional dashboard distance with Spanish decimal punctuation."""
+    return f"{distance:.1f}".replace(".", ",")
+
+
+def _render_progress_and_pace(ui, reference_date: date) -> None:
+    summary = _dashboard_summary(reference_date)
     with ui.container(key="dashboard-summary"):
-        with ui.container(border=True, key="dashboard-progress"):
-            ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
-            ui.markdown(
-                '<h2>Progreso semanal</h2><div class="dashboard-progress-row">'
-                '<div class="dashboard-progress-copy"><div class="dashboard-number">11,4 km '
-                '<span class="dashboard-unit">/ 18 km</span></div>'
-                '<p>2 de 3 entrenamientos</p></div>' + _progress_arc(63) + '</div>',
-                unsafe_allow_html=True,
-            )
-        with ui.container(border=True, key="dashboard-pace"):
-            ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
-            bars = (48, 73, 51, 92, 54, 74, 32)
-            ui.markdown(
-                '<h2>Ritmo medio</h2><div class="dashboard-pace-row"><div class="dashboard-number">'
-                '5:42 <span class="dashboard-small">/km</span></div>'
-                '<div class="dashboard-pace-bars" role="img" aria-label="Ritmos ficticios de ejemplo">'
-                + "".join(f'<span style="--h:{height}%"></span>' for height in bars)
-                + '</div></div>',
-                unsafe_allow_html=True,
-            )
+        progress, pace = ui.columns([30, 24], gap="small")
+        with progress:
+            with ui.container(border=True, key="dashboard-progress"):
+                ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS · SEMANA ACTUAL</div>', unsafe_allow_html=True)
+                ui.markdown(
+                    '<h2>Progreso semanal</h2><div class="dashboard-progress-row">'
+                    f'<div class="dashboard-progress-copy"><div class="dashboard-number">{_format_kilometers(summary["completed_distance_km"])} km '
+                    f'<span class="dashboard-unit">/ {summary["planned_distance_km"]:g} km</span></div>'
+                    f'<p>{summary["completed_sessions"]} de {summary["planned_sessions"]} entrenamientos</p></div>'
+                    + _progress_arc(int(summary["progress_percent"])) + '</div>',
+                    unsafe_allow_html=True,
+                )
+        with pace:
+            with ui.container(border=True, key="dashboard-pace"):
+                ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
+                bars = (48, 73, 51, 92, 54, 74, 32)
+                ui.markdown(
+                    '<h2>Ritmo medio</h2><div class="dashboard-pace-row"><div class="dashboard-number">'
+                    '5:42 <span class="dashboard-small">/km</span></div>'
+                    '<div class="dashboard-pace-bars" role="img" aria-label="Ritmos ficticios de ejemplo">'
+                    + "".join(f'<span style="--h:{height}%"></span>' for height in bars)
+                    + '</div></div>',
+                    unsafe_allow_html=True,
+                )
 
 
-def _render_training(ui) -> None:
+def _render_training(ui, reference_date: date) -> None:
     with ui.container(border=True, key="dashboard-training"):
         ui.markdown('<div class="dashboard-kicker">DATOS FICTICIOS</div>', unsafe_allow_html=True)
         ui.subheader("Entrenamientos")
-        for session in _sample_sessions("current"):
+        for session in _sample_sessions("current", reference_date):
             with ui.container(key=f"training-{session['id']}"):
                 first, second = ui.columns([1, 5])
                 with first:
                     if session["done"]:
                         ui.markdown('<span class="dashboard-done" aria-label="Completado">✓</span>', unsafe_allow_html=True)
                     else:
-                        ui.markdown(f'<span class="dashboard-date">{session["date"]:%d}</span>', unsafe_allow_html=True)
+                        ui.markdown(f'<span class="dashboard-date">{_date_label(session["date"], compact=True)}</span>', unsafe_allow_html=True)
                 with second:
                     ui.markdown(f'<span class="dashboard-session-title">{session["name"]}</span>', unsafe_allow_html=True)
                     if session["done"]:
@@ -378,7 +433,7 @@ def _render_training(ui) -> None:
                     ui.markdown(f'<div class="dashboard-session-detail">{detail}</div>', unsafe_allow_html=True)
 
 
-def _render_agenda(ui) -> None:
+def _render_agenda(ui, reference_date: date) -> None:
     ui.session_state.setdefault(AGENDA_WEEK_KEY, "current")
     with ui.container(border=True, key="dashboard-agenda"):
         with ui.container(key="agenda-heading"):
@@ -389,7 +444,7 @@ def _render_agenda(ui) -> None:
                 ui.selectbox(
                     "Semana de la agenda",
                     options=WEEK_OPTIONS,
-                    format_func=_agenda_week_label,
+                    format_func=lambda week: _agenda_week_label(week, reference_date),
                     key=AGENDA_WEEK_KEY,
                     label_visibility="collapsed",
                 )
@@ -399,16 +454,16 @@ def _render_agenda(ui) -> None:
             '<span>Sesión 02</span><span>Sesión 03</span></div>',
             unsafe_allow_html=True,
         )
-        _, end = _week_interval(ui.session_state.get(AGENDA_WEEK_KEY, "current"))
+        _, end = _week_interval(ui.session_state.get(AGENDA_WEEK_KEY, "current"), reference_date)
         selected_week = ui.session_state.get(AGENDA_WEEK_KEY, "current")
-        sessions = _sample_sessions(selected_week)
+        sessions = _sample_sessions(selected_week, reference_date)
         with ui.container(key="agenda-items"):
             columns = ui.columns([1] * len(sessions))
             for column, session in zip(columns, sessions):
                 with column:
                     target = session["actual"] or session["planned"]
-                    status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= date.today() else "Sin actividad vinculada")
-                    status_class = "done" if session["done"] else ("next" if session["date"] >= date.today() else "unlinked")
+                    status = "Realizado" if session["done"] else ("Próxima" if session["date"] >= reference_date else "Sin actividad vinculada")
+                    status_class = "done" if session["done"] else ("next" if session["date"] >= reference_date else "unlinked")
                     ui.markdown(
                         f'<div class="agenda-card"><div class="dashboard-kicker">{_date_label(session["date"]).upper()}</div>'
                         f'<div class="dashboard-session-title">{session["name"]}</div>'
@@ -418,12 +473,12 @@ def _render_agenda(ui) -> None:
         ui.caption(f"Semana de agenda: {end:%d %b}. El progreso semanal permanece en la semana actual.")
 
 
-def _render_plan_sessions(ui, week: str) -> None:
-    for session in _sample_sessions(week):
+def _render_plan_sessions(ui, week: str, reference_date: date) -> None:
+    for session in _sample_sessions(week, reference_date):
         date_text = _date_label(session["date"])
         if session["actual"] is not None:
             actual = session["actual"]
-        elif session["date"] < date.today():
+        elif session["date"] < reference_date:
             actual = "Sin actividad vinculada"
         else:
             actual = "Próxima sesión"
@@ -443,6 +498,7 @@ def _render_plan_sessions(ui, week: str) -> None:
 
 
 def _render_dashboard_home_content(ui) -> None:
+    reference_date = _reference_date(ui.session_state)
     ui.session_state.setdefault(PLAN_WEEK_KEY, "current")
     ui.session_state.setdefault(AGENDA_WEEK_KEY, "current")
     with ui.container(key="dashboard-home-header"):
@@ -451,49 +507,46 @@ def _render_dashboard_home_content(ui) -> None:
             ui.markdown('<div class="dashboard-header-label">Mi dashboard</div>', unsafe_allow_html=True)
         with badge:
             ui.markdown('<span class="dashboard-mock-badge">Vista de ejemplo · datos ficticios</span>', unsafe_allow_html=True)
-    current_start, current_end = _week_interval("current")
+    current_start, current_end = _week_interval("current", reference_date)
     with ui.container(key="dashboard-intro",):
-        ui.title("Tu entrenamiento esta semana")
-        ui.markdown(f"<p>2 de 3 sesiones completadas · {current_start:%-d}–{current_end:%-d %b}</p>", unsafe_allow_html=True)
+        ui.title("Cómo está tu entrenamiento esta semana")
+        summary = _dashboard_summary(reference_date)
+        ui.markdown(f"<p>{summary['completed_sessions']} de {summary['planned_sessions']} sesiones completadas · {current_start:%-d}–{current_end:%-d %b}</p>", unsafe_allow_html=True)
 
     with ui.container(key="dashboard-top"):
-        progress, training, agenda = ui.columns([30, 24, 46], gap="small")
-        with progress:
-            _render_progress_and_pace(ui)
-        with training:
-            _render_training(ui)
-        with agenda:
-            _render_agenda(ui)
-
-    with ui.container(key="dashboard-bottom"):
-        performance, coach = ui.columns([1.25, 1], gap="small")
-        with performance:
-            with ui.container(border=True, key="dashboard-performance"):
-                ui.markdown('<div class="dashboard-kicker">RENDIMIENTO</div>', unsafe_allow_html=True)
-                ui.subheader("En preparación")
-                ui.info("Las métricas de rendimiento todavía no están definidas; aquí no se muestran datos del atleta.")
-        with coach:
-            with ui.container(border=True, key="coach-preview"):
-                ui.subheader("Coach")
-                ui.caption("Interpreta tu contexto y las observaciones semanales cargadas.")
-                ui.warning("Generación experimental · modelo no aceptado. No se generan respuestas automáticamente.")
-                ui.button(
-                    "Abrir Coach",
-                    key="open-coach-from-dashboard",
-                    type="primary",
-                    on_click=set_dashboard_view,
-                    args=(ui.session_state, "Coach"),
-                )
+        left_pile, right_pile = ui.columns([54, 46], gap="small")
+        with left_pile:
+            with ui.container(key="dashboard-left-pile"):
+                _render_progress_and_pace(ui, reference_date)
+                _render_training(ui, reference_date)
+                with ui.container(border=True, key="dashboard-performance"):
+                    ui.markdown('<div class="dashboard-kicker">RENDIMIENTO</div>', unsafe_allow_html=True)
+                    ui.subheader("En preparación")
+                    ui.info("Las métricas de rendimiento todavía no están definidas; aquí no se muestran datos del atleta.")
+        with right_pile:
+            with ui.container(key="dashboard-right-pile"):
+                _render_agenda(ui, reference_date)
+                with ui.container(border=True, key="coach-preview"):
+                    ui.subheader("Coach")
+                    ui.caption("Interpreta tu contexto y las observaciones semanales cargadas.")
+                    ui.warning("Generación experimental · modelo no aceptado. No se generan respuestas automáticamente.")
+                    ui.button(
+                        "Abrir Coach",
+                        key="open-coach-from-dashboard",
+                        type="primary",
+                        on_click=set_dashboard_view,
+                        args=(ui.session_state, "Coach"),
+                    )
 
     with ui.expander("Mi plan · ejemplo", expanded=False):
         ui.caption("Plan ficticio. No se guarda ni se vincula con actividades reales.")
         selected_week = ui.selectbox(
             "Semana del plan",
             options=WEEK_OPTIONS,
-            format_func=_week_label,
+            format_func=lambda week: _week_label(week, reference_date),
             key=PLAN_WEEK_KEY,
         )
-        _render_plan_sessions(ui, selected_week)
+        _render_plan_sessions(ui, selected_week, reference_date)
         ui.button(
             "Abrir Mi plan",
             key="open-plan-from-dashboard",
@@ -508,9 +561,10 @@ def render_dashboard_home(ui) -> None:
 
 
 def render_training_plan(ui) -> None:
+    reference_date = _reference_date(ui.session_state)
     ui.session_state.setdefault(PLAN_WEEK_KEY, "current")
     selected_week = ui.session_state.get(PLAN_WEEK_KEY, "current")
-    start, end = _week_interval(selected_week)
+    start, end = _week_interval(selected_week, reference_date)
     week_names = {
         "previous": "semana anterior",
         "current": "semana actual",
@@ -526,15 +580,16 @@ def render_training_plan(ui) -> None:
         ui.selectbox(
             "Semana del plan",
             options=WEEK_OPTIONS,
-            format_func=_week_label,
+            format_func=lambda week: _week_label(week, reference_date),
             key=PLAN_WEEK_KEY,
         )
         expanded = bool(ui.session_state.get(PLAN_OPEN_KEY, True))
-        with ui.expander(_week_label(selected_week), expanded=expanded):
-            _render_plan_sessions(ui, selected_week)
+        with ui.expander(_week_label(selected_week, reference_date), expanded=expanded):
+            _render_plan_sessions(ui, selected_week, reference_date)
 
 
 def render_session_detail(ui) -> None:
+    reference_date = _reference_date(ui.session_state)
     selected = ui.session_state.get(DETAIL_SESSION_KEY)
     if not isinstance(selected, tuple) or len(selected) != 2:
         set_dashboard_view(ui.session_state, "Mi plan")
@@ -542,7 +597,7 @@ def render_session_detail(ui) -> None:
         ui.rerun()
         return
     week, session_id = selected
-    session = next((item for item in _sample_sessions(week) if item["id"] == session_id), None)
+    session = next((item for item in _sample_sessions(week, reference_date) if item["id"] == session_id), None)
     if session is None:
         set_dashboard_view(ui.session_state, "Mi plan")
         ui.session_state[PLAN_OPEN_KEY] = True
@@ -560,7 +615,7 @@ def render_session_detail(ui) -> None:
         ui.markdown(f"**Previsto** · {session['planned']}")
         if session["actual"]:
             ui.markdown(f"**Realizado** · {session['actual']}")
-        elif session["date"] < date.today():
+        elif session["date"] < reference_date:
             ui.info("Sin actividad vinculada")
         else:
             ui.caption("Sesión pendiente")

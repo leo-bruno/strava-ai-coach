@@ -1,0 +1,152 @@
+- generic [ref=e2]:
+  - link "Skip to main content" [ref=e3] [cursor=pointer]:
+    - /url: "#stMain"
+  - region "Sidebar" [ref=e7]:
+    - generic [ref=e12]:
+      - generic [ref=e17]:
+        - generic [aria-hidden] [ref=e18]: ↗
+        - strong [ref=e19]: Strava AI Coach
+      - paragraph [ref=e24]: Datos ficticios · solo demostración
+      - radiogroup "Navegación principal" [ref=e27]:
+        - generic [ref=e29] [cursor=pointer]:
+          - radio "▦ Inicio" [checked] [ref=e31]
+          - paragraph [ref=e34]: ▦ Inicio
+        - generic [ref=e36] [cursor=pointer]:
+          - radio "▤ Mi plan" [ref=e38]
+          - paragraph [ref=e41]: ▤ Mi plan
+        - generic [ref=e43] [cursor=pointer]:
+          - radio "◉ Estadísticas" [ref=e45]
+          - paragraph [ref=e48]: ◉ Estadísticas
+        - generic [ref=e50] [cursor=pointer]:
+          - radio "✦ Coach" [ref=e52]
+          - paragraph [ref=e55]: ✦ Coach
+  - generic [ref=e4]:
+    - banner [ref=e58]:
+      - generic [ref=e60]:
+        - button "Expand sidebar" [ref=e397] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e399]: keyboard_double_arrow_right
+        - generic [ref=e61]:
+          - button "Deploy" [ref=e63] [cursor=pointer]
+          - button "Main menu" [ref=e67] [cursor=pointer]
+    - main [active] [ref=e5]:
+      - generic [ref=e73]:
+        - generic [ref=e77]:
+          - generic [ref=e78]: Mi dashboard
+          - paragraph [ref=e91]:
+            - generic [ref=e92]: Vista de ejemplo · datos ficticios
+        - generic [ref=e94]:
+          - heading "Cómo está tu entrenamiento esta semana" [level=1] [ref=e99]:
+            - text: Cómo está tu entrenamiento esta semana
+            - generic [ref=e100]:
+              - link "Link to heading":
+                - /url: "#como-esta-tu-entrenamiento-esta-semana"
+          - paragraph [ref=e105]: 0 de 3 sesiones completadas · 9–15 Nov
+        - generic [ref=e109]:
+          - generic [ref=e113]:
+            - generic [ref=e115]:
+              - generic [ref=e116]: DATOS FICTICIOS · SEMANA ACTUAL
+              - generic [ref=e124]:
+                - heading "Progreso semanal" [level=2] [ref=e126]:
+                  - text: Progreso semanal
+                  - generic [ref=e127]:
+                    - link "Link to heading":
+                      - /url: "#progreso-semanal"
+                - generic [ref=e128]:
+                  - generic [ref=e129]:
+                    - generic [ref=e130]:
+                      - text: 0,0 km
+                      - generic [ref=e131]: / 18 km
+                    - paragraph [ref=e132]: 0 de 3 entrenamientos
+                  - img "0 % de la distancia prevista" [ref=e133]:
+                    - generic [ref=e136]: 0%
+            - generic [ref=e138]:
+              - generic [ref=e139]: DATOS FICTICIOS
+              - generic [ref=e147]:
+                - heading "Ritmo medio" [level=2] [ref=e149]:
+                  - text: Ritmo medio
+                  - generic [ref=e150]:
+                    - link "Link to heading":
+                      - /url: "#ritmo-medio"
+                - generic [ref=e151]:
+                  - generic [ref=e152]: 5:42 /km
+                  - img "Ritmos ficticios de ejemplo" [ref=e153]
+          - generic [ref=e164]:
+            - generic [ref=e165]: DATOS FICTICIOS
+            - heading "Entrenamientos" [level=3] [ref=e174]:
+              - text: Entrenamientos
+              - generic [ref=e175]:
+                - link "Link to heading":
+                  - /url: "#entrenamientos"
+            - generic [ref=e179]:
+              - paragraph [ref=e186]:
+                - generic [ref=e187]: Mar 10
+              - generic [ref=e189]:
+                - paragraph [ref=e194]: Rodaje suave
+                - generic [ref=e195]: 7 km suaves previstos · Próxima
+            - generic [ref=e203]:
+              - paragraph [ref=e210]:
+                - generic [ref=e211]: Jue 12
+              - generic [ref=e213]:
+                - paragraph [ref=e218]: Carrera continua
+                - generic [ref=e219]: 25 min a ritmo sostenido previstos · Próxima
+            - generic [ref=e227]:
+              - paragraph [ref=e234]:
+                - generic [ref=e235]: Dom 15
+              - generic [ref=e237]:
+                - paragraph [ref=e242]: Tirada larga
+                - generic [ref=e243]: 11 km suaves previstos · Próxima
+          - generic [ref=e251]:
+            - generic [ref=e255]:
+              - heading "Agenda semanal" [level=2] [ref=e263]:
+                - text: Agenda semanal
+                - generic [ref=e264]:
+                  - link "Link to heading":
+                    - /url: "#agenda-semanal"
+              - group [ref=e270]:
+                - combobox "Semana de la agenda" [ref=e271]: Actual · 9–15 Nov
+                - button "Open" [ref=e272] [cursor=pointer]
+            - paragraph [ref=e280]: Agenda · datos ficticios
+            - generic [ref=e285]:
+              - generic [ref=e286]: Día
+              - generic [ref=e287]: Sesión 01
+              - generic [ref=e288]: Sesión 02
+              - generic [ref=e289]: Sesión 03
+            - generic [ref=e293]:
+              - generic [ref=e300]:
+                - generic [ref=e301]: MAR 10 NOV
+                - generic [ref=e302]: Rodaje suave
+                - generic [ref=e303]: ◷ 7 km suaves · Próxima
+              - generic [ref=e310]:
+                - generic [ref=e311]: JUE 12 NOV
+                - generic [ref=e312]: Carrera continua
+                - generic [ref=e313]: ◷ 25 min a ritmo sostenido · Próxima
+              - generic [ref=e320]:
+                - generic [ref=e321]: DOM 15 NOV
+                - generic [ref=e322]: Tirada larga
+                - generic [ref=e323]: ◷ 11 km suaves · Próxima
+            - paragraph [ref=e328]: "Semana de agenda: 15 Nov. El progreso semanal permanece en la semana actual."
+        - generic [ref=e332]:
+          - generic [ref=e336]:
+            - generic [ref=e337]: RENDIMIENTO
+            - heading "En preparación" [level=3] [ref=e346]:
+              - text: En preparación
+              - generic [ref=e347]:
+                - link "Link to heading":
+                  - /url: "#en-preparacion"
+            - status [ref=e350]:
+              - paragraph [ref=e354]: Las métricas de rendimiento todavía no están definidas; aquí no se muestran datos del atleta.
+          - generic [ref=e358]:
+            - heading "Coach" [level=3] [ref=e363]:
+              - text: Coach
+              - generic [ref=e364]:
+                - link "Link to heading":
+                  - /url: "#coach"
+            - paragraph [ref=e369]: Interpreta tu contexto y las observaciones semanales cargadas.
+            - alert [ref=e372]:
+              - paragraph [ref=e376]: Generación experimental · modelo no aceptado. No se generan respuestas automáticamente.
+            - button [ref=e379] [cursor=pointer]:
+              - paragraph [ref=e384]: Abrir Coach
+        - group [ref=e387]:
+          - generic [ref=e389] [cursor=pointer]:
+            - generic [aria-hidden] [ref=e391]: keyboard_arrow_right
+            - paragraph [ref=e394]: Mi plan · ejemplo

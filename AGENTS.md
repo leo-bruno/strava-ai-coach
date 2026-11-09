@@ -250,7 +250,7 @@ The Orchestrator must not:
 
 UX/UI specialist
 
-The UX/UI specialist is activated only for requests that change or review the user interface. The specialist uses the `strava-coach-ux` skill and is responsible for UI/UX decisions and evidence, including:
+The UX/UI specialist is activated only for requests that change or review the user interface. The specialist follows the repository skill at `.agents/skills/strava-coach-ux/SKILL.md` and is responsible for UI/UX decisions and evidence, including:
 
 * Visual composition, hierarchy, typography, spacing, charts and responsive behavior.
 * UI accessibility considerations and visual review findings.
@@ -362,6 +362,13 @@ For normal development work:
 Human decisions
 
 Do not interrupt the user for routine implementation details that can be safely resolved from the specification, repository, existing conventions, or documented project decisions.
+
+Routine local validation within the requested scope is already authorized.
+Run the checks directly without asking for confirmation in chat. This covers
+pytest and Playwright runs and reruns, changes to browser or viewport settings,
+read-only browser inspection (including `browser_evaluate`), screenshots,
+and starting or stopping a temporary app instance on a loopback port.
+Use the execution environment's approval prompt when it requires approval.
 
 Stop and ask the user when a decision materially affects:
 
