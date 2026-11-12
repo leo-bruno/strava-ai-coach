@@ -1,4 +1,4 @@
-# Dashboard de Strava AI Coach
+# Dashboard Runner Coach
 
 La referencia visual y de interacción es el prototipo [Stride](dashboard-prototype.html). Inicio la reproduce con Streamlit Custom Components v2 inline, usando sus HTML, CSS y JavaScript como punto de partida.
 

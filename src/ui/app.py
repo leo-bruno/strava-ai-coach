@@ -27,7 +27,7 @@ def render_app(ui=None) -> None:
     if ui is None:
         import streamlit as ui
 
-    ui.set_page_config(page_title="Strava AI Coach", layout="wide")
+    ui.set_page_config(page_title="Runner Coach", layout="wide")
     _render_accessible_control_focus_styles(ui)
 
     query_params = getattr(ui, "query_params", None)

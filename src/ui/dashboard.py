@@ -17,7 +17,7 @@ def set_dashboard_view(session_state, view: str) -> None:
 def render_sidebar(ui, *, view: str) -> str:
     """Render the native navigation used by the real Strava and Coach sections."""
     with ui.sidebar:
-        ui.markdown("### ↗ Strava AI Coach")
+        ui.markdown("### ↗ Runner Coach")
         ui.caption("Tus actividades de Strava")
         selected = view if view in NAVIGATION_VIEWS else "Inicio"
         return ui.radio(

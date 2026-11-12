@@ -73,12 +73,20 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
         with sync_playwright() as playwright:
             browser, page = _start_page(playwright, address, width)
             for text in (
-                "stride.", "OBJETIVO SEMANAL", "DISTANCIA TOTAL", "RITMO MEDIO",
+                "Runner Coach", "OBJETIVO SEMANAL", "DISTANCIA TOTAL", "RITMO MEDIO",
                 "TIEMPO EN MOVIMIENTO", "Tu progreso", "Tu semana", "Últimas carreras",
                 "Entrenar mejor empieza", "datos ficticios", "no consulta Strava ni OpenAI",
             ):
                 assert page.get_by_text(text, exact=False).count() > 0, text
             assert page.locator("#add").is_visible()
+            assert page.title() == "Runner Coach"
+            logo = page.locator(".stride-root .logo")
+            assert logo.is_visible()
+            assert "Runner Coach" in logo.inner_text()
+            assert logo.evaluate("el => el.scrollWidth <= el.clientWidth + 1")
+            assert logo.evaluate(
+                "el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).fontSize) * 1.3"
+            )
             assert page.get_by_role("heading", name="Vamos a por más, Leo").is_visible()
             action_box = page.locator("#add").bounding_box()
             assert action_box and action_box["y"] < 900, action_box
@@ -256,6 +264,7 @@ def test_native_sidebar_routes_between_real_coach_and_home():
             nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
             page.get_by_role("heading", name="Estadísticas").wait_for()
             nav.wait_for(state="visible")
+            assert "Runner Coach" in page.locator('[data-testid="stSidebar"]').inner_text()
             nav.locator("label").filter(has_text="Coach").click()
             page.locator('[data-testid="stMainBlockContainer"] h1').filter(
                 has_text="Coach"
