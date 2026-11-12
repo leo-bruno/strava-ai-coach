@@ -1,170 +1,197 @@
-"""Dashboard navigation and fictional planning behavior through AppTest."""
+"""Strava-backed dashboard states and explicit loading behavior through AppTest."""
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from streamlit.testing.v1 import AppTest
 
-from src.ui.dashboard import (
-    AGENDA_WEEK_KEY,
-    DASHBOARD_VIEW_KEY,
-    DASHBOARD_REFERENCE_DATE_KEY,
-    PLAN_OPEN_KEY,
-    PLAN_WEEK_KEY,
-    _dashboard_summary,
-    _format_derived_pace,
-    _format_kilometers,
-    _date_label,
-    _sample_sessions,
+from src.models.activity import Activity
+from src.models.weekly_analysis import WeeklyAnalysis
+from src.ui.dashboard import DASHBOARD_VIEW_KEY
+from src.ui.strava_weekly_overview import (
+    WEEKLY_ACTIVITIES_KEY,
+    WEEKLY_ANALYSES_KEY,
+    WEEKLY_AS_OF_KEY,
+    WEEKLY_PAGE_COUNT_KEY,
+    WEEKLY_PERIOD_END_KEY,
+    WEEKLY_PERIOD_START_KEY,
 )
 
 
-def _app(view="Inicio", reference_date=date(2026, 11, 4)):
+def _app(*, data_loaded=False, token=False):
     app = AppTest.from_file("../../src/main.py")
-    app.session_state[DASHBOARD_VIEW_KEY] = view
-    app.session_state["dashboard_navigation"] = view
-    app.session_state[DASHBOARD_REFERENCE_DATE_KEY] = reference_date
+    app.session_state[DASHBOARD_VIEW_KEY] = "Inicio"
+    app.session_state["dashboard_navigation"] = "Inicio"
+    app.session_state["athlete_timezone"] = "Europe/Madrid"
+    if token:
+        app.session_state["strava_access_token"] = "dummy-token"
+        app.session_state["strava_access_token_expires_at"] = int(
+            (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()
+        )
+    if data_loaded:
+        app.session_state["strava_access_token_expires_at"] = int(
+            (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()
+        )
+        weeks = tuple(
+            WeeklyAnalysis(
+                week_start_date=date(2026, 10, 5) + timedelta(weeks=index),
+                running_distance_meters=5000.0 + index * 1000,
+                running_activity_count=1 + index % 2,
+                running_moving_time_seconds=1500 + index * 100,
+                running_structure_by_type=(),
+            )
+            for index in range(7)
+        )
+        app.session_state[WEEKLY_ANALYSES_KEY] = weeks
+        app.session_state[WEEKLY_ACTIVITIES_KEY] = (
+            Activity(
+                id=10,
+                name="Rodaje de prueba",
+                sport_type="Run",
+                start_date=datetime(2026, 11, 10, 7, tzinfo=timezone.utc),
+                distance_meters=6200,
+                moving_time_seconds=1860,
+            ),
+        )
+        app.session_state[WEEKLY_PERIOD_START_KEY] = datetime(2026, 10, 5, tzinfo=timezone.utc)
+        app.session_state[WEEKLY_PERIOD_END_KEY] = datetime(2026, 11, 23, tzinfo=timezone.utc)
+        app.session_state[WEEKLY_AS_OF_KEY] = datetime(2026, 11, 12, tzinfo=timezone.utc)
+        app.session_state[WEEKLY_PAGE_COUNT_KEY] = 2
     return app.run()
 
 
 def _text(app):
-    text = [
+    text = "\n".join(
         str(item.value)
-        for group in (app.title, app.subheader, app.markdown, app.caption, app.info)
+        for group in (
+            app.title,
+            app.header,
+            app.subheader,
+            app.markdown,
+            app.caption,
+            app.info,
+            app.warning,
+            app.error,
+        )
         for item in group
-    ]
-    text.extend(button.label for button in app.button)
-    return "\n".join(text)
+    )
+    return text + "\n" + "\n".join(button.label for button in app.button)
 
 
-def test_home_is_fictional_and_dashboard_plan_starts_collapsed():
+def _assert_dashboard_composition(text):
+    for heading in (
+        "OBJETIVO SEMANAL",
+        "DISTANCIA TOTAL",
+        "RITMO MEDIO",
+        "TIEMPO EN MOVIMIENTO",
+        "Tu progreso",
+        "Tu entrenamiento",
+        "Últimas carreras",
+        "Entrenar mejor empieza con una buena pregunta.",
+    ):
+        assert heading in text
+
+
+def test_dashboard_explains_no_data_without_connecting_or_fetching():
     app = _app()
     assert not app.exception
     text = _text(app)
-    assert "Cómo está tu entrenamiento esta semana" in text
-    assert "datos ficticios" in text
-    assert "Progreso semanal" in text
-    sunday_app = _app(reference_date=date(2026, 11, 8))
-    progress_markup = next(
-        item.value for item in sunday_app.markdown if "<h2>Progreso semanal</h2>" in str(item.value)
-    )
-    assert "11,4 km" in progress_markup
-    assert "11.4 km" not in progress_markup
-    assert 'class="dashboard-unit">/ 18 km' in text
-    assert ".stApp {" not in text
-    assert 'font-family:"Manrope", "Helvetica Neue", system-ui, sans-serif' in text
-    assert ".stApp:has(.st-key-dashboard-home)" in text
-    assert "container:dashboard-top / inline-size" in text
-    assert "minmax(245px,24fr) minmax(320px,34fr) minmax(390px,42fr)" in text
-    assert "grid-template-rows:repeat(2,minmax(160px,1fr))" in text
-    assert "container:dashboard-lower / inline-size" in text
-    assert "class=\"dashboard-mock-badge\"" in text
-    assert app.session_state[AGENDA_WEEK_KEY] == "current"
-    assert app.session_state[PLAN_WEEK_KEY] == "current"
-    assert app.expander[0].proto.expanded is False
-    assert "Rendimiento" in text or any("RENDIMIENTO" in str(x.value) for x in app.markdown)
-    assert app.selectbox(key=AGENDA_WEEK_KEY).label == "Semana de la agenda"
+    assert "Vamos paso a paso" in text
+    _assert_dashboard_composition(text)
+    assert "Sin objetivo" in text and "No hay una meta configurada" in text
+    assert text.count("—") >= 4
+    assert "Conecta Strava para consultar tus carreras recientes" in text
+    assert "Carga tus siete semanas de Strava para mostrar la evolución" in text
+    assert "No hay un plan conectado" in text
+    assert "Abrir Coach" in text
+    assert all(button.key != "dashboard-refresh-strava" for button in app.button)
+    assert "datos ficticios" not in text.lower()
 
 
-def test_dashboard_summary_uses_the_same_reference_date_for_sessions_distance_and_arc():
-    monday = _dashboard_summary(date(2026, 11, 2))
-    midweek = _dashboard_summary(date(2026, 11, 4))
-    sunday = _dashboard_summary(date(2026, 11, 8))
-
-    assert (monday["completed_sessions"], monday["completed_distance_km"], monday["progress_percent"]) == (0, 0, 0)
-    assert (midweek["completed_sessions"], midweek["completed_distance_km"], midweek["progress_percent"]) == (1, 6.8, 38)
-    assert (sunday["completed_sessions"], sunday["completed_distance_km"], sunday["progress_percent"]) == (2, 11.4, 63)
-    assert all(summary["planned_sessions"] == 4 and summary["planned_distance_km"] == 18 for summary in (monday, midweek, sunday))
-    assert _format_kilometers(sunday["completed_distance_km"]) == "11,4"
-
-
-def test_pending_training_date_shows_abbreviated_weekday_and_zero_padded_day():
-    from src.ui.dashboard import _date_label, _sample_sessions
-
-    pending = next(session for session in _sample_sessions("current", date(2026, 11, 4)) if session["date"].weekday() == 6)
-    assert _date_label(pending["date"], compact=True) == "Dom 08"
-    assert "Dom 08" in _text(_app(reference_date=date(2026, 11, 4)))
-
-
-def test_agenda_cards_keep_chronological_session_ordinals_and_dates():
-    reference_date = date(2026, 11, 4)
-    app = _app(reference_date=reference_date)
-    markup = "\n".join(str(item.value) for item in app.markdown)
-    sessions = _sample_sessions("current", reference_date)
-    for ordinal, session in enumerate(sessions, start=1):
-        kicker = f"SESIÓN {ordinal:02d} · {_date_label(session['date']).upper()}"
-        assert kicker in markup
-        assert session["name"] in markup
-    assert [markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 5)] == sorted(
-        markup.index(f"SESIÓN {ordinal:02d} ·") for ordinal in range(1, 5)
-    )
-
-
-def test_technique_fixture_has_time_only_and_no_invented_distance_or_pace():
-    reference_date = date(2026, 11, 4)
-    previous = next(
-        session for session in _sample_sessions("previous", reference_date)
-        if session["name"] == "Técnica de carrera"
-    )
-    current = next(
-        session for session in _sample_sessions("current", reference_date)
-        if session["name"] == "Técnica de carrera"
-    )
-    following = next(
-        session for session in _sample_sessions("next", reference_date)
-        if session["name"] == "Técnica de carrera"
-    )
-    assert (previous["planned"], previous["actual"], previous["actual_distance_km"]) == (
-        "20 min de técnica", "18 min", None
-    )
-    assert previous["actual_duration_min"] == 18
-    assert current["actual"] is None and current["planned_distance_km"] is None
-    assert following["actual"] is None and following["planned_distance_km"] is None
-    assert _format_derived_pace(previous) is None
-    completed_run = next(
-        session for session in _sample_sessions("current", reference_date)
-        if session["name"] == "Rodaje suave"
-    )
-    assert _format_derived_pace(completed_run) == "6:02 min/km"
-
-    markup = "\n".join(str(item.value) for item in _app(reference_date=reference_date).markdown)
-    assert "6:02 min/km · derivado" in markup
-    assert "Técnica de carrera" in markup
-
-
-def test_dashboard_styles_do_not_render_in_coach_section():
-    app = _app("Coach")
+def test_dashboard_renders_loaded_weekly_data_and_real_activity():
+    app = _app(data_loaded=True)
     assert not app.exception
     text = _text(app)
-    text += "\n" + "\n".join(str(item.value) for item in app.html)
-    assert ".st-key-dashboard-home button:focus-visible" not in text
-    assert '[data-testid="stSelectbox"] [role="group"]:focus-within' in text
-    assert '[data-testid="stSelectbox"] [role="combobox"][data-focus-visible="true"]:focus-visible' in text
-    assert '[data-testid="stDateInputField"]:focus-within' in text
-    assert '[role="spinbutton"]:focus-visible' in text
+    _assert_dashboard_composition(text)
+    assert "56,0" in text
+    assert "Distancia Run por semana" in text
+    assert "10 carreras Run" in text
+    assert "Rodaje de prueba" in text
+    assert "6,2 km" in text
+    assert "5:00 min/km · derivado" in text
+    assert "no demuestra inactividad ni descanso" in text
+    assert "No hay objetivos semanales configurados" in text
+    assert "No hay un plan conectado" in text
+    assert "18 km" not in text
 
 
-def test_agenda_week_is_independent_from_current_week_progress():
-    app = _app()
-    app.selectbox(key=AGENDA_WEEK_KEY).set_value("next").run()
+def test_dashboard_has_explicit_refresh_and_real_sections_only():
+    app = _app(token=True)
     assert not app.exception
-    assert app.session_state[AGENDA_WEEK_KEY] == "next"
-    assert "SEMANA ACTUAL" in _text(app)
+    assert app.button(key="dashboard-refresh-strava").label == "Actualizar datos de Strava"
+    text = _text(app)
+    _assert_dashboard_composition(text)
+    assert "Actualiza los datos para ver las carreras del intervalo" in text
+    assert "No hay un plan conectado" in text
+    assert "Abrir Coach" in text
+    assert app.radio[0].options == ["▦  Inicio", "◉  Estadísticas", "✦  Coach"]
 
 
-def test_plan_route_opens_with_current_week():
-    app = _app("Mi plan")
+def test_refresh_fetch_happens_only_after_the_button_is_pressed(monkeypatch):
+    calls = []
+
+    def load(state, timezone_name):
+        calls.append((timezone_name, state.get("strava_access_token")))
+
+    monkeypatch.setattr("src.ui.dashboard.load_recent_weekly_overview", load)
+    app = _app(token=True)
+    assert calls == []
+    app.button(key="dashboard-refresh-strava").click().run()
     assert not app.exception
-    assert app.session_state[PLAN_WEEK_KEY] == "current"
-    assert app.session_state[PLAN_OPEN_KEY] is True
-    assert "Plan de ejemplo" in _text(app)
+    assert calls == [("Europe/Madrid", "dummy-token")]
 
 
-def test_plan_week_selector_updates_heading_and_session_dates_together():
-    reference_date = date(2026, 11, 4)
-    app = _app("Mi plan", reference_date=reference_date)
-    app.selectbox(key=PLAN_WEEK_KEY).set_value("next").run()
+def test_refresh_provider_failure_shows_safe_message(monkeypatch):
+    def fail(*_args):
+        raise RuntimeError("provider detail must not be displayed")
+
+    monkeypatch.setattr("src.ui.dashboard.load_recent_weekly_overview", fail)
+    app = _app(token=True)
+    app.button(key="dashboard-refresh-strava").click().run()
+    text = _text(app)
+    assert not app.exception
+    assert "No se pudieron cargar todas las páginas de Strava" in text
+    assert "provider detail" not in text
+
+
+def test_dashboard_handles_empty_weekly_results_without_fake_activities():
+    app = _app(data_loaded=True)
+    app.session_state[WEEKLY_ANALYSES_KEY] = tuple(
+        WeeklyAnalysis(
+            week_start_date=date(2026, 10, 5) + timedelta(weeks=index),
+            running_distance_meters=0.0,
+            running_activity_count=0,
+            running_moving_time_seconds=0,
+            running_structure_by_type=(),
+        )
+        for index in range(7)
+    )
+    app.session_state[WEEKLY_ACTIVITIES_KEY] = ()
+    app = app.run()
     assert not app.exception
     text = _text(app)
-    assert "Plan de ejemplo · semana siguiente" in text
-    assert all(_date_label(session["date"]) in text for session in _sample_sessions("next", reference_date))
-    assert all(_date_label(session["date"]) not in text for session in _sample_sessions("current", reference_date))
+    _assert_dashboard_composition(text)
+    assert "No se devolvieron carreras de tipo Run" in text
+    assert "No hay un plan conectado" in text
+
+
+def test_dashboard_incomplete_weekly_context_keeps_every_module_visible():
+    app = _app(data_loaded=True)
+    app.session_state[WEEKLY_PERIOD_END_KEY] = None
+    app = app.run()
+    assert not app.exception
+    text = _text(app)
+    _assert_dashboard_composition(text)
+    assert "Faltan fechas o datos de cobertura" in text
+    assert "La cobertura temporal está incompleta" in text
+    assert "El resumen está incompleto" in text
+    assert "Rodaje de prueba" in text

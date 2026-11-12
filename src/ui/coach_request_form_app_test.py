@@ -129,8 +129,9 @@ def test_entrypoint_initial_render_has_no_streamlit_exception():
     app = AppTest.from_file(APP_ENTRYPOINT).run()
     assert not app.exception
     assert "Strava AI Coach" in visible_text(app)
-    assert "Cómo está tu entrenamiento esta semana" in visible_text(app)
-    assert "datos ficticios" in visible_text(app)
+    assert "Tu progreso" in visible_text(app)
+    assert "Conecta Strava para consultar tus carreras recientes." in visible_text(app)
+    assert "datos ficticios" not in visible_text(app).lower()
     assert app.session_state["dashboard_view"] == "Inicio"
 
 

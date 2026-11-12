@@ -1,4 +1,4 @@
-"""Route the dashboard, training plan and existing Coach/Strava sections."""
+"""Route the Strava-backed dashboard, statistics and Coach sections."""
 
 from datetime import datetime, timezone
 
@@ -7,12 +7,9 @@ from src.ui.coach_request_form import REQUEST_SESSION_KEY, render_request_page
 from src.ui.dashboard import (
     DASHBOARD_VIEW_KEY,
     NAVIGATION_KEY,
-    PLAN_OPEN_KEY,
     render_dashboard_home,
     render_dashboard_styles,
-    render_session_detail,
     render_sidebar,
-    render_training_plan,
     set_dashboard_view,
 )
 from src.ui.strava_connection import clear_expired_activity_analysis, consume_oauth_callback
@@ -62,25 +59,22 @@ def render_app(ui=None) -> None:
     if callback_status is not None:
         set_dashboard_view(ui.session_state, "Estadísticas")
     current_view = ui.session_state.get(DASHBOARD_VIEW_KEY, "Inicio")
+    if current_view not in ("Inicio", "Estadísticas", "Coach"):
+        current_view = "Inicio"
+        ui.session_state[DASHBOARD_VIEW_KEY] = current_view
     if NAVIGATION_KEY not in ui.session_state:
-        ui.session_state[NAVIGATION_KEY] = "Mi plan" if current_view == "Detalle" else current_view
+        ui.session_state[NAVIGATION_KEY] = current_view
+    elif ui.session_state.get(NAVIGATION_KEY) not in ("Inicio", "Estadísticas", "Coach"):
+        ui.session_state[NAVIGATION_KEY] = current_view
     nav_view = render_sidebar(
         ui,
-        view="Mi plan" if current_view == "Detalle" else current_view,
+        view=current_view,
     )
-    if current_view == "Detalle" and nav_view == "Mi plan":
-        render_session_detail(ui)
-        return
-    # Radio interaction has already written NAVIGATION_KEY; only update the
-    # independent route state here to avoid mutating a rendered widget key.
     ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
 
     if nav_view == "Inicio":
         render_dashboard_styles(ui)
         render_dashboard_home(ui)
-    elif nav_view == "Mi plan":
-        ui.session_state[PLAN_OPEN_KEY] = True
-        render_training_plan(ui)
     elif nav_view == "Estadísticas":
         render_strava_dashboard(ui, callback_status)
     elif nav_view == "Coach":
