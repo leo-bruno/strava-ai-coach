@@ -128,11 +128,10 @@ def seed_valid_weekly_overview(session_state) -> None:
 def test_entrypoint_initial_render_has_no_streamlit_exception():
     app = AppTest.from_file(APP_ENTRYPOINT).run()
     assert not app.exception
-    assert "Strava AI Coach" in visible_text(app)
-    assert "Tu progreso" in visible_text(app)
-    assert "Conecta Strava para consultar tus carreras recientes." in visible_text(app)
-    assert "datos ficticios" not in visible_text(app).lower()
     assert app.session_state["dashboard_view"] == "Inicio"
+    assert list(app.radio) == []
+    assert WEEKLY_ANALYSES_KEY not in app.session_state
+    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
 
 
 def test_valid_submission_stores_request_and_keeps_runner_context_private(monkeypatch):

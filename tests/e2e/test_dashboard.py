@@ -1,4 +1,5 @@
-"""Browser checks for Strava-backed dashboard layout, data and empty states."""
+"""Browser checks for the supplied prototype demo and its real app routes."""
+
 import subprocess
 import time
 from pathlib import Path
@@ -8,44 +9,11 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 
-def _start_server(port: int, *, dark=False, state="empty"):
+def _start_server(port: int, *, dark=False):
     project_root = Path(__file__).resolve().parents[2]
-    launcher = Path(f"/tmp/strava_dashboard_e2e_{port}.py")
-    setup = ""
-    if state != "empty":
-        setup = """
-from datetime import date, datetime, timedelta, timezone
-from src.models.activity import Activity
-from src.models.weekly_analysis import WeeklyAnalysis
-import streamlit as st
-st.session_state['strava_access_token'] = 'dummy-token'
-st.session_state['strava_access_token_expires_at'] = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
-st.session_state['athlete_timezone'] = 'Europe/Madrid'
-st.session_state['athlete_timezone_last_applied'] = 'Europe/Madrid'
-"""
-    if state in ("loaded", "zero-run", "incomplete"):
-        all_zero = state == "zero-run"
-        distance = "0" if all_zero else "5000 + i * 1000"
-        count = "0" if all_zero else "i % 2 + 1"
-        time_seconds = "0" if all_zero else "1800 + i * 60"
-        activity = "" if all_zero else (
-            "Activity(10, 'Rodaje de prueba', 'Run', "
-            "datetime(2026, 11, 10, 7, tzinfo=timezone.utc), 6200, 1860),"
-        )
-        period_end = "None" if state == "incomplete" else "datetime(2026, 11, 23, tzinfo=timezone.utc)"
-        setup += f"""
-st.session_state['strava_weekly_analyses'] = tuple(
-    WeeklyAnalysis(date(2026, 10, 5) + timedelta(weeks=i), {distance}, {count}, {time_seconds}, ())
-    for i in range(7)
-)
-st.session_state['strava_weekly_activities'] = ({activity})
-st.session_state['strava_weekly_period_start'] = datetime(2026, 10, 5, tzinfo=timezone.utc)
-st.session_state['strava_weekly_period_end'] = {period_end}
-st.session_state['strava_weekly_as_of'] = datetime(2026, 11, 12, tzinfo=timezone.utc)
-st.session_state['strava_weekly_page_count'] = 2
-"""
+    launcher = Path(f"/tmp/stride_demo_e2e_{port}.py")
     launcher.write_text(
-        f"import sys\nsys.path.insert(0, {str(project_root)!r})\n{setup}\n"
+        f"import sys\nsys.path.insert(0, {str(project_root)!r})\n"
         "from src.ui.app import render_app\nrender_app()\n"
     )
     command = [
@@ -76,89 +44,160 @@ def _stop_server(process):
         process.wait(timeout=5)
 
 
-def _assert_composition(page):
-    for heading in (
-        "OBJETIVO SEMANAL",
-        "DISTANCIA TOTAL",
-        "RITMO MEDIO",
-        "TIEMPO EN MOVIMIENTO",
-        "Tu progreso",
-        "Tu entrenamiento",
-        "Últimas carreras",
-        "Entrenar mejor empieza con una buena pregunta.",
-    ):
-        page.get_by_text(heading, exact=False).wait_for()
-        assert page.get_by_text(heading, exact=False).count() > 0, (heading, page.locator("body").inner_text())
+def _start_page(playwright, address, width, height=1000):
+    browser = playwright.chromium.launch(headless=True)
+    page = browser.new_page(viewport={"width": width, "height": height})
+    page.goto(address)
+    page.get_by_role("button", name="Registrar carrera").wait_for()
+    page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
+    return browser, page
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
 @pytest.mark.parametrize("width", [1440, 1024, 393, 320])
-def test_dashboard_renders_loaded_data_without_horizontal_overflow(theme, width):
-    port = 8790 + (1 if theme == "dark" else 0)
-    process, address = _start_server(port, dark=theme == "dark", state="loaded")
+def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, width):
+    port = 8780 + (10 if theme == "dark" else 0) + [1440, 1024, 393, 320].index(width)
+    process, address = _start_server(port, dark=theme == "dark")
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": width, "height": 1000})
-            page.goto(address)
-            page.get_by_text("Vamos paso a paso", exact=False).wait_for()
-            _assert_composition(page)
-            page.get_by_text("Rodaje de prueba").wait_for()
-            page.locator(".vega-embed svg").wait_for()
-            assert page.get_by_text("56,0", exact=False).is_visible()
+            browser, page = _start_page(playwright, address, width)
+            for text in (
+                "stride.", "OBJETIVO SEMANAL", "DISTANCIA TOTAL", "RITMO MEDIO",
+                "TIEMPO EN MOVIMIENTO", "Tu progreso", "Tu semana", "Últimas carreras",
+                "Entrenar mejor empieza", "datos ficticios", "no consulta Strava ni OpenAI",
+            ):
+                assert page.get_by_text(text, exact=False).count() > 0, text
+            assert page.locator("#add").is_visible()
+            assert page.get_by_role("heading", name="Vamos a por más, Leo").is_visible()
+            action_box = page.locator("#add").bounding_box()
+            assert action_box and action_box["y"] < 900, action_box
+            assert page.get_by_role("button", name="Estadísticas", exact=False).count() >= 1
+            assert page.get_by_role("button", name="Coach real", exact=False).count() >= 1
+            assert page.locator("[data-testid='stSidebar']").is_hidden()
             assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
-            assert page.locator("[data-testid=stMainBlockContainer]").evaluate(
+            assert page.locator(".stride-root").evaluate(
                 "el => el.scrollWidth <= el.clientWidth + 1"
             )
             output = Path("test-results/ui-captures/after")
             output.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(output / f"strava-dashboard-{theme}-{width}.png"), full_page=True)
+            page.screenshot(path=str(output / f"stride-demo-{theme}-{width}.png"), full_page=True)
+            page.locator(".notice").scroll_into_view_if_needed()
+            assert page.locator(".notice").is_visible()
             browser.close()
     finally:
         _stop_server(process)
 
 
-@pytest.mark.parametrize("state", ["empty", "connected-unloaded", "zero-run", "incomplete"])
-def test_dashboard_keeps_composition_in_empty_and_partial_states(state):
-    port = 8793 + ("empty", "connected-unloaded", "zero-run", "incomplete").index(state)
-    process, address = _start_server(port, state=state)
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
+    process, address = _start_server(8801 + (theme == "dark"), dark=theme == "dark")
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 1440, "height": 1050})
-            page.goto(address)
-            page.get_by_text("Vamos paso a paso", exact=False).wait_for()
-            _assert_composition(page)
-            assert page.get_by_text("No hay un plan conectado", exact=False).count() > 0
-            assert page.get_by_role("button", name="Abrir Coach").count() == 1
-            assert page.get_by_text("37", exact=True).count() == 0
-            assert page.get_by_text("50 km", exact=True).count() == 0
-            if state in ("empty", "connected-unloaded"):
-                assert page.locator(".vega-embed svg").count() == 0
-            if state == "zero-run":
-                assert page.get_by_text("No se devolvieron carreras de tipo Run", exact=False).count() > 0
-            if state == "incomplete":
-                assert page.get_by_text("Faltan fechas o datos de cobertura", exact=False).count() > 0
+            browser, page = _start_page(playwright, address, 1440)
+            axis = page.locator(".axis")
+            assert "Lun" in axis.inner_text()
+            page.get_by_label("Periodo del gráfico").select_option("month")
+            assert "1 nov" in axis.inner_text()
+            page.get_by_label("Periodo del gráfico").select_option("week")
+            assert "Dom" in axis.inner_text()
+
+            expected_workouts = (
+                "Empieza con calma", "Un poco de velocidad", "Hoy, disfruta del camino",
+                "Recargar también cuenta", "Encuentra tu ritmo", "Sin prisa, sin pausa",
+                "Un poquito más lejos",
+            )
+            for index, (day, expected) in enumerate(zip(
+                ("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"),
+                expected_workouts,
+            )):
+                page.get_by_role("button", name=f"{day} {9 + index}, ver entrenamiento").click()
+                assert page.locator(".workout h3").inner_text() == expected
+
+            page.get_by_role("button", name="Registrar carrera").click()
+            dialog = page.locator("#modal")
+            assert dialog.evaluate("el => el.open")
+            dialog.get_by_label("Nombre de la carrera").fill("Rodaje de prueba")
+            dialog.get_by_label("Distancia en km").fill("2")
+            dialog.get_by_label("Duración en minutos").fill("12")
+            dialog.get_by_role("button", name="Guardar carrera").click()
+            assert page.get_by_text("Rodaje de prueba", exact=True).count() == 1
+            assert page.locator("#goalKm").inner_text() == "39"
+            assert page.evaluate("localStorage.getItem('stride-runs')").find("Rodaje de prueba") >= 0
+            page.keyboard.press("Escape")
+            page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
+            page.reload()
+            page.get_by_role("button", name="Registrar carrera").wait_for()
+            assert page.locator("#goalKm").inner_text() == "39"
+            assert page.get_by_text("Rodaje de prueba", exact=True).count() == 1
+
+            page.locator("[data-view='plan']").first.click()
+            assert page.locator("#training").is_visible()
+            page.locator("[data-plan='past']").click()
+            assert page.locator("#planHeading").inner_text() == "Sesiones anteriores · Noviembre"
+            assert "Tirada larga · Semana 5" in page.locator("#planList").inner_text()
+            page.locator("[data-plan='future']").click()
+            assert "Semana 7" in page.locator("#planList").inner_text()
+            page.locator("[data-plan='library']").click()
+            assert "Tu primera media maratón" in page.locator("#planList").inner_text()
             browser.close()
     finally:
         _stop_server(process)
 
 
-def test_dashboard_waits_for_explicit_refresh_and_navigation_stays_in_real_sections():
-    process, address = _start_server(8792)
+def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
+    process, address = _start_server(8802)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 1440, "height": 1000})
-            page.goto(address)
-            page.get_by_text("Carga tus siete semanas de Strava para mostrar la evolución").wait_for()
-            assert page.get_by_role("button", name="Actualizar datos de Strava").count() == 0
+            browser, page = _start_page(playwright, address, 1024)
+            launcher = page.get_by_label("Pregunta a tu entrenador")
+            launcher.fill("¿Cómo voy esta semana?")
+            launcher.press("Enter")
+            drawer = page.get_by_role("dialog", name="Tu entrenador IA")
+            drawer.wait_for()
+            assert "37 de los 50 km semanales" in drawer.inner_text()
+            assert drawer.get_by_label("Tu mensaje").evaluate("el => el === el.getRootNode().activeElement")
+            page.keyboard.press("Shift+Tab")
+            assert drawer.get_by_role("button", name="Cerrar conversación").evaluate(
+                "el => el === el.getRootNode().activeElement"
+            )
+            page.keyboard.press("Tab")
+            assert drawer.get_by_label("Tu mensaje").evaluate("el => el === el.getRootNode().activeElement")
+            page.keyboard.press("Escape")
+            assert not drawer.is_visible()
+            assert launcher.evaluate("el => el === el.getRootNode().activeElement")
+
+            add = page.get_by_role("button", name="Registrar carrera")
+            add.click()
+            modal = page.locator("#modal")
+            assert modal.evaluate("el => el.open")
+            page.keyboard.press("Escape")
+            assert not modal.is_visible()
+            assert add.evaluate("el => el === el.getRootNode().activeElement")
+            browser.close()
+    finally:
+        _stop_server(process)
+
+
+@pytest.mark.parametrize("route", ["Estadísticas", "Coach"])
+def test_demo_route_triggers_open_native_app_sections_without_demo_data_leaking(route):
+    process, address = _start_server(8803 + (route == "Coach"))
+    try:
+        with sync_playwright() as playwright:
+            browser, page = _start_page(playwright, address, 1440)
+            page.locator(f"[data-app-route='{route}']").first.click()
+            if route == "Estadísticas":
+                page.get_by_role("heading", name="Weekly overview").wait_for()
+                assert page.get_by_role("button", name="Prepare Strava authorization").count() == 1
+            else:
+                page.locator('[data-testid="stMainBlockContainer"] h1').filter(
+                    has_text="Coach"
+                ).wait_for()
             nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
-            assert "Mi plan" not in nav.inner_text()
-            nav.get_by_text("Estadísticas").click()
-            page.get_by_text("Weekly overview", exact=True).wait_for()
-            nav.get_by_text("Coach").click()
-            page.get_by_text("Coach", exact=True).wait_for()
+            nav.wait_for()
+            assert nav.is_visible(), page.locator("body").inner_text()
+            assert route in nav.inner_text()
+            assert page.get_by_role("button", name="Registrar carrera").count() == 0
+            assert page.get_by_text("Rodaje por el Retiro", exact=True).count() == 0
             browser.close()
     finally:
         _stop_server(process)

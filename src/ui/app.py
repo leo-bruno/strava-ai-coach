@@ -12,6 +12,7 @@ from src.ui.dashboard import (
     render_sidebar,
     set_dashboard_view,
 )
+from src.ui.stride_dashboard_component import COMPONENT_STATE_KEY
 from src.ui.strava_connection import clear_expired_activity_analysis, consume_oauth_callback
 from src.ui.strava_dashboard import render_strava_dashboard
 from src.ui.strava_weekly_overview import clear_expired_weekly_overview
@@ -58,6 +59,8 @@ def render_app(ui=None) -> None:
         )
     if callback_status is not None:
         set_dashboard_view(ui.session_state, "Estadísticas")
+    if DASHBOARD_VIEW_KEY not in ui.session_state:
+        set_dashboard_view(ui.session_state, "Inicio")
     current_view = ui.session_state.get(DASHBOARD_VIEW_KEY, "Inicio")
     if current_view not in ("Inicio", "Estadísticas", "Coach"):
         current_view = "Inicio"
@@ -66,22 +69,35 @@ def render_app(ui=None) -> None:
         ui.session_state[NAVIGATION_KEY] = current_view
     elif ui.session_state.get(NAVIGATION_KEY) not in ("Inicio", "Estadísticas", "Coach"):
         ui.session_state[NAVIGATION_KEY] = current_view
-    nav_view = render_sidebar(
-        ui,
-        view=current_view,
-    )
-    ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
+    if current_view == "Inicio":
+        render_dashboard_styles(ui)
+        render_dashboard_home(
+            ui,
+            on_route_change=lambda: handle_demo_route_change(ui.session_state),
+        )
+        return
 
+    nav_view = render_sidebar(ui, view=current_view)
+    ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
     if nav_view == "Inicio":
         render_dashboard_styles(ui)
-        render_dashboard_home(ui)
+        render_dashboard_home(
+            ui,
+            on_route_change=lambda: handle_demo_route_change(ui.session_state),
+        )
     elif nav_view == "Estadísticas":
         render_strava_dashboard(ui, callback_status)
-    elif nav_view == "Coach":
-        render_request_page(ui)
     else:
-        set_dashboard_view(ui.session_state, "Inicio")
-        render_dashboard_home(ui)
+        render_request_page(ui)
+
+
+def handle_demo_route_change(session_state) -> None:
+    component_state = session_state.get(COMPONENT_STATE_KEY)
+    if isinstance(component_state, dict):
+        route = component_state.get("route")
+    else:
+        route = getattr(component_state, "route", None)
+    set_dashboard_view(session_state, route)
 
 
 def _render_accessible_control_focus_styles(ui) -> None:
