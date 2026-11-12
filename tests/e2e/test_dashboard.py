@@ -71,7 +71,9 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
             assert page.get_by_role("heading", name="Vamos a por más, Leo").is_visible()
             action_box = page.locator("#add").bounding_box()
             assert action_box and action_box["y"] < 900, action_box
-            assert page.get_by_role("button", name="Estadísticas", exact=False).count() >= 1
+            assert page.locator(".stride-root").get_by_role(
+                "button", name="Estadísticas", exact=False
+            ).count() == 0
             assert page.get_by_role("button", name="Coach real", exact=False).count() >= 1
             assert page.locator("[data-testid='stSidebar']").is_hidden()
             assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
@@ -178,24 +180,19 @@ def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
         _stop_server(process)
 
 
-@pytest.mark.parametrize("route", ["Estadísticas", "Coach"])
-def test_demo_route_triggers_open_native_app_sections_without_demo_data_leaking(route):
-    process, address = _start_server(8803 + (route == "Coach"))
+def test_demo_coach_link_opens_native_app_section_without_demo_data_leaking():
+    process, address = _start_server(8804)
     try:
         with sync_playwright() as playwright:
             browser, page = _start_page(playwright, address, 1440)
-            page.locator(f"[data-app-route='{route}']").first.click()
-            if route == "Estadísticas":
-                page.get_by_role("heading", name="Weekly overview").wait_for()
-                assert page.get_by_role("button", name="Prepare Strava authorization").count() == 1
-            else:
-                page.locator('[data-testid="stMainBlockContainer"] h1').filter(
-                    has_text="Coach"
-                ).wait_for()
+            page.locator("[data-app-route='Coach']").first.click()
+            page.locator('[data-testid="stMainBlockContainer"] h1').filter(
+                has_text="Coach"
+            ).wait_for()
             nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
             nav.wait_for()
             assert nav.is_visible(), page.locator("body").inner_text()
-            assert route in nav.inner_text()
+            assert "Coach" in nav.inner_text()
             assert page.get_by_role("button", name="Registrar carrera").count() == 0
             assert page.get_by_text("Rodaje por el Retiro", exact=True).count() == 0
             browser.close()
