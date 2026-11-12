@@ -7,12 +7,13 @@ from src.ui.coach_request_form import REQUEST_SESSION_KEY, render_request_page
 from src.ui.dashboard import (
     DASHBOARD_VIEW_KEY,
     NAVIGATION_KEY,
+    NAVIGATION_OPEN_KEY,
     render_dashboard_home,
     render_dashboard_styles,
     render_sidebar,
+    render_sidebar_visibility_styles,
     set_dashboard_view,
 )
-from src.ui.stride_dashboard_component import COMPONENT_STATE_KEY
 from src.ui.strava_connection import clear_expired_activity_analysis, consume_oauth_callback
 from src.ui.strava_dashboard import render_strava_dashboard
 from src.ui.strava_weekly_overview import clear_expired_weekly_overview
@@ -69,21 +70,39 @@ def render_app(ui=None) -> None:
         ui.session_state[NAVIGATION_KEY] = current_view
     elif ui.session_state.get(NAVIGATION_KEY) not in ("Inicio", "Estadísticas", "Coach"):
         ui.session_state[NAVIGATION_KEY] = current_view
+    ui.session_state.setdefault(NAVIGATION_OPEN_KEY, False)
+    nav_view = None
+    if current_view == "Inicio" and ui.session_state[NAVIGATION_OPEN_KEY]:
+        nav_view = render_sidebar(ui, view="Inicio")
+        if nav_view != "Inicio":
+            ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
+            current_view = nav_view
+        else:
+            render_dashboard_styles(ui, show_sidebar=True)
+            render_dashboard_home(
+                ui,
+                on_open_navigation_change=lambda: handle_open_navigation(ui.session_state),
+            )
+            return
     if current_view == "Inicio":
         render_dashboard_styles(ui)
         render_dashboard_home(
             ui,
-            on_route_change=lambda: handle_demo_route_change(ui.session_state),
+            on_open_navigation_change=lambda: handle_open_navigation(ui.session_state),
         )
         return
 
-    nav_view = render_sidebar(ui, view=current_view)
+    if ui.session_state[NAVIGATION_OPEN_KEY]:
+        render_sidebar_visibility_styles(ui, show_sidebar=True)
+    if nav_view is None:
+        nav_view = render_sidebar(ui, view=current_view)
     ui.session_state[DASHBOARD_VIEW_KEY] = nav_view
     if nav_view == "Inicio":
+        ui.session_state[NAVIGATION_OPEN_KEY] = False
         render_dashboard_styles(ui)
         render_dashboard_home(
             ui,
-            on_route_change=lambda: handle_demo_route_change(ui.session_state),
+            on_open_navigation_change=lambda: handle_open_navigation(ui.session_state),
         )
     elif nav_view == "Estadísticas":
         render_strava_dashboard(ui, callback_status)
@@ -91,13 +110,9 @@ def render_app(ui=None) -> None:
         render_request_page(ui)
 
 
-def handle_demo_route_change(session_state) -> None:
-    component_state = session_state.get(COMPONENT_STATE_KEY)
-    if isinstance(component_state, dict):
-        route = component_state.get("route")
-    else:
-        route = getattr(component_state, "route", None)
-    set_dashboard_view(session_state, route)
+def handle_open_navigation(session_state) -> None:
+    """Reveal the native sidebar without selecting or changing an app route."""
+    session_state[NAVIGATION_OPEN_KEY] = True
 
 
 def _render_accessible_control_focus_styles(ui) -> None:

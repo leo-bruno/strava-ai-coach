@@ -56,7 +56,7 @@ def _start_page(playwright, address, width, height=1000):
 @pytest.mark.parametrize("theme", ["light", "dark"])
 @pytest.mark.parametrize("width", [1440, 1024, 393, 320])
 def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, width):
-    port = 8780 + (10 if theme == "dark" else 0) + [1440, 1024, 393, 320].index(width)
+    port = 18780 + (10 if theme == "dark" else 0) + [1440, 1024, 393, 320].index(width)
     process, address = _start_server(port, dark=theme == "dark")
     try:
         with sync_playwright() as playwright:
@@ -74,7 +74,9 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
             assert page.locator(".stride-root").get_by_role(
                 "button", name="Estadísticas", exact=False
             ).count() == 0
-            assert page.get_by_role("button", name="Coach real", exact=False).count() >= 1
+            assert page.locator(".stride-root [data-app-route]").count() == 0
+            assert page.get_by_role("button", name="Coach real", exact=False).count() == 0
+            assert page.get_by_role("button", name="Abrir el Coach real", exact=False).count() == 0
             assert page.locator("[data-testid='stSidebar']").is_hidden()
             assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             assert page.locator(".stride-root").evaluate(
@@ -92,7 +94,7 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
-    process, address = _start_server(8801 + (theme == "dark"), dark=theme == "dark")
+    process, address = _start_server(18801 + (theme == "dark"), dark=theme == "dark")
     try:
         with sync_playwright() as playwright:
             browser, page = _start_page(playwright, address, 1440)
@@ -147,7 +149,7 @@ def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
 
 
 def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
-    process, address = _start_server(8802)
+    process, address = _start_server(18802)
     try:
         with sync_playwright() as playwright:
             browser, page = _start_page(playwright, address, 1024)
@@ -168,6 +170,13 @@ def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
             assert not drawer.is_visible()
             assert launcher.evaluate("el => el === el.getRootNode().activeElement")
 
+            page.set_viewport_size({"width": 393, "height": 844})
+            page.get_by_role("button", name="Entrenador IA · demo").click()
+            drawer.wait_for()
+            assert "Demo interactiva" in drawer.inner_text()
+            page.keyboard.press("Escape")
+            assert not drawer.is_visible()
+
             add = page.get_by_role("button", name="Registrar carrera")
             add.click()
             modal = page.locator("#modal")
@@ -180,21 +189,32 @@ def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
         _stop_server(process)
 
 
-def test_demo_coach_link_opens_native_app_section_without_demo_data_leaking():
-    process, address = _start_server(8804)
+@pytest.mark.parametrize(("width", "port"), [(1440, 18804), (393, 18805)])
+def test_home_menu_opens_native_sidebar_and_routes_back_from_coach(width, port):
+    process, address = _start_server(port)
     try:
         with sync_playwright() as playwright:
-            browser, page = _start_page(playwright, address, 1440)
-            page.locator("[data-app-route='Coach']").first.click()
+            browser, page = _start_page(playwright, address, width)
+            nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
+            assert nav.is_hidden()
+            page.get_by_role("button", name="Abrir navegación").click()
+            nav.wait_for(state="visible")
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
+            assert page.get_by_role("button", name="Estadísticas", exact=False).count() == 0
+            assert page.locator(".stride-root [data-app-route]").count() == 0
+            nav.locator("label").filter(has_text="Coach").click()
             page.locator('[data-testid="stMainBlockContainer"] h1').filter(
                 has_text="Coach"
             ).wait_for()
-            nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
-            nav.wait_for()
             assert nav.is_visible(), page.locator("body").inner_text()
             assert "Coach" in nav.inner_text()
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             assert page.get_by_role("button", name="Registrar carrera").count() == 0
             assert page.get_by_text("Rodaje por el Retiro", exact=True).count() == 0
+            nav.locator("label").filter(has_text="Inicio").click()
+            page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
+            assert nav.is_hidden()
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             browser.close()
     finally:
         _stop_server(process)

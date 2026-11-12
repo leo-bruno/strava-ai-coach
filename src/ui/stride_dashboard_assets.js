@@ -228,9 +228,7 @@ export default function (component) {
   $("#period").addEventListener("change", renderChart)
   $$("[data-view]").forEach(button => button.addEventListener("click", () => showView(button.dataset.view)))
   $$("[data-plan]").forEach(button => button.addEventListener("click", () => selectPlan(button.dataset.plan)))
-  $$("[data-app-route]").forEach(button => button.addEventListener("click", () => {
-    setTriggerValue("route", button.dataset.appRoute)
-  }))
+  $$("[data-action='open-navigation']").forEach(button => button.addEventListener("click", () => setTriggerValue("open_navigation", true)))
   $$("[data-action='show-plan']").forEach(button => button.addEventListener("click", () => showView("plan")))
   $$("[data-action='ask-plan']").forEach(button => button.addEventListener("click", () => ask("Explícame mi plan de entrenamiento")))
   $$("[data-action='open-chat']").forEach(button => button.addEventListener("click", openChat))

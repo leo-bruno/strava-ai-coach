@@ -5,7 +5,6 @@ from pathlib import Path
 
 import streamlit as st
 
-COMPONENT_STATE_KEY = "stride_demo_dashboard"
 _ASSET_DIRECTORY = Path(__file__).parent
 _HTML = (_ASSET_DIRECTORY / "stride_dashboard_assets.html").read_text(encoding="utf-8")
 _CSS = (_ASSET_DIRECTORY / "stride_dashboard_assets.css").read_text(encoding="utf-8")
@@ -20,13 +19,9 @@ _STRIDE_DASHBOARD = st.components.v2.component(
 )
 
 
-def render_stride_dashboard(
-    *, on_route_change: Callable[[], None] | None = None
-):
-    """Mount the demo UI; only its explicit app-route links emit Python events."""
-    callback = on_route_change if on_route_change is not None else (lambda: None)
+def render_stride_dashboard(*, on_open_navigation_change: Callable[[], None]):
+    """Mount the demo UI with one trigger to reveal native app navigation."""
     return _STRIDE_DASHBOARD(
-        key=COMPONENT_STATE_KEY,
         data={"demo": True},
-        on_route_change=callback,
+        on_open_navigation_change=on_open_navigation_change,
     )
