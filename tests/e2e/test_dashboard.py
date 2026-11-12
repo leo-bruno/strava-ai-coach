@@ -93,6 +93,53 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("width", [1440, 1024, 393])
+def test_period_selector_has_inset_caret_and_keeps_labels_clear(theme, width):
+    port = 19040 + (10 if theme == "dark" else 0) + [1440, 1024, 393].index(width)
+    process, address = _start_server(port, dark=theme == "dark")
+    try:
+        with sync_playwright() as playwright:
+            browser, page = _start_page(playwright, address, width)
+            period = page.locator("#period")
+            metrics = period.evaluate("""el => {
+                const style = getComputedStyle(el)
+                const rect = el.getBoundingClientRect()
+                const canvas = document.createElement('canvas')
+                const context = canvas.getContext('2d')
+                context.font = style.font
+                const maxLabelWidth = Math.max(...[...el.options].map(option => context.measureText(option.text).width))
+                return {
+                    appearance: style.appearance,
+                    paddingLeft: parseFloat(style.paddingLeft),
+                    paddingRight: parseFloat(style.paddingRight),
+                    backgroundImage: style.backgroundImage,
+                    backgroundPosition: style.backgroundPosition,
+                    width: rect.width,
+                    labelWidth: maxLabelWidth,
+                    scrollWidth: el.scrollWidth,
+                    clientWidth: el.clientWidth,
+                }
+            }""")
+            assert metrics["appearance"] == "none", metrics
+            assert metrics["paddingRight"] == 34, metrics
+            assert "linear-gradient" in metrics["backgroundImage"], metrics
+            assert "20px" in metrics["backgroundPosition"] and "16px" in metrics["backgroundPosition"], metrics
+            assert metrics["width"] >= metrics["labelWidth"] + metrics["paddingLeft"] + metrics["paddingRight"], metrics
+            assert metrics["scrollWidth"] <= metrics["clientWidth"], metrics
+            period.select_option("month")
+            assert period.input_value() == "month"
+            period.select_option("week")
+            assert period.input_value() == "week"
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
+            output = Path("test-results/ui-captures/after")
+            output.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=str(output / f"period-select-{theme}-{width}.png"))
+            browser.close()
+    finally:
+        _stop_server(process)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
 def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
     process, address = _start_server(18801 + (theme == "dark"), dark=theme == "dark")
     try:
