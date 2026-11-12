@@ -7,20 +7,11 @@ export default function (component) {
   if (!container || container.dataset.initialized === "true") return
   container.dataset.initialized = "true"
 
-  const runsKey = "stride-runs"
   const defaults = [
     { title: "Rodaje por el Retiro", distance: 8.2, minutes: 44, date: "Hoy · 07:15" },
     { title: "Series para ir más lejos", distance: 6.4, minutes: 31, date: "Ayer · 18:30" },
     { title: "Domingo de tirada larga", distance: 14, minutes: 79, date: "8 nov · 08:00" },
   ]
-  let runs = []
-  try {
-    const stored = JSON.parse(localStorage.getItem(runsKey) || "[]")
-    if (Array.isArray(stored)) runs = stored
-  } catch {
-    runs = []
-  }
-
   const plans = [
     ["RODAJE SUAVE", "Empieza con calma", "5 km · Ritmo cómodo"],
     ["SERIES", "Un poco de velocidad", "6 × 400 m · Recuperación 90 s"],
@@ -59,7 +50,7 @@ export default function (component) {
   function renderRuns() {
     const list = $("#sessions")
     list.replaceChildren()
-    ;[...runs, ...defaults].slice(0, 5).forEach(run => {
+    defaults.forEach(run => {
       const row = document.createElement("div")
       row.className = "session"
       const icon = document.createElement("div")
@@ -81,14 +72,6 @@ export default function (component) {
       row.append(icon, info, numbers)
       list.append(row)
     })
-    const extraDistance = runs.reduce((total, run) => total + Number(run.distance), 0)
-    const goalDistance = 37 + extraDistance
-    $("#total").textContent = (128.4 + extraDistance).toLocaleString("es", { maximumFractionDigits: 1 })
-    $("#goalKm").textContent = goalDistance.toLocaleString("es", { maximumFractionDigits: 1 })
-    $("#bar").style.width = `${Math.min(100, goalDistance / 50 * 100)}%`
-    $("#goalText").textContent = goalDistance >= 50
-      ? "¡Objetivo completado! Gran trabajo."
-      : `${Math.round(goalDistance / 50 * 100)}% completado · ¡Te quedan ${(50 - goalDistance).toLocaleString("es", { maximumFractionDigits: 1 })} km!`
   }
 
   function renderChart() {
@@ -209,22 +192,6 @@ export default function (component) {
     }))
   }
 
-  $("#add").addEventListener("click", () => $("#modal").showModal())
-  $("#cancel").addEventListener("click", () => $("#modal").close())
-  $("#form").addEventListener("submit", event => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    runs.unshift({
-      title: form.get("title"),
-      distance: Number(form.get("distance")),
-      minutes: Number(form.get("minutes")),
-      date: "Registrada ahora",
-    })
-    try { localStorage.setItem(runsKey, JSON.stringify(runs)) } catch { /* Demo still works for this page view. */ }
-    renderRuns()
-    $("#modal").close()
-    event.currentTarget.reset()
-  })
   $("#period").addEventListener("change", renderChart)
   $$("[data-view]").forEach(button => button.addEventListener("click", () => showView(button.dataset.view)))
   $$("[data-plan]").forEach(button => button.addEventListener("click", () => selectPlan(button.dataset.plan)))

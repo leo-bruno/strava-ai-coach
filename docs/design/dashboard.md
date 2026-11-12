@@ -6,7 +6,7 @@ La referencia visual y de interacción es el prototipo [Stride](dashboard-protot
 
 - Conserva la navegación lateral del prototipo, encabezado, cuatro tarjetas de resumen, gráfico semanal/mensual, agenda de siete días, últimas carreras, panel de Coach y vista de entrenamiento con pestañas.
 - Los valores 37/50 km, 128,4 km, 5:24 min/km, 11 h 33 min, 16 carreras, las actividades, el plan, los gráficos y las respuestas de chat son datos de ejemplo del prototipo. La página los identifica como demostración.
-- «Registrar carrera» solo añade un registro de demostración y lo guarda en el `localStorage` del navegador. No escribe en Strava ni en el estado Python.
+- La lista y las métricas presentan una muestra fija de tres carreras. Inicio no permite registrar carreras ni persiste cambios; no escribe en Strava ni en el estado Python.
 - El chat, la semana, las pestañas de plan y los gráficos son interacciones locales con respuestas predefinidas. No consultan Coach ni OpenAI.
 - Inicio oculta siempre la barra lateral nativa y no ofrece un puente explícito a las rutas reales. La demo no emite triggers a Python ni lee o transforma resúmenes Strava.
 

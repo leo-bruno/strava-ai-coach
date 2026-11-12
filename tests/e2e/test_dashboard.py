@@ -59,7 +59,6 @@ def _start_page(playwright, address, width, height=1000, *, native_view=None):
     if native_view == "Estadísticas":
         page.get_by_role("heading", name="Estadísticas").wait_for()
     else:
-        page.get_by_role("button", name="Registrar carrera").wait_for()
         page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
     return browser, page
 
@@ -78,7 +77,14 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
                 "Entrenar mejor empieza", "datos ficticios", "no consulta Strava ni OpenAI",
             ):
                 assert page.get_by_text(text, exact=False).count() > 0, text
-            assert page.locator("#add").is_visible()
+            assert page.get_by_role("button", name="Registrar carrera").count() == 0
+            assert page.locator("#modal").count() == 0
+            assert page.locator("#goalKm").inner_text() == "37"
+            assert page.locator("#total").inner_text() == "128,4"
+            assert page.locator("#sessions .session").count() == 3
+            assert page.get_by_text("Rodaje por el Retiro", exact=True).is_visible()
+            assert page.get_by_text("Series para ir más lejos", exact=True).is_visible()
+            assert page.get_by_text("Domingo de tirada larga", exact=True).is_visible()
             assert page.title() == "Runner Coach"
             logo = page.locator(".stride-root .logo")
             assert logo.is_visible()
@@ -88,8 +94,6 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
                 "el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).fontSize) * 1.3"
             )
             assert page.get_by_role("heading", name="Vamos a por más, Leo").is_visible()
-            action_box = page.locator("#add").bounding_box()
-            assert action_box and action_box["y"] < 900, action_box
             assert page.locator(".stride-root").get_by_role(
                 "button", name="Estadísticas", exact=False
             ).count() == 0
@@ -182,22 +186,12 @@ def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
                 page.get_by_role("button", name=f"{day} {9 + index}, ver entrenamiento").click()
                 assert page.locator(".workout h3").inner_text() == expected
 
-            page.get_by_role("button", name="Registrar carrera").click()
-            dialog = page.locator("#modal")
-            assert dialog.evaluate("el => el.open")
-            dialog.get_by_label("Nombre de la carrera").fill("Rodaje de prueba")
-            dialog.get_by_label("Distancia en km").fill("2")
-            dialog.get_by_label("Duración en minutos").fill("12")
-            dialog.get_by_role("button", name="Guardar carrera").click()
-            assert page.get_by_text("Rodaje de prueba", exact=True).count() == 1
-            assert page.locator("#goalKm").inner_text() == "39"
-            assert page.evaluate("localStorage.getItem('stride-runs')").find("Rodaje de prueba") >= 0
-            page.keyboard.press("Escape")
-            page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
-            page.reload()
-            page.get_by_role("button", name="Registrar carrera").wait_for()
-            assert page.locator("#goalKm").inner_text() == "39"
-            assert page.get_by_text("Rodaje de prueba", exact=True).count() == 1
+            assert page.get_by_role("button", name="Registrar carrera").count() == 0
+            assert page.locator("#modal").count() == 0
+            assert page.locator("#goalKm").inner_text() == "37"
+            assert page.locator("#total").inner_text() == "128,4"
+            assert page.locator("#sessions .session").count() == 3
+            assert page.get_by_text("Rodaje de prueba", exact=True).count() == 0
 
             page.locator("[data-view='plan']").first.click()
             assert page.locator("#training").is_visible()
@@ -213,7 +207,7 @@ def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
         _stop_server(process)
 
 
-def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
+def test_demo_canned_chat_has_focus_restore_and_keyboard_escape():
     process, address = _start_server(18802)
     try:
         with sync_playwright() as playwright:
@@ -242,13 +236,8 @@ def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
             page.keyboard.press("Escape")
             assert not drawer.is_visible()
 
-            add = page.get_by_role("button", name="Registrar carrera")
-            add.click()
-            modal = page.locator("#modal")
-            assert modal.evaluate("el => el.open")
-            page.keyboard.press("Escape")
-            assert not modal.is_visible()
-            assert add.evaluate("el => el === el.getRootNode().activeElement")
+            assert page.get_by_role("button", name="Registrar carrera").count() == 0
+            assert page.locator("#modal").count() == 0
             browser.close()
     finally:
         _stop_server(process)
