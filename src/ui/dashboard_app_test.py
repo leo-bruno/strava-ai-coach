@@ -2,8 +2,7 @@
 
 from streamlit.testing.v1 import AppTest
 
-from src.ui.app import handle_open_navigation
-from src.ui.dashboard import DASHBOARD_VIEW_KEY, NAVIGATION_KEY, NAVIGATION_OPEN_KEY
+from src.ui.dashboard import DASHBOARD_VIEW_KEY, NAVIGATION_KEY
 from src.ui.strava_weekly_overview import (
     WEEKLY_ACTIVITIES_KEY,
     WEEKLY_ANALYSES_KEY,
@@ -24,6 +23,7 @@ def test_home_mounts_demo_without_streamlit_errors_or_real_sidebar():
     assert not app.exception
     assert app.session_state[DASHBOARD_VIEW_KEY] == "Inicio"
     assert list(app.radio) == []
+    assert "dashboard_navigation_open" not in app.session_state
     assert WEEKLY_ANALYSES_KEY not in app.session_state
     assert WEEKLY_ACTIVITIES_KEY not in app.session_state
 
@@ -43,31 +43,6 @@ def test_home_does_not_fetch_strava_automatically(monkeypatch):
     assert not app.exception
     assert calls == []
     assert WEEKLY_ANALYSES_KEY not in app.session_state
-
-
-def test_home_navigation_button_opens_only_the_native_sidebar(monkeypatch):
-    calls = []
-    monkeypatch.setattr(
-        "src.ui.strava_dashboard.load_recent_weekly_overview",
-        lambda *_args, **_kwargs: calls.append("fetch"),
-    )
-    app = _app()
-
-    handle_open_navigation(app.session_state)
-    app = app.run()
-
-    assert not app.exception
-    assert app.session_state[DASHBOARD_VIEW_KEY] == "Inicio"
-    assert app.session_state[NAVIGATION_OPEN_KEY] is True
-    assert calls == []
-    assert WEEKLY_ANALYSES_KEY not in app.session_state
-    assert WEEKLY_ACTIVITIES_KEY not in app.session_state
-    assert [radio.options for radio in app.radio] == [
-        ["▦  Inicio", "◉  Estadísticas", "✦  Coach"]
-    ]
-    app.radio(key=NAVIGATION_KEY).set_value("Coach").run()
-    assert not app.exception
-    assert app.session_state[DASHBOARD_VIEW_KEY] == "Coach"
 
 
 def test_native_navigation_opens_real_statistics_section_without_fetching(monkeypatch):
@@ -106,4 +81,3 @@ def test_native_sidebar_keeps_home_available_from_real_coach_section():
     app.radio(key=NAVIGATION_KEY).set_value("Inicio").run()
     assert not app.exception
     assert app.session_state[DASHBOARD_VIEW_KEY] == "Inicio"
-    assert app.session_state[NAVIGATION_OPEN_KEY] is False

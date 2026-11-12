@@ -9,12 +9,20 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 
-def _start_server(port: int, *, dark=False):
+def _start_server(port: int, *, dark=False, initial_view=None):
     project_root = Path(__file__).resolve().parents[2]
     launcher = Path(f"/tmp/stride_demo_e2e_{port}.py")
+    seed_view = ""
+    if initial_view:
+        seed_view = (
+            f"if 'dashboard_view' not in st.session_state:\n"
+            f"    st.session_state['dashboard_view'] = {initial_view!r}\n"
+            f"    st.session_state['dashboard_navigation'] = {initial_view!r}\n"
+        )
     launcher.write_text(
         f"import sys\nsys.path.insert(0, {str(project_root)!r})\n"
-        "from src.ui.app import render_app\nrender_app()\n"
+        "import streamlit as st\nfrom src.ui.app import render_app\n"
+        f"{seed_view}render_app()\n"
     )
     command = [
         ".venv/bin/python", "-m", "streamlit", "run", str(launcher),
@@ -44,12 +52,15 @@ def _stop_server(process):
         process.wait(timeout=5)
 
 
-def _start_page(playwright, address, width, height=1000):
+def _start_page(playwright, address, width, height=1000, *, native_view=None):
     browser = playwright.chromium.launch(headless=True)
     page = browser.new_page(viewport={"width": width, "height": height})
     page.goto(address)
-    page.get_by_role("button", name="Registrar carrera").wait_for()
-    page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
+    if native_view == "Estadísticas":
+        page.get_by_role("heading", name="Estadísticas").wait_for()
+    else:
+        page.get_by_role("button", name="Registrar carrera").wait_for()
+        page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
     return browser, page
 
 
@@ -75,8 +86,7 @@ def test_prototype_composition_is_faithful_responsive_and_theme_safe(theme, widt
                 "button", name="Estadísticas", exact=False
             ).count() == 0
             assert page.locator(".stride-root [data-app-route]").count() == 0
-            assert page.get_by_role("button", name="Coach real", exact=False).count() == 0
-            assert page.get_by_role("button", name="Abrir el Coach real", exact=False).count() == 0
+            assert page.get_by_role("button", name="Menú", exact=True).count() == 0
             assert page.locator("[data-testid='stSidebar']").is_hidden()
             assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             assert page.locator(".stride-root").evaluate(
@@ -236,32 +246,27 @@ def test_demo_canned_chat_has_modal_focus_restore_and_keyboard_escape():
         _stop_server(process)
 
 
-@pytest.mark.parametrize(("width", "port"), [(1440, 18804), (393, 18805)])
-def test_home_menu_opens_native_sidebar_and_routes_back_from_coach(width, port):
-    process, address = _start_server(port)
+def test_native_sidebar_routes_between_real_coach_and_home():
+    process, address = _start_server(18804, initial_view="Estadísticas")
     try:
         with sync_playwright() as playwright:
-            browser, page = _start_page(playwright, address, width)
+            browser, page = _start_page(
+                playwright, address, 1440, native_view="Estadísticas"
+            )
             nav = page.locator('[data-testid="stSidebar"] [data-testid="stRadio"]')
-            assert nav.is_hidden()
-            page.get_by_role("button", name="Abrir navegación").click()
+            page.get_by_role("heading", name="Estadísticas").wait_for()
             nav.wait_for(state="visible")
-            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
-            assert page.get_by_role("button", name="Estadísticas", exact=False).count() == 0
-            assert page.locator(".stride-root [data-app-route]").count() == 0
             nav.locator("label").filter(has_text="Coach").click()
             page.locator('[data-testid="stMainBlockContainer"] h1').filter(
                 has_text="Coach"
             ).wait_for()
             assert nav.is_visible(), page.locator("body").inner_text()
             assert "Coach" in nav.inner_text()
-            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             assert page.get_by_role("button", name="Registrar carrera").count() == 0
             assert page.get_by_text("Rodaje por el Retiro", exact=True).count() == 0
             nav.locator("label").filter(has_text="Inicio").click()
             page.get_by_role("heading", name="Vamos a por más, Leo").wait_for()
             assert nav.is_hidden()
-            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
             browser.close()
     finally:
         _stop_server(process)

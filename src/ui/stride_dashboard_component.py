@@ -1,6 +1,5 @@
 """Inline CCv2 bridge for the isolated Stride demonstration dashboard."""
 
-from collections.abc import Callable
 from pathlib import Path
 
 import streamlit as st
@@ -19,9 +18,8 @@ _STRIDE_DASHBOARD = st.components.v2.component(
 )
 
 
-def render_stride_dashboard(*, on_open_navigation_change: Callable[[], None]):
-    """Mount the demo UI with one trigger to reveal native app navigation."""
+def render_stride_dashboard():
+    """Mount the isolated demonstration dashboard."""
     return _STRIDE_DASHBOARD(
         data={"demo": True},
-        on_open_navigation_change=on_open_navigation_change,
     )
