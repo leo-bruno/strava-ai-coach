@@ -104,6 +104,7 @@ export default function (component) {
   let previousFocus
   function openChat() {
     previousFocus = root.activeElement
+    $("#drawerBackdrop").hidden = false
     $("#chatDrawer").hidden = false
     $("main").inert = true
     $("aside").inert = true
@@ -112,6 +113,7 @@ export default function (component) {
 
   function closeChat() {
     $("#chatDrawer").hidden = true
+    $("#drawerBackdrop").hidden = true
     $("main").inert = false
     $("aside").inert = false
     previousFocus?.focus()
@@ -199,6 +201,7 @@ export default function (component) {
   $$("[data-action='ask-plan']").forEach(button => button.addEventListener("click", () => ask("Explícame mi plan de entrenamiento")))
   $$("[data-action='open-chat']").forEach(button => button.addEventListener("click", openChat))
   $$("[data-action='close-chat']").forEach(button => button.addEventListener("click", closeChat))
+  $("#drawerBackdrop").addEventListener("click", closeChat)
   $$("[data-suggestion]").forEach(button => button.addEventListener("click", () => ask(button.dataset.suggestion)))
   $("#quickChat").addEventListener("submit", event => {
     event.preventDefault()

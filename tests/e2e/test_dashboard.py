@@ -207,34 +207,95 @@ def test_demo_controls_week_month_chart_days_and_plan_tabs(theme):
         _stop_server(process)
 
 
-def test_demo_canned_chat_has_focus_restore_and_keyboard_escape():
-    process, address = _start_server(18802)
+@pytest.mark.parametrize("width", [1440, 393])
+def test_demo_chat_drawer_stays_below_app_header_and_closes_accessibly(width):
+    port = 18802 if width == 1440 else 18803
+    process, address = _start_server(port)
     try:
         with sync_playwright() as playwright:
-            browser, page = _start_page(playwright, address, 1024)
-            launcher = page.get_by_label("Pregunta a tu entrenador")
-            launcher.fill("¿Cómo voy esta semana?")
-            launcher.press("Enter")
+            browser, page = _start_page(playwright, address, width, 844)
+            if width == 1440:
+                quick_launcher = page.get_by_label("Pregunta a tu entrenador")
+                quick_launcher.fill("¿Cómo voy esta semana?")
+                quick_launcher.press("Enter")
+                quick_drawer = page.get_by_role("dialog", name="Tu entrenador IA")
+                quick_drawer.wait_for()
+                assert "37 de los 50 km semanales" in quick_drawer.inner_text()
+                page.keyboard.press("Escape")
+                assert not quick_drawer.is_visible()
+                assert quick_launcher.evaluate("el => el === el.getRootNode().activeElement")
+
+            if width <= 600:
+                page.locator(".mobile-nav [data-view='plan']").click()
+            else:
+                page.locator(".stride-root aside nav [data-view='plan']").click()
+            launcher = page.get_by_role("button", name="Hablar con mi entrenador")
+            launcher.click()
             drawer = page.get_by_role("dialog", name="Tu entrenador IA")
             drawer.wait_for()
-            assert "37 de los 50 km semanales" in drawer.inner_text()
+            assert "Tu plan de ejemplo prepara una media maratón" in drawer.inner_text()
+            backdrop = page.locator("#drawerBackdrop")
+            assert backdrop.is_visible()
+
+            header = page.locator('[data-testid="stHeader"]')
+            header_box = header.bounding_box()
+            drawer_box = drawer.bounding_box()
+            assert header_box and drawer_box
+            assert drawer_box["y"] >= header_box["y"] + header_box["height"] - 1
+            assert drawer_box["y"] + drawer_box["height"] <= 844
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
+            title_box = drawer.get_by_role("heading", name="Tu entrenador IA").bounding_box()
+            composer_box = drawer.locator(".chat-launch").bounding_box()
+            assert title_box and title_box["y"] >= drawer_box["y"]
+            assert composer_box and composer_box["y"] + composer_box["height"] <= drawer_box["y"] + drawer_box["height"]
             assert drawer.get_by_label("Tu mensaje").evaluate("el => el === el.getRootNode().activeElement")
+
+            drawer.locator(".drawer-head h2").click()
+            assert drawer.is_visible()
+            drawer.get_by_label("Tu mensaje").focus()
+
+            close_button = drawer.get_by_role("button", name="Cerrar conversación")
+            send_button = drawer.get_by_role("button", name="Enviar mensaje")
+            close_button.focus()
             page.keyboard.press("Shift+Tab")
-            assert drawer.get_by_role("button", name="Cerrar conversación").evaluate(
+            assert send_button.evaluate(
                 "el => el === el.getRootNode().activeElement"
             )
             page.keyboard.press("Tab")
-            assert drawer.get_by_label("Tu mensaje").evaluate("el => el === el.getRootNode().activeElement")
-            page.keyboard.press("Escape")
-            assert not drawer.is_visible()
-            assert launcher.evaluate("el => el === el.getRootNode().activeElement")
+            assert close_button.evaluate(
+                "el => el === el.getRootNode().activeElement"
+            )
+            drawer.get_by_label("Tu mensaje").focus()
 
-            page.set_viewport_size({"width": 393, "height": 844})
-            page.get_by_role("button", name="Entrenador IA · demo").click()
+            drawer.get_by_role("button", name="Cerrar conversación").click()
+            assert not drawer.is_visible()
+            assert not backdrop.is_visible()
+            assert launcher.evaluate("el => el === el.getRootNode().activeElement")
+            assert not page.locator(".stride-root main").evaluate("el => el.inert")
+            assert not page.locator(".stride-root > aside").evaluate("el => el.inert")
+
+            launcher.click()
             drawer.wait_for()
-            assert "Demo interactiva" in drawer.inner_text()
             page.keyboard.press("Escape")
             assert not drawer.is_visible()
+            assert not backdrop.is_visible()
+            assert launcher.evaluate("el => el === el.getRootNode().activeElement")
+            assert not page.locator(".stride-root main").evaluate("el => el.inert")
+            assert not page.locator(".stride-root > aside").evaluate("el => el.inert")
+
+            if width == 1440:
+                launcher.click()
+                drawer.wait_for()
+                background_control = page.locator(".stride-root aside nav [data-view='all']")
+                target = background_control.bounding_box()
+                assert target
+                page.mouse.click(target["x"] + target["width"] / 2, target["y"] + target["height"] / 2)
+                assert not drawer.is_visible()
+                assert not backdrop.is_visible()
+                assert page.locator("#training").is_visible()
+                assert launcher.evaluate("el => el === el.getRootNode().activeElement")
+                assert not page.locator(".stride-root main").evaluate("el => el.inert")
+                assert not page.locator(".stride-root > aside").evaluate("el => el.inert")
 
             assert page.get_by_role("button", name="Registrar carrera").count() == 0
             assert page.locator("#modal").count() == 0
