@@ -18,8 +18,8 @@ _STRIDE_DASHBOARD = st.components.v2.component(
 )
 
 
-def render_stride_dashboard():
-    """Mount the isolated demonstration dashboard."""
+def render_stride_dashboard(data: dict | None = None):
+    """Mount the dashboard with an optional serializable session snapshot."""
     return _STRIDE_DASHBOARD(
-        data={"demo": True},
+        data=data or {"demo": True},
     )

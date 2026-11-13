@@ -6,10 +6,10 @@ from pathlib import Path
 from urllib.request import urlopen
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 
-def _start_server(port: int, *, dark=False, initial_view=None):
+def _start_server(port: int, *, dark=False, initial_view=None, seed_weekly=None):
     project_root = Path(__file__).resolve().parents[2]
     launcher = Path(f"/tmp/stride_demo_e2e_{port}.py")
     seed_view = ""
@@ -19,6 +19,27 @@ def _start_server(port: int, *, dark=False, initial_view=None):
             f"    st.session_state['dashboard_view'] = {initial_view!r}\n"
             f"    st.session_state['dashboard_navigation'] = {initial_view!r}\n"
         )
+    if seed_weekly:
+        seed_view += """
+from datetime import date, datetime, timedelta, timezone
+from src.models.weekly_analysis import WeeklyAnalysis
+from src.models.activity import Activity
+from src.ui.strava_weekly_overview import (WEEKLY_ANALYSES_KEY, WEEKLY_ACTIVITIES_KEY,
+    WEEKLY_PERIOD_START_KEY, WEEKLY_PERIOD_END_KEY, WEEKLY_AS_OF_KEY)
+from src.ui.strava_connection import ACCESS_TOKEN_KEY, EXPIRES_AT_KEY
+st.session_state[ACCESS_TOKEN_KEY] = 'e2e-session-token'
+st.session_state[EXPIRES_AT_KEY] = 4102444800
+period_start = datetime(2026, 9, 28, tzinfo=timezone.utc)
+week_distances = [20000, 12000, 18000, 9000, 15000, 11000, 17000] if SEED_KIND == 'weekly' else [0] * 7
+st.session_state[WEEKLY_ANALYSES_KEY] = tuple(WeeklyAnalysis(
+    (date(2026, 9, 28) + timedelta(weeks=i)), distance, int(distance > 0), 3600 if distance else 0, ())
+    for i, distance in enumerate(week_distances))
+st.session_state[WEEKLY_ACTIVITIES_KEY] = (() if SEED_KIND == 'zero' else (
+    Activity(1, 'Carrera real de prueba', 'Run', datetime(2026, 11, 10, 7, tzinfo=timezone.utc), 20000, 3600),))
+st.session_state[WEEKLY_PERIOD_START_KEY] = period_start
+st.session_state[WEEKLY_PERIOD_END_KEY] = datetime(2026, 11, 16, tzinfo=timezone.utc)
+st.session_state[WEEKLY_AS_OF_KEY] = datetime(2026, 11, 13, tzinfo=timezone.utc)
+""".replace("SEED_KIND", repr(seed_weekly))
     launcher.write_text(
         f"import sys\nsys.path.insert(0, {str(project_root)!r})\n"
         "import streamlit as st\nfrom src.ui.app import render_app\n"
@@ -299,6 +320,72 @@ def test_demo_chat_drawer_stays_below_app_header_and_closes_accessibly(width):
 
             assert page.get_by_role("button", name="Registrar carrera").count() == 0
             assert page.locator("#modal").count() == 0
+            browser.close()
+    finally:
+        _stop_server(process)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("width", [1440, 393])
+@pytest.mark.parametrize("seed_kind", ["weekly", "zero"])
+def test_home_displays_real_weekly_overview_without_demo_leakage(theme, width, seed_kind):
+    port = 19100 + (10 if theme == "dark" else 0) + (1 if width == 393 else 0) + (2 if seed_kind == "zero" else 0)
+    process, address = _start_server(port, dark=theme == "dark", seed_weekly=seed_kind)
+    try:
+        with sync_playwright() as playwright:
+            browser, page = _start_page(playwright, address, width, 900)
+            assert page.locator("#realDataStatus").inner_text().startswith("Datos de Strava")
+            assert "28/9/2026" in page.locator("#realDataStatus").inner_text()
+            assert "solo" in page.locator("#realDataStatus").inner_text().lower()
+            assert not page.locator(".goal").is_visible()
+            assert not page.locator("#plan").is_visible()
+            assert not page.locator(".insight").is_visible()
+            assert not page.locator(".stride-root aside .coach").is_visible()
+            assert not page.locator("#goalLine").is_visible()
+            assert page.locator(".notice").inner_text().startswith("Los datos del resumen de Strava")
+            if seed_kind == "weekly":
+                assert page.locator("#total").inner_text() == "102"
+                assert page.locator("#runCount").inner_text() == "7 carreras en el periodo"
+                assert page.locator("#pace").inner_text() == "4:07"
+                assert page.locator("#sessions .session").count() == 1
+                assert page.get_by_text("Carrera real de prueba", exact=True).is_visible()
+                assert page.get_by_text("Rodaje por el Retiro", exact=True).count() == 0
+                assert page.locator(".chart g[font-size='10'] text").first.text_content() == "20"
+                assert page.locator("#points circle").count() == 7
+                assert page.locator("#line").get_attribute("d").count("L") == 6
+                assert page.locator("#period option").count() == 1
+            else:
+                assert page.locator("#total").inner_text() == "0"
+                assert page.locator("#runCount").inner_text() == "0 carreras en el periodo"
+                assert page.locator("#pace").inner_text() == "—"
+                assert "No hay carreras" in page.locator("#sessions").inner_text()
+            assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
+            page.reload()
+            assert page.locator("#realDataStatus").inner_text().startswith("Datos de Strava")
+            browser.close()
+    finally:
+        _stop_server(process)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("width", [1440, 393])
+def test_home_without_loaded_overview_is_distinct_from_observed_zero(theme, width):
+    port = 19200 + (10 if theme == "dark" else 0) + (1 if width == 393 else 0)
+    process, address = _start_server(port, dark=theme == "dark")
+    try:
+        with sync_playwright() as playwright:
+            browser, page = _start_page(playwright, address, width, 900)
+            status_card = page.locator("#realDataStatus")
+            expect(status_card).to_contain_text("carga el resumen")
+            status = status_card.inner_text()
+            assert "carga el resumen" in status
+            assert "Datos de Strava" not in status
+            assert "Demostración visual con datos ficticios" in page.locator(".notice").inner_text()
+            assert page.locator("#total").inner_text() == "128,4"
+            assert page.locator("#total").inner_text() != "0"
+            assert page.locator("#sessions .session").count() == 3
+            page.reload()
+            expect(status_card).to_contain_text("carga el resumen")
             browser.close()
     finally:
         _stop_server(process)

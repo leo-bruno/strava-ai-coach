@@ -1153,4 +1153,10 @@ Referencia de UI aprobada — el [diseño del dashboard](docs/design/dashboard.m
 
 ⸻
 
-Last updated: 9 November 2026
+Inicio puede mostrar, dentro del diseño aprobado, una instantánea de las siete semanas completas que el usuario haya cargado manualmente en Estadísticas durante la sesión: distancia, conteo Run, moving time, ritmo derivado, gráfico semanal y carreras recientes. Inicio no inicia llamadas a Strava; la instantánea temporal se descarta según las reglas existentes de expiración y cambio de zona horaria. Su cobertura no equivale al historial completo. Cuando se muestran datos reales, objetivo, plan/agenda y Coach sin fuente conectada se ocultan para evitar mezclar demostraciones. El gráfico adapta su escala al mayor valor semanal.
+
+El E2E determinista de Inicio cubre overview real, ceros observados y ausencia de overview (distinta de cero) en Chromium desktop/móvil simulado, temas claro/oscuro y tras recargar, incluyendo cobertura y escala superior a 15 km. La suite E2E de dashboard pasó 31/31 y AppTest/pruebas del adaptador 8/8. Safari/WebKit e iPhone real siguen pendientes.
+
+➡️ Próximo paso: validar visualmente Inicio con datos reales de sesión en desktop y móvil, ambos temas y estados sin datos/cero; posteriormente priorizar por separado fuentes reales para los demás módulos. No se implementa sincronización ni persistencia.
+
+Last updated: 13 November 2026

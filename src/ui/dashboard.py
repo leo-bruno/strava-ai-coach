@@ -1,5 +1,15 @@
 """Application navigation and the isolated Stride demonstration home."""
 
+from datetime import datetime
+
+from src.ui.strava_weekly_overview import (
+    WEEKLY_ACTIVITIES_KEY,
+    WEEKLY_ANALYSES_KEY,
+    WEEKLY_AS_OF_KEY,
+    WEEKLY_PERIOD_END_KEY,
+    WEEKLY_PERIOD_START_KEY,
+)
+
 from src.ui.stride_dashboard_component import render_stride_dashboard
 
 DASHBOARD_VIEW_KEY = "dashboard_view"
@@ -44,6 +54,39 @@ def render_dashboard_styles(ui) -> None:
     )
 
 
+def build_home_dashboard_data(session_state) -> dict:
+    """Serialize only the manually loaded weekly overview for the web component."""
+    analyses = session_state.get(WEEKLY_ANALYSES_KEY)
+    activities = session_state.get(WEEKLY_ACTIVITIES_KEY)
+    start = session_state.get(WEEKLY_PERIOD_START_KEY)
+    end = session_state.get(WEEKLY_PERIOD_END_KEY)
+    as_of = session_state.get(WEEKLY_AS_OF_KEY)
+    if not (isinstance(analyses, (tuple, list)) and len(analyses) == 7
+            and isinstance(activities, (tuple, list))
+            and isinstance(start, datetime) and isinstance(end, datetime)
+            and isinstance(as_of, datetime)):
+        return {"mode": "empty"}
+
+    return {
+        "mode": "weekly",
+        "periodStart": start.date().isoformat(),
+        "periodEnd": end.date().isoformat(),
+        "asOf": as_of.date().isoformat(),
+        "weeks": [{
+            "weekStart": week.week_start_date.isoformat(),
+            "distanceMeters": week.running_distance_meters,
+            "activityCount": week.running_activity_count,
+            "movingTimeSeconds": week.running_moving_time_seconds,
+        } for week in analyses],
+        "activities": [{
+            "name": activity.name,
+            "startDate": activity.start_date.isoformat(),
+            "distanceMeters": activity.distance_meters,
+            "movingTimeSeconds": activity.moving_time_seconds,
+        } for activity in activities],
+    }
+
+
 def render_dashboard_home(ui) -> None:
-    """Mount the prototype-based demo, isolated from Strava and Coach data."""
-    render_stride_dashboard()
+    """Mount the approved dashboard with the current session's weekly snapshot."""
+    render_stride_dashboard(build_home_dashboard_data(ui.session_state))

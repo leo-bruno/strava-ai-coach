@@ -6,6 +6,56 @@ export default function (component) {
   const container = $(".stride-root")
   if (!container || container.dataset.initialized === "true") return
   container.dataset.initialized = "true"
+  const data = component.data || { mode: "empty" }
+  const hasWeeklyData = data.mode === "weekly"
+  const weekly = hasWeeklyData ? data.weeks : []
+  const activities = hasWeeklyData ? data.activities : []
+  const totalDistance = weekly.reduce((sum, week) => sum + (Number.isFinite(week.distanceMeters) ? week.distanceMeters : 0), 0)
+  const totalTime = weekly.reduce((sum, week) => sum + (Number.isFinite(week.movingTimeSeconds) ? week.movingTimeSeconds : 0), 0)
+  const totalCount = weekly.reduce((sum, week) => sum + (Number.isFinite(week.activityCount) ? week.activityCount : 0), 0)
+
+  function setBigValue(id, value) {
+    const target = $(`#${id}`)
+    if (target) target.textContent = value
+  }
+
+  function renderRealData() {
+    const status = $("#realDataStatus")
+    const notice = $(".notice")
+    if (!hasWeeklyData) {
+      container.dataset.dataMode = "demo"
+      status.hidden = false
+      status.textContent = "Conecta Strava y carga el resumen de siete semanas en Estadísticas para ver aquí tus datos. Esta pantalla conserva módulos de demostración."
+      return
+    }
+    container.dataset.dataMode = "weekly"
+    $(".goal").hidden = true
+    $$(".delta").forEach(item => { item.hidden = true })
+    $(".legend").children[1]?.setAttribute("hidden", "")
+    $("#goalLine").setAttribute("hidden", "")
+    $("#plan").hidden = true
+    $(".insight").hidden = true
+    $(".stride-root aside .coach").hidden = true
+    $(".mobile-nav [data-view='plan']")?.setAttribute("hidden", "")
+    $(".mobile-nav [data-action='open-chat']")?.setAttribute("hidden", "")
+    $("header .muted").textContent = "Datos de Strava · resumen semanal"
+    $("#period").replaceChildren(new Option("Siete semanas", "week"))
+    status.hidden = false
+    status.textContent = `Datos de Strava · ${new Date(`${data.periodStart}T00:00:00`).toLocaleDateString("es-ES")} – ${new Date(`${data.periodEnd}T00:00:00`).toLocaleDateString("es-ES")} · Consultado ${new Date(`${data.asOf}T00:00:00`).toLocaleDateString("es-ES")}. Solo incluye las siete semanas completas consultadas; no es el historial completo.`
+    setBigValue("total", (totalDistance / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 }))
+    const moving = `${Math.floor(totalTime / 3600)} h ${Math.floor(totalTime % 3600 / 60)} min`
+    const timeValue = $("#movingTime")
+    if (timeValue) timeValue.textContent = moving
+    const countValue = $("#runCount")
+    if (countValue) countValue.textContent = `${totalCount} carreras en el periodo`
+    const pace = totalDistance > 0 && totalTime > 0 ? Math.round(totalTime / (totalDistance / 1000)) : null
+    const paceValue = $("#pace")
+    if (paceValue) paceValue.textContent = pace === null ? "—" : `${Math.floor(pace / 60)}:${String(pace % 60).padStart(2, "0")}`
+    const paceNote = $("#paceNote")
+    if (paceNote) paceNote.textContent = pace === null ? "No disponible con estos datos" : "Ritmo derivado del total del periodo"
+    if (notice) notice.textContent = "Los datos del resumen de Strava cubren solo el periodo indicado. Plan, agenda y entrenador siguen siendo demostraciones."
+    renderRuns()
+  }
 
   const defaults = [
     { title: "Rodaje por el Retiro", distance: 8.2, minutes: 44, date: "Hoy · 07:15" },
@@ -50,7 +100,11 @@ export default function (component) {
   function renderRuns() {
     const list = $("#sessions")
     list.replaceChildren()
-    defaults.forEach(run => {
+    const runs = hasWeeklyData ? [...activities].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 3).map(activity => ({
+      title: activity.name, date: new Date(activity.startDate).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+      distance: activity.distanceMeters / 1000, minutes: Math.round(activity.movingTimeSeconds / 60),
+    })) : defaults
+    runs.forEach(run => {
       const row = document.createElement("div")
       row.className = "session"
       const icon = document.createElement("div")
@@ -72,12 +126,23 @@ export default function (component) {
       row.append(icon, info, numbers)
       list.append(row)
     })
+    if (hasWeeklyData && runs.length === 0) {
+      const empty = document.createElement("p")
+      empty.className = "muted"
+      empty.textContent = "No hay carreras en el periodo consultado."
+      list.append(empty)
+    }
   }
 
   function renderChart() {
     const month = $("#period").value === "month"
-    const values = month ? [150, 120, 135, 65, 100, 35, 55] : [150, 130, 150, 70, 100, 40, 65]
-    const points = values.map((y, index) => [35 + index * 90, y])
+    const values = hasWeeklyData ? weekly.map(week => week.distanceMeters / 1000) : month ? [15, 12, 13.5, 6.5, 10, 3.5, 5.5] : [15, 13, 15, 7, 10, 4, 6.5]
+    const maxValue = Math.max(1, ...values)
+    const points = values.map((value, index) => [35 + index * 90, 185 - (value / maxValue) * 150])
+    const tickLabels = [maxValue, maxValue * 2 / 3, maxValue / 3, 0]
+    $$(".chart g[font-size='10'] text").forEach((label, index) => {
+      label.textContent = tickLabels[index].toLocaleString("es-ES", { maximumFractionDigits: 1 })
+    })
     const path = points.map((point, index) => `${index ? "L" : "M"}${point.join(" ")}`).join(" ")
     $("#line").setAttribute("d", path)
     $("#area").setAttribute("d", `${path}L575 185H35Z`)
@@ -91,7 +156,7 @@ export default function (component) {
       point.setAttribute("stroke-width", "2")
       return point
     }))
-    const labels = month
+    const labels = hasWeeklyData ? weekly.map(week => new Date(`${week.weekStart}T00:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" })) : month
       ? ["1 nov", "5 nov", "10 nov", "15 nov", "20 nov", "25 nov", "30 nov"]
       : ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     $("#axis").replaceChildren(...labels.map(label => {
@@ -258,6 +323,7 @@ export default function (component) {
     }
   }
 
+  renderRealData()
   renderRuns()
   renderChart()
   $$(".day")[2].click()
